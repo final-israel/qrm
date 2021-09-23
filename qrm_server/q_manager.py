@@ -1,12 +1,17 @@
+import aioredis
 import asyncio
-import logging
 import json
+import logging
 
 
-class EchoServerProtocol(asyncio.Protocol):
+class QueueManager(asyncio.Protocol):
     def __init__(self):
         self.transport = None
         self.client_name = ''                       # type: str
+        self.redis = aioredis.from_url(
+            "redis://localhost", encoding="utf-8", decode_responses=True
+        )
+        self.loop = asyncio.get_running_loop()
 
     def connection_made(self, transport: asyncio.BaseTransport) -> None:
         peer_name = transport.get_extra_info('peername')
@@ -35,7 +40,7 @@ async def main():
     loop = asyncio.get_running_loop()
 
     server = await loop.create_server(
-        lambda: EchoServerProtocol(),
+        lambda: QueueManager(),
         '127.0.0.1', 8888)
 
     async with server:
