@@ -48,7 +48,7 @@ async def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
     try:
         asyncio.run(main(), debug=True)
     except KeyboardInterrupt as e:
