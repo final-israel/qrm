@@ -1,3 +1,4 @@
+import time
 import aioredis
 import asyncio
 import json
@@ -9,6 +10,7 @@ from typing import Dict, List
 
 
 SERVER_STATUS_IN_DB = 'qrm_status'
+ACTIVE_STATUS = 'active'
 
 
 class RedisDB(QrmBaseDB):
@@ -16,11 +18,19 @@ class RedisDB(QrmBaseDB):
         self.redis = aioredis.from_url(
             f"redis://localhost:{redis_port}", encoding="utf-8", decode_responses=True
         )
-        self.init_default_params()
 
-    def init_default_params(self) -> None:
+    def init_params_blocking(self) -> None:
+        asyncio.ensure_future(self.set_qrm_status(status=ACTIVE_STATUS))
+        return
+
+    async def init_default_params(self) -> None:
         # TODO: validate if redis db already exists on server before init parameters
-        task = asyncio.ensure_future(self.set_qrm_status(status='active'))
+        await self.set_qrm_status(status=ACTIVE_STATUS)
+
+    async def wait_for_db_status(self, status: str) -> None:
+        while await self.get_qrm_status() != status:
+            await asyncio.sleep(1)
+        return
 
     async def get_all_keys_by_pattern(self, pattern: str = None) -> List[str]:
         result = []
@@ -59,7 +69,7 @@ class RedisDB(QrmBaseDB):
             return False
         return await self.redis.set(SERVER_STATUS_IN_DB, status)
 
-    async def get_qrm_status(self) -> None:
+    async def get_qrm_status(self) -> str:
         return await self.redis.get(SERVER_STATUS_IN_DB)
 
     @staticmethod
@@ -77,5 +87,5 @@ class RedisDB(QrmBaseDB):
             ret_list.append(json.loads(job))
         return ret_list
 
-    def __del__(self):
-        self.redis.close()
+    # def __del__(self):
+    #     self.redis.close()

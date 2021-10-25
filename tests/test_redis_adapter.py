@@ -1,3 +1,6 @@
+import asyncio
+import time
+
 import pytest
 import subprocess
 import qrm_db
@@ -71,16 +74,20 @@ async def test_add_job_to_resource(redis_db_object):
 
 @pytest.mark.asyncio
 async def test_set_qrm_status(redis_db_object):
+    time.sleep(0.1)
     await redis_db_object.set_qrm_status(status='disabled')
+    time.sleep(0.1)
     assert 'disabled' == await redis_db_object.get_qrm_status()
 
 
 @pytest.mark.asyncio
 async def test_server_status_default_value(redis_db_object):
+    time.sleep(0.1)
     assert 'active' == await redis_db_object.get_qrm_status()
 
 
 @pytest.mark.asyncio
 async def test_set_qrm_status_not_allowed_status(redis_db_object):
     assert not await redis_db_object.set_qrm_status(status='foo')
+    time.sleep(0.1)
     assert 'active' == await redis_db_object.get_qrm_status()

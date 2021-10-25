@@ -51,5 +51,5 @@ class QrmBaseDB(ABC):
         pass
 
     @abstractmethod
-    async def get_qrm_status(self) -> None:
+    async def get_qrm_status(self) -> str:
         pass

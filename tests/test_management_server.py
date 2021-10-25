@@ -1,4 +1,9 @@
 import json
+import time
+
+import pytest
+
+import redis_adapter
 from qrm_server import management_server
 
 
@@ -20,7 +25,9 @@ async def test_remove_resource(post_to_mgmt_server, redis_db_object):
 
 
 async def test_remove_resource_from_db(post_to_mgmt_server, redis_db_object):
+    await redis_db_object.get_qrm_status()
     await redis_db_object.add_resource(resource_name='resource_2')
+    await redis_db_object.get_qrm_status()
     await redis_db_object.add_resource(resource_name='resource_3')
     resp = await post_to_mgmt_server.post(management_server.REMOVE_RESOURCES, data=json.dumps(['resource_2']))
     all_resources = await redis_db_object.get_all_resources()
