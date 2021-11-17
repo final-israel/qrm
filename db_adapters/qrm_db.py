@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from qrm_server.resource_definition import Resource
+from typing import List
 
 RESOURCE_NAME_PREFIX = 'resource_name'
 RESOURCE_STATUS_PREFIX = 'resource_status'
@@ -6,6 +8,8 @@ ALLOWED_SERVER_STATUSES = ['active', 'disabled']
 
 
 def get_resource_name_in_db(resource_name: str) -> str:
+    if resource_name.startswith(RESOURCE_NAME_PREFIX):
+        return resource_name
     return f'{RESOURCE_NAME_PREFIX}_{resource_name}'
 
 
@@ -52,4 +56,12 @@ class QrmBaseDB(ABC):
 
     @abstractmethod
     async def get_qrm_status(self) -> str:
+        pass
+
+    @abstractmethod
+    async def is_resource_exists(self, resource_name: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def remove_job(self, job_id: int, resources_list: List[str] = None) -> None:
         pass

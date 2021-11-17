@@ -1,7 +1,10 @@
 import asyncio
+import json
 import logging
 
 from aiohttp import web
+
+import qrm_db
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
 from qrm_db import RESOURCE_NAME_PREFIX
@@ -12,6 +15,8 @@ STATUS = '/status'
 SET_SERVER_STATUS = '/set_server_status'
 REMOVE_RESOURCES = '/remove_resources'
 ADD_RESOURCES = '/add_resources'
+SET_RESOURCE_STATUS = '/set_resource_status'
+ADD_JOB_TO_RESOURCE = '/add_job_to_resource'
 REDIS_PORT = 6379
 
 
@@ -21,8 +26,11 @@ async def add_resources(request) -> web.Response:
     resources_list_request = await request.json()
     logging.info(f'got request to add the following resources to DB: {resources_list_request}')
     new_resources = await add_resources_to_db(resources_list_request)
+    if not new_resources:
+        return web.Response(status=HTTPStatus.OK,
+                            text=f'didn\'t add any resource, check if the resource already exists\n')
     return web.Response(status=HTTPStatus.OK,
-                        reason=f'added the following resources: {new_resources}\n')
+                        text=f'added the following resources: {new_resources}\n')
 
 
 async def add_resources_to_db(resources_list_request) -> list:
@@ -35,8 +43,9 @@ async def add_resources_to_db(resources_list_request) -> list:
 
 
 async def add_single_resource_with_validation(all_db_resources, new_resources, redis, resource_name) -> None:
-    if resource_name in all_db_resources:
+    if qrm_db.get_resource_name_in_db(resource_name) in all_db_resources:
         logging.error(f'resource {resource_name} already in DB, ignoring it')
+        return
     else:
         await redis.add_resource(resource_name)  # init the resource as list
         new_resources.append(resource_name)
@@ -53,7 +62,7 @@ async def remove_resources(request) -> web.Response:
         removed_list.append(resource_name)
         logging.info(f'removed resource {resource_name}')
     return web.Response(status=HTTPStatus.OK,
-                        reason=f'removed the following resources: {removed_list}\n')
+                        text=f'removed the following resources: {removed_list}\n')
 
 
 async def set_server_status(request) -> web.Response:
@@ -66,13 +75,13 @@ async def set_server_status(request) -> web.Response:
         req_status = req_dict['status']
         if await redis.set_qrm_status(req_status):
             return web.Response(status=HTTPStatus.OK,
-                                reason=f'mew server status is: {req_status}\n')
+                                text=f'mew server status is: {req_status}\n')
         else:
             return web.Response(status=HTTPStatus.BAD_REQUEST,
-                                reason=f'requested status is not allowed: {req_status}\n')
+                                text=f'requested status is not allowed: {req_status}\n')
     except KeyError as e:
         return web.Response(status=HTTPStatus.BAD_REQUEST,
-                            reason=f'must specify the status in your request: {req_dict}\n')
+                            text=f'must specify the status in your request: {req_dict}\n')
 
 
 async def status(request):
@@ -111,7 +120,50 @@ async def remove_job(request):
     # remove the requested job from the tasks queue
     global redis
     req_dict = await request.json()
-    pass
+    try:
+        job_id = req_dict['id']
+        resources_list = req_dict.get('resources')
+        await redis.remove_job(job_id, resources_list)
+        return web.Response(status=HTTPStatus.OK, text=f'removed job: {req_dict}\n')
+    except KeyError as e:
+        return web.Response(status=HTTPStatus.BAD_REQUEST,
+                            text=f'Error: "id" is a mandatory key: {req_dict}\n')
+
+
+async def set_resource_status(request):
+    # to enable: {resource_name: str, status: 'active'}
+    # to disable: {resource_name: str, status: 'disabled'}
+    global redis
+    req_dict = await request.json()
+    logging.info(f'got request to change resource status: {req_dict}')
+    try:
+        req_status = req_dict['status']
+        resource_name = req_dict['resource_name']
+        if await redis.set_resource_status(resource_name=resource_name, status=req_status):
+            return web.Response(status=HTTPStatus.OK,
+                                text=f'mew resource status is: {req_status}\n')
+        else:
+            return web.Response(status=HTTPStatus.BAD_REQUEST,
+                                text=f'Error: resource {resource_name} does not exist or status is not allowed\n')
+    except KeyError as e:
+        return web.Response(status=HTTPStatus.BAD_REQUEST,
+                            text=f'Error: must specify both status and resource_name in your request: {req_dict}\n')
+
+
+async def add_job_to_resource(request):
+    global redis
+    req_dict = await request.json()
+    try:
+        resource_name = req_dict['resource_name']
+        job = req_dict['job']
+        if await redis.add_job_to_resource(resource_name=resource_name, job=job):
+            return web.Response(status=HTTPStatus.OK, text=f'added job: {job} to resource: {resource_name}\n')
+        else:
+            return web.Response(status=HTTPStatus.BAD_REQUEST,
+                                text=f'Error: resource {resource_name} does not exist or job is not dict: {job}\n')
+    except KeyError as e:
+        return web.Response(status=HTTPStatus.BAD_REQUEST,
+                            text=f'Error: must specify both job and resource_name in your request: {req_dict}\n')
 
 
 def main(redis_port: int = REDIS_PORT):
@@ -121,7 +173,9 @@ def main(redis_port: int = REDIS_PORT):
                     web.post(f'{REMOVE_RESOURCES}', remove_resources),
                     web.post(f'{SET_SERVER_STATUS}', set_server_status),
                     web.get(f'{STATUS}', status),
-                    web.post(f'{REMOVE_JOB}', remove_job)])
+                    web.post(f'{REMOVE_JOB}', remove_job),
+                    web.post(f'{SET_RESOURCE_STATUS}', set_resource_status),
+                    web.post(f'{ADD_JOB_TO_RESOURCE}', add_job_to_resource)])
     web.run_app(app)
 
 

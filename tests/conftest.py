@@ -30,4 +30,7 @@ def post_to_mgmt_server(loop, aiohttp_client):
     app.router.add_post(management_server.REMOVE_RESOURCES, management_server.remove_resources)
     app.router.add_get(management_server.STATUS, management_server.status)
     app.router.add_post(management_server.SET_SERVER_STATUS, management_server.set_server_status)
+    app.router.add_post(management_server.SET_RESOURCE_STATUS, management_server.set_resource_status)
+    app.router.add_post(management_server.ADD_JOB_TO_RESOURCE, management_server.add_job_to_resource)
+    app.router.add_post(management_server.REMOVE_JOB, management_server.remove_job)
     yield loop.run_until_complete(aiohttp_client(app))

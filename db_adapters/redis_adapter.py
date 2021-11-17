@@ -42,6 +42,9 @@ class RedisDB(QrmBaseDB):
         return await self.get_all_keys_by_pattern(f'{RESOURCE_NAME_PREFIX}*')
 
     async def add_resource(self, resource_name: str) -> None:
+        if qrm_db.get_resource_name_in_db(resource_name) in await self.get_all_resources():
+            logging.warning(f'resource {resource_name} already exists')
+            return
         await self.redis.rpush(qrm_db.get_resource_name_in_db(resource_name), json.dumps({}))
 
     async def remove_resource(self, resource_name: str) -> bool:
@@ -52,7 +55,10 @@ class RedisDB(QrmBaseDB):
         return False
 
     async def set_resource_status(self, resource_name: str, status: str) -> bool:
-        return await self.redis.set(qrm_db.get_resource_status_in_db(resource_name), status)
+        if await self.is_resource_exists(resource_name):
+            return await self.redis.set(qrm_db.get_resource_status_in_db(resource_name), status)
+        else:
+            return False
 
     async def get_resource_status(self, resource_name: str) -> str:
         return await self.redis.get(qrm_db.get_resource_status_in_db(resource_name))
@@ -71,6 +77,32 @@ class RedisDB(QrmBaseDB):
 
     async def get_qrm_status(self) -> str:
         return await self.redis.get(SERVER_STATUS_IN_DB)
+
+    async def is_resource_exists(self, resource_name: str) -> bool:
+        return qrm_db.get_resource_name_in_db(resource_name) in await self.get_all_resources()
+
+    async def remove_job(self, job_id: int, resources_list: List[str] = None) -> None:
+        """
+        this method remove job by it's id from list of resources or from all the resources in the DB
+        :param job_id: the unique job id
+        :param resources_list: list of all resources names to remove the job from.
+        if this param is None, the job will be removed from all resources in the DB
+        :return: True if
+        """
+        if not resources_list:  # in this case remove the job from all the resources
+            resources_list = await self.get_all_resources()
+        for resource in resources_list:
+            job = await self.get_job_for_resource_by_id(resource, job_id)
+            if not job:
+                return
+            resource_name_in_db = qrm_db.get_resource_name_in_db(resource)
+            await self.redis.lrem(resource_name_in_db, 1, job)
+
+    async def get_job_for_resource_by_id(self, resource_name: str, job_id: int) -> str:
+        resource_jobs = await self.get_resource_jobs(resource_name)
+        for job in resource_jobs:
+            if job['id'] == job_id:
+                return json.dumps(job)
 
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:
