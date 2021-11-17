@@ -5,6 +5,7 @@ from aiohttp import web
 from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
+from qrm_server.resource_definition import Resource
 
 
 REDIS_PORT = 6379
@@ -12,6 +13,16 @@ REDIS_PORT = 6379
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
+
+
+@pytest.fixture(scope='session')
+def resource_foo() -> Resource:
+    return Resource(name='foo', type='server')
+
+
+@pytest.fixture(scope='session')
+def resource_bar() -> Resource:
+    return Resource(name='bar', type='server')
 
 
 @pytest.fixture(scope='function')

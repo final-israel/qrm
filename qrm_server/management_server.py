@@ -7,7 +7,7 @@ from aiohttp import web
 import qrm_db
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
-from qrm_db import RESOURCE_NAME_PREFIX
+from qrm_server.resource_definition import RESOURCE_NAME_PREFIX
 
 
 REMOVE_JOB = '/remove_job'

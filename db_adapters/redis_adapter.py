@@ -4,8 +4,9 @@ import asyncio
 import json
 import logging
 import qrm_db
+from qrm_server.resource_definition import Resource, RESOURCE_NAME_PREFIX, ALLOWED_SERVER_STATUSES
 
-from qrm_db import QrmBaseDB, RESOURCE_NAME_PREFIX, ALLOWED_SERVER_STATUSES
+from qrm_db import QrmBaseDB
 from typing import Dict, List
 
 
@@ -32,42 +33,41 @@ class RedisDB(QrmBaseDB):
             await asyncio.sleep(1)
         return
 
-    async def get_all_keys_by_pattern(self, pattern: str = None) -> List[str]:
+    async def get_all_keys_by_pattern(self, pattern: str = None) -> List[Resource]:
         result = []
         async for key in self.redis.scan_iter(pattern):
             result.append(key)
         return result
 
-    async def get_all_resources(self) -> List[str]:
+    async def get_all_resources(self) -> List[Resource]:
         return await self.get_all_keys_by_pattern(f'{RESOURCE_NAME_PREFIX}*')
 
-    async def add_resource(self, resource_name: str) -> None:
-        if qrm_db.get_resource_name_in_db(resource_name) in await self.get_all_resources():
-            logging.warning(f'resource {resource_name} already exists')
+    async def add_resource(self, resource: Resource) -> None:
+        if resource.db_name() in await self.get_all_resources():
+            logging.warning(f'resource {resource.name} already exists')
             return
-        await self.redis.rpush(qrm_db.get_resource_name_in_db(resource_name), json.dumps({}))
+        await self.redis.rpush(resource.db_name(), json.dumps({}))
 
-    async def remove_resource(self, resource_name: str) -> bool:
-        resource_name_db = qrm_db.get_resource_name_in_db(resource_name)
-        if await self.redis.delete(resource_name_db):
+    async def remove_resource(self, resource: Resource) -> bool:
+        if await self.redis.delete(resource.db_name()):
             return True
-        logging.error(f'resource: {resource_name_db} doesn\'t exists in db')
+        logging.error(f'resource: {resource.name} doesn\'t exists in db')
         return False
 
-    async def set_resource_status(self, resource_name: str, status: str) -> bool:
-        if await self.is_resource_exists(resource_name):
-            return await self.redis.set(qrm_db.get_resource_status_in_db(resource_name), status)
+    async def set_resource_status(self, resource: Resource, status: str) -> bool:
+        if await self.is_resource_exists(resource):
+            return await self.redis.set(resource.db_status(), status)
         else:
             return False
 
-    async def get_resource_status(self, resource_name: str) -> str:
-        return await self.redis.get(qrm_db.get_resource_status_in_db(resource_name))
+    async def get_resource_status(self, resource: Resource) -> str:
+        return await self.redis.get(resource.db_status())
 
-    async def add_job_to_resource(self, resource_name: str, job: dict) -> bool:
-        return await self.redis.lpush(qrm_db.get_resource_name_in_db(resource_name), json.dumps(job))
+    async def add_job_to_resource(self, resource: Resource, job: dict) -> bool:
+        return await self.redis.lpush(resource.db_name(), json.dumps(job))
 
-    async def get_resource_jobs(self, resource_name: str) -> List[Dict]:
-        all_jobs = await self.redis.lrange(qrm_db.get_resource_name_in_db(resource_name), 0, -1)
+    async def get_resource_jobs(self, resource: Resource) -> List[Dict]:
+        all_jobs = await self.redis.lrange(resource.db_name(), 0, -1)
         return self.build_resource_jobs_as_dicts(all_jobs)
 
     async def set_qrm_status(self, status: str) -> bool:
@@ -78,10 +78,10 @@ class RedisDB(QrmBaseDB):
     async def get_qrm_status(self) -> str:
         return await self.redis.get(SERVER_STATUS_IN_DB)
 
-    async def is_resource_exists(self, resource_name: str) -> bool:
-        return qrm_db.get_resource_name_in_db(resource_name) in await self.get_all_resources()
+    async def is_resource_exists(self, resource: Resource) -> bool:
+        return resource.db_name() in await self.get_all_resources()
 
-    async def remove_job(self, job_id: int, resources_list: List[str] = None) -> None:
+    async def remove_job(self, job_id: int, resources_list: List[Resource] = None) -> None:
         """
         this method remove job by it's id from list of resources or from all the resources in the DB
         :param job_id: the unique job id
@@ -95,11 +95,10 @@ class RedisDB(QrmBaseDB):
             job = await self.get_job_for_resource_by_id(resource, job_id)
             if not job:
                 return
-            resource_name_in_db = qrm_db.get_resource_name_in_db(resource)
-            await self.redis.lrem(resource_name_in_db, 1, job)
+            await self.redis.lrem(resource.db_name(), 1, job)
 
-    async def get_job_for_resource_by_id(self, resource_name: str, job_id: int) -> str:
-        resource_jobs = await self.get_resource_jobs(resource_name)
+    async def get_job_for_resource_by_id(self, resource: Resource, job_id: int) -> str:
+        resource_jobs = await self.get_resource_jobs(resource)
         for job in resource_jobs:
             if job['id'] == job_id:
                 return json.dumps(job)
