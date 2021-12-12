@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import time
 import pytest
@@ -48,7 +49,8 @@ async def test_get_all_resources(redis_db_object, resource_foo, resource_bar):
     await redis_db_object.add_resource(resource_bar)
     result = await redis_db_object.get_all_resources()
     assert len(result) == 2
-    assert f'{resource_foo.db_name()}' in result
+    assert resource_foo in result
+    assert resource_bar in result
 
 
 @pytest.mark.asyncio
@@ -154,5 +156,16 @@ async def test_remove_job_from_all_resources_in_db(redis_db_object, resource_foo
 
 
 @pytest.mark.asyncio
-async def test_add_existing_resource(redis_db_object):
-    assert False
+async def test_add_existing_resource(redis_db_object, resource_foo):
+    await redis_db_object.add_resource(resource_foo)
+    assert not await redis_db_object.add_resource(resource_foo)
+
+
+@pytest.mark.asyncio
+async def test_equal_operator_resource(redis_db_object, resource_foo):
+    resource_bar = copy.deepcopy(resource_foo)
+    assert resource_bar == resource_foo
+    resource_bar.status = 'something'
+    assert resource_bar == resource_foo
+    resource_bar.name = 'different_name'
+    assert not resource_foo == resource_bar

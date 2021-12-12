@@ -4,11 +4,13 @@ import asyncio
 import json
 import logging
 import qrm_db
+from qrm_server import resource_definition
 from qrm_server.resource_definition import Resource, RESOURCE_NAME_PREFIX, ALLOWED_SERVER_STATUSES
 
 from qrm_db import QrmBaseDB
 from typing import Dict, List
 
+ALL_RESOURCES = 'all_resources'
 
 SERVER_STATUS_IN_DB = 'qrm_status'
 ACTIVE_STATUS = 'active'
@@ -40,28 +42,52 @@ class RedisDB(QrmBaseDB):
         return result
 
     async def get_all_resources(self) -> List[Resource]:
-        return await self.get_all_keys_by_pattern(f'{RESOURCE_NAME_PREFIX}*')
+        # return await self.get_all_keys_by_pattern(f'{RESOURCE_NAME_PREFIX}*')
+        resources_list = []
+        try:
+            all_db_resources = await self.redis.hgetall(ALL_RESOURCES)
+            for resource in all_db_resources.values():
+                resources_list.append(resource_definition.load_from_json(resource))
+        except ValueError as e:
+            if 'too many values to unpack' in e.args[0]:
+                pass
+            else:
+                raise e
+        return resources_list
 
-    async def add_resource(self, resource: Resource) -> None:
-        if resource.db_name() in await self.get_all_resources():
-            logging.warning(f'resource {resource.name} already exists')
-            return
+    async def get_all_resources_dict(self) -> Dict[str, Resource]:
+        return await self.redis.hgetall(ALL_RESOURCES)
+
+    async def add_resource(self, resource: Resource) -> bool:
+        all_resources = await self.get_all_resources()
+        if all_resources:
+            if resource in all_resources:
+                logging.warning(f'resource {resource.name} already exists')
+                return False
+        await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
         await self.redis.rpush(resource.db_name(), json.dumps({}))
+        return True
 
     async def remove_resource(self, resource: Resource) -> bool:
-        if await self.redis.delete(resource.db_name()):
+        if await self.redis.delete(resource.db_name()) and await self.redis.hdel(ALL_RESOURCES, resource.name):
             return True
         logging.error(f'resource: {resource.name} doesn\'t exists in db')
         return False
 
     async def set_resource_status(self, resource: Resource, status: str) -> bool:
-        if await self.is_resource_exists(resource):
-            return await self.redis.set(resource.db_status(), status)
+        all_resources_dict = await self.get_all_resources_dict()
+        if all_resources_dict.get(resource.name):
+            resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
+            resource_obj = resource_definition.load_from_json(resource_json)
+            resource_obj.status = status
+            return not await self.redis.hset(ALL_RESOURCES, resource.name, resource_obj.as_json())
         else:
             return False
 
     async def get_resource_status(self, resource: Resource) -> str:
-        return await self.redis.get(resource.db_status())
+        resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
+        resource_obj = resource_definition.load_from_json(resource_json)
+        return resource_obj.status
 
     async def add_job_to_resource(self, resource: Resource, job: dict) -> bool:
         return await self.redis.lpush(resource.db_name(), json.dumps(job))
@@ -79,7 +105,7 @@ class RedisDB(QrmBaseDB):
         return await self.redis.get(SERVER_STATUS_IN_DB)
 
     async def is_resource_exists(self, resource: Resource) -> bool:
-        return resource.db_name() in await self.get_all_resources()
+        return resource in await self.get_all_resources()
 
     async def remove_job(self, job_id: int, resources_list: List[Resource] = None) -> None:
         """

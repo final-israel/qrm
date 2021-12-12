@@ -1,13 +1,10 @@
 import asyncio
-import json
 import logging
 
 from aiohttp import web
-
-import qrm_db
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
-from qrm_server.resource_definition import RESOURCE_NAME_PREFIX
+from qrm_server.resource_definition import Resource, load_from_json
 
 
 REMOVE_JOB = '/remove_job'
@@ -37,18 +34,20 @@ async def add_resources_to_db(resources_list_request) -> list:
     global redis
     all_db_resources = await redis.get_all_resources()
     new_resources = []
-    for resource_name in resources_list_request:
-        await add_single_resource_with_validation(all_db_resources, new_resources, redis, resource_name)
+    for resource in resources_list_request:
+        await add_single_resource_with_validation(all_db_resources, new_resources, redis, Resource(**resource))
     return new_resources
 
 
-async def add_single_resource_with_validation(all_db_resources, new_resources, redis, resource_name) -> None:
-    if qrm_db.get_resource_name_in_db(resource_name) in all_db_resources:
-        logging.error(f'resource {resource_name} already in DB, ignoring it')
+async def add_single_resource_with_validation(all_db_resources, new_resources,
+                                              redis: RedisDB, resource: Resource) -> None:
+    if await redis.is_resource_exists(resource) in all_db_resources:
+        logging.error(f'resource {resource} already in DB, ignoring it')
         return
     else:
-        await redis.add_resource(resource_name)  # init the resource as list
-        new_resources.append(resource_name)
+
+        await redis.add_resource(resource)  # init the resource as list
+        new_resources.append(resource)
 
 
 async def remove_resources(request) -> web.Response:
@@ -57,10 +56,10 @@ async def remove_resources(request) -> web.Response:
     resources_list = await request.json()
     logging.info(f'got request to remove the following resources from DB: {resources_list}')
     removed_list = []
-    for resource_name in resources_list:
-        await redis.remove_resource(resource_name)
-        removed_list.append(resource_name)
-        logging.info(f'removed resource {resource_name}')
+    for resource_dict in resources_list:
+        await redis.remove_resource(Resource(**resource_dict))
+        removed_list.append(resource_dict)
+        logging.info(f'removed resource {resource_dict}')
     return web.Response(status=HTTPStatus.OK,
                         text=f'removed the following resources: {removed_list}\n')
 
@@ -107,12 +106,9 @@ async def build_status_dict():
             }
     }
     for resource in await redis.get_all_resources():
-        resource_name = resource.split(f'{RESOURCE_NAME_PREFIX}_')[-1]
-        status_dict['resources_status'][resource_name] = {}
-        status_dict['resources_status'][resource_name]['status'] = \
-            await redis.get_resource_status(resource_name)
-        status_dict['resources_status'][resource_name]['jobs'] = \
-            await redis.get_resource_jobs(resource_name=resource_name)
+        status_dict['resources_status'][resource.name] = {}
+        status_dict['resources_status'][resource.name]['status'] = await redis.get_resource_status(resource)
+        status_dict['resources_status'][resource.name]['jobs'] = await redis.get_resource_jobs(resource)
     return status_dict
 
 
@@ -123,7 +119,12 @@ async def remove_job(request):
     try:
         job_id = req_dict['id']
         resources_list = req_dict.get('resources')
-        await redis.remove_job(job_id, resources_list)
+        all_resources_dict = await redis.get_all_resources_dict()
+        resources_list_obj = []
+        for resource_name in resources_list:
+            resource = all_resources_dict.get(resource_name)
+            resources_list_obj.append(load_from_json(resource))
+        await redis.remove_job(job_id, resources_list_obj)
         return web.Response(status=HTTPStatus.OK, text=f'removed job: {req_dict}\n')
     except KeyError as e:
         return web.Response(status=HTTPStatus.BAD_REQUEST,
@@ -139,12 +140,17 @@ async def set_resource_status(request):
     try:
         req_status = req_dict['status']
         resource_name = req_dict['resource_name']
-        if await redis.set_resource_status(resource_name=resource_name, status=req_status):
+        all_resources_dict = await redis.get_all_resources_dict()
+        resource = all_resources_dict.get(resource_name)
+        if not resource:
+            return web.Response(status=HTTPStatus.BAD_REQUEST,
+                                text=f'Error: resource {resource_name} does not exist or status is not allowed\n')
+        if await redis.set_resource_status(resource=load_from_json(resource), status=req_status):
             return web.Response(status=HTTPStatus.OK,
                                 text=f'mew resource status is: {req_status}\n')
         else:
-            return web.Response(status=HTTPStatus.BAD_REQUEST,
-                                text=f'Error: resource {resource_name} does not exist or status is not allowed\n')
+            return web.Response(status=HTTPStatus.INTERNAL_SERVER_ERROR,
+                                text=f'couldn\'t update resource status for: {resource_name}, check server logs')
     except KeyError as e:
         return web.Response(status=HTTPStatus.BAD_REQUEST,
                             text=f'Error: must specify both status and resource_name in your request: {req_dict}\n')
@@ -155,8 +161,10 @@ async def add_job_to_resource(request):
     req_dict = await request.json()
     try:
         resource_name = req_dict['resource_name']
+        all_resources_dict = await redis.get_all_resources_dict()
+        resource = all_resources_dict.get(resource_name)
         job = req_dict['job']
-        if await redis.add_job_to_resource(resource_name=resource_name, job=job):
+        if await redis.add_job_to_resource(resource=load_from_json(resource), job=job):
             return web.Response(status=HTTPStatus.OK, text=f'added job: {job} to resource: {resource_name}\n')
         else:
             return web.Response(status=HTTPStatus.BAD_REQUEST,

@@ -1,42 +1,46 @@
 import json
 import time
-
 import pytest
-
 import redis_adapter
 from qrm_server import management_server
+from qrm_server.resource_definition import Resource
+
+
+RESOURCE_1 = {'name': 'resource_1', 'type': 'server'}
+RESOURCE_2 = {'name': 'resource_2', 'type': 'server'}
+RESOURCE_3 = {'name': 'resource_3', 'type': 'server'}
 
 
 async def test_add_resource(post_to_mgmt_server, redis_db_object):
-    resp = await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps(['resource_1']))
+    resp = await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([RESOURCE_1]))
     assert resp.status == 200
 
 
 async def test_resource_added_to_db(post_to_mgmt_server, redis_db_object):
-    await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps(['resource_2']))
+    await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([RESOURCE_1]))
     all_resources = await redis_db_object.get_all_resources()
     assert len(all_resources) == 1
 
 
-async def test_remove_resource(post_to_mgmt_server, redis_db_object):
-    await redis_db_object.add_resource(resource_name='resource_3')
-    resp = await post_to_mgmt_server.post(management_server.REMOVE_RESOURCES, data=json.dumps(['resource_2']))
+async def test_remove_resource(post_to_mgmt_server, redis_db_object, resource_foo):
+    await redis_db_object.add_resource(resource_foo)
+    resp = await post_to_mgmt_server.post(management_server.REMOVE_RESOURCES, data=json.dumps([RESOURCE_2]))
     assert resp.status == 200
 
 
 async def test_remove_resource_from_db(post_to_mgmt_server, redis_db_object):
     await redis_db_object.get_qrm_status()
-    await redis_db_object.add_resource(resource_name='resource_2')
+    await redis_db_object.add_resource(Resource(**RESOURCE_2))
     await redis_db_object.get_qrm_status()
-    await redis_db_object.add_resource(resource_name='resource_3')
-    resp = await post_to_mgmt_server.post(management_server.REMOVE_RESOURCES, data=json.dumps(['resource_2']))
+    await redis_db_object.add_resource(Resource(**RESOURCE_3))
+    resp = await post_to_mgmt_server.post(management_server.REMOVE_RESOURCES, data=json.dumps([RESOURCE_2]))
     all_resources = await redis_db_object.get_all_resources()
     assert len(all_resources) == 1
 
 
 async def test_remove_non_existing_resource_from_db(post_to_mgmt_server, redis_db_object):
-    await redis_db_object.add_resource(resource_name='resource_3')
-    resp = await post_to_mgmt_server.post(management_server.REMOVE_RESOURCES, data=json.dumps(['resource_2']))
+    await redis_db_object.add_resource(Resource(**RESOURCE_3))
+    resp = await post_to_mgmt_server.post(management_server.REMOVE_RESOURCES, data=json.dumps([RESOURCE_2]))
     all_resources = await redis_db_object.get_all_resources()
     assert resp.status == 200
     assert len(all_resources) == 1
@@ -50,8 +54,8 @@ async def test_basic_status_empty_db(post_to_mgmt_server, redis_db_object):
 
 
 async def test_status_one_resource_with_status(post_to_mgmt_server, redis_db_object):
-    await redis_db_object.add_resource(resource_name='resource_1')
-    await redis_db_object.set_resource_status(resource_name='resource_1', status='active')
+    await redis_db_object.add_resource(Resource(**RESOURCE_1))
+    await redis_db_object.set_resource_status(Resource(**RESOURCE_1), status='active')
     resp = await post_to_mgmt_server.get(management_server.STATUS)
     resp_as_dict = await resp.json()
     assert resp.status == 200
@@ -59,10 +63,10 @@ async def test_status_one_resource_with_status(post_to_mgmt_server, redis_db_obj
 
 
 async def test_status_multiple_resources_with_status(post_to_mgmt_server, redis_db_object):
-    await redis_db_object.add_resource(resource_name='resource_1')
-    await redis_db_object.set_resource_status(resource_name='resource_1', status='active')
-    await redis_db_object.add_resource(resource_name='resource_2')
-    await redis_db_object.set_resource_status(resource_name='resource_2', status='disabled')
+    await redis_db_object.add_resource(Resource(**RESOURCE_1))
+    await redis_db_object.set_resource_status(Resource(**RESOURCE_1), status='active')
+    await redis_db_object.add_resource(Resource(**RESOURCE_2))
+    await redis_db_object.set_resource_status(Resource(**RESOURCE_2), status='disabled')
     resp = await post_to_mgmt_server.get(management_server.STATUS)
     resp_as_dict = await resp.json()
     assert resp.status == 200
@@ -71,9 +75,9 @@ async def test_status_multiple_resources_with_status(post_to_mgmt_server, redis_
 
 
 async def test_status_resource_with_job(post_to_mgmt_server, redis_db_object):
-    await redis_db_object.add_resource(resource_name='resource_1')
-    await redis_db_object.set_resource_status(resource_name='resource_1', status='active')
-    await redis_db_object.add_job_to_resource('resource_1', {'id': 1, 'user': 'foo'})
+    await redis_db_object.add_resource(Resource(**RESOURCE_1))
+    await redis_db_object.set_resource_status(Resource(**RESOURCE_1), status='active')
+    await redis_db_object.add_job_to_resource(Resource(**RESOURCE_1), {'id': 1, 'user': 'foo'})
     resp = await post_to_mgmt_server.get(management_server.STATUS)
     resp_as_dict = await resp.json()
     assert resp.status == 200
@@ -123,10 +127,10 @@ async def test_set_server_status_and_validate_status_output(post_to_mgmt_server,
 
 @pytest.mark.parametrize('status', ['active', 'disabled'])
 async def test_set_resource_status(post_to_mgmt_server, redis_db_object, status):
-    await redis_db_object.add_resource(resource_name='resource_1')
+    await redis_db_object.add_resource(Resource(**RESOURCE_1))
     qrm_status = await post_to_mgmt_server.get(management_server.STATUS)
     qrm_status_dict = await qrm_status.json()
-    assert qrm_status_dict['resources_status']['resource_1']['status'] is None
+    assert qrm_status_dict['resources_status']['resource_1']['status'] == ''
     resp = await post_to_mgmt_server.post(management_server.SET_RESOURCE_STATUS,
                                           data=json.dumps({'status': status, 'resource_name': 'resource_1'}))
     assert resp.status == 200
@@ -151,7 +155,7 @@ async def test_set_resource_status_missing_key(post_to_mgmt_server, redis_db_obj
 
 
 async def test_add_job_to_resource(post_to_mgmt_server, redis_db_object):
-    await redis_db_object.add_resource(resource_name='resource_1')
+    await redis_db_object.add_resource(Resource(**RESOURCE_1))
     req_dict = {'resource_name': 'resource_1', 'job': {'job_id': 1, 'job_name': 'foo'}}
     resp = await post_to_mgmt_server.post(management_server.ADD_JOB_TO_RESOURCE,
                                           data=json.dumps(req_dict))
@@ -162,7 +166,7 @@ async def test_add_job_to_resource(post_to_mgmt_server, redis_db_object):
 
 
 async def test_remove_job_from_resource(post_to_mgmt_server, redis_db_object):
-    await redis_db_object.add_resource(resource_name='resource_1')
+    await redis_db_object.add_resource(Resource(**RESOURCE_1))
     req_dict = {'resource_name': 'resource_1', 'job': {'id': 1, 'job_name': 'foo'}}
     resp = await post_to_mgmt_server.post(management_server.ADD_JOB_TO_RESOURCE,
                                           data=json.dumps(req_dict))
