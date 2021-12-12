@@ -5,13 +5,13 @@ Queue Resources Manager
 Add resource to qrm:
 
 ```bash
-curl --header "Content-Type: application/json" --request POST --data '["resource_2"]'  http://localhost:8080/add_resources
+curl --header "Content-Type: application/json" --request POST --data '[{"name": "resource_2", "type": "server"}]'  http://localhost:8080/add_resources
 ```
 
 Remove resource from qrm:
 
 ```bash
-curl --header "Content-Type: application/json" --request POST --data '["resource_2"]'  http://localhost:8080/remove_resources
+curl --header "Content-Type: application/json" --request POST --data '[{"name": "resource_2", "type": "server"}]'  http://localhost:8080/remove_resources
 ```
 
 Set resource status:
