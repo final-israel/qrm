@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 
 RESOURCE_NAME_PREFIX = 'resource_name'
-RESOURCE_STATUS_PREFIX = 'resource_status'
 ALLOWED_SERVER_STATUSES = ['active', 'disabled']
 
 
@@ -24,9 +23,6 @@ class Resource:
 
     def db_name(self) -> str:
         return f'{RESOURCE_NAME_PREFIX}_{self.name}'
-
-    def db_status(self) -> str:
-        return f'{RESOURCE_STATUS_PREFIX}_{self.name}'
 
     def as_dict(self) -> dict:
         return {

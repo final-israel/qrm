@@ -1,17 +1,13 @@
-import time
 import aioredis
 import asyncio
 import json
 import logging
-import qrm_db
 from qrm_server import resource_definition
-from qrm_server.resource_definition import Resource, RESOURCE_NAME_PREFIX, ALLOWED_SERVER_STATUSES
-
+from qrm_server.resource_definition import Resource, ALLOWED_SERVER_STATUSES
 from qrm_db import QrmBaseDB
 from typing import Dict, List
 
 ALL_RESOURCES = 'all_resources'
-
 SERVER_STATUS_IN_DB = 'qrm_status'
 ACTIVE_STATUS = 'active'
 

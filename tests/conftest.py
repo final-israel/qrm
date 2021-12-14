@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import pytest
 from aiohttp import web
@@ -13,6 +12,21 @@ REDIS_PORT = 6379
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
+
+
+@pytest.fixture(scope='session')
+def resource_dict_1() -> dict:
+    return {'name': 'resource_1', 'type': 'server'}
+
+
+@pytest.fixture(scope='session')
+def resource_dict_2() -> dict:
+    return {'name': 'resource_2', 'type': 'server'}
+
+
+@pytest.fixture(scope='session')
+def resource_dict_3() -> dict:
+    return {'name': 'resource_3', 'type': 'server'}
 
 
 @pytest.fixture(scope='session')
