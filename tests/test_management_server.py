@@ -16,6 +16,13 @@ async def test_add_resource(post_to_mgmt_server, redis_db_object):
     assert resp.status == 200
 
 
+async def test_add_two_resources(post_to_mgmt_server, redis_db_object):
+    resp = await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([RESOURCE_1]))
+    assert resp.status == 200
+    resp = await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([RESOURCE_2]))
+    assert resp.status == 200
+
+
 async def test_resource_added_to_db(post_to_mgmt_server, redis_db_object):
     await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([RESOURCE_1]))
     all_resources = await redis_db_object.get_all_resources()

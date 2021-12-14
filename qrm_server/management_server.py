@@ -41,7 +41,7 @@ async def add_resources_to_db(resources_list_request) -> list:
 
 async def add_single_resource_with_validation(all_db_resources, new_resources,
                                               redis: RedisDB, resource: Resource) -> None:
-    if await redis.is_resource_exists(resource) in all_db_resources:
+    if resource in all_db_resources:
         logging.error(f'resource {resource} already in DB, ignoring it')
         return
     else:
