@@ -1,6 +1,6 @@
 import json
 import pickle
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 
 RESOURCE_NAME_PREFIX = 'resource_name'
@@ -20,16 +20,13 @@ class Resource:
     name: str
     type: str
     status: str = ''
+    token: str = ''
 
     def db_name(self) -> str:
         return f'{RESOURCE_NAME_PREFIX}_{self.name}'
 
     def as_dict(self) -> dict:
-        return {
-            'name': self.name,
-            'type': self.type,
-            'status': self.status
-        }
+        return asdict(self)
 
     def as_json(self) -> str:
         return json.dumps(self.as_dict())

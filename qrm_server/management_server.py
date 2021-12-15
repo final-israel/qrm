@@ -103,13 +103,29 @@ async def build_status_dict():
                 #           {}
                 #       ]
                 #   }
+            },
+        'groups':
+            {
+                # token1: [{resource1: type1}, {resource2: type2}, ...],
+                # token2: ...
             }
     }
+
     for resource in await redis.get_all_resources():
         status_dict['resources_status'][resource.name] = {}
         status_dict['resources_status'][resource.name]['status'] = await redis.get_resource_status(resource)
         status_dict['resources_status'][resource.name]['jobs'] = await redis.get_resource_jobs(resource)
+        add_resource_to_token_list(resource, status_dict)
     return status_dict
+
+
+def add_resource_to_token_list(resource, status_dict):
+    if resource.token != '':
+        try:
+            status_dict['groups'][resource.token].append({resource.name: resource.type})
+        except KeyError as e:  # first time this token appears
+            status_dict['groups'][resource.token] = []
+            status_dict['groups'][resource.token].append({resource.name: resource.type})
 
 
 async def remove_job(request):

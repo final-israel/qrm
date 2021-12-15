@@ -1,3 +1,4 @@
+import copy
 import json
 import pytest
 from qrm_server import management_server
@@ -192,3 +193,32 @@ async def test_add_existing_resource(post_to_mgmt_server, redis_db_object, resou
     resp = await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([resource_dict_1]))
     assert resp.status == 200
     assert await resp.text() == 'didn\'t add any resource, check if the resource already exists\n'
+
+
+async def test_add_existing_resource_remove_add_again(post_to_mgmt_server, redis_db_object, resource_dict_1):
+    resp = await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([resource_dict_1]))
+    assert resp.status == 200
+    resp = await post_to_mgmt_server.post(management_server.REMOVE_RESOURCES, data=json.dumps([resource_dict_1]))
+    assert resp.status == 200
+    resp = await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([resource_dict_1]))
+    assert resp.status == 200
+    assert 'added the following resources' in await resp.text()
+
+
+async def test_basic_token_grouping(post_to_mgmt_server, redis_db_object, resource_dict_1, resource_dict_2,
+                                    resource_dict_3):
+    res1_with_token = copy.deepcopy(resource_dict_1)
+    res1_with_token['token'] = 'token1'
+    res2_with_token = copy.deepcopy(resource_dict_2)
+    res2_with_token['token'] = 'token1'
+    res3_with_token = copy.deepcopy(resource_dict_3)
+    res3_with_token['token'] = 'token2'
+    await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([res1_with_token]))
+    await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([res2_with_token]))
+    await post_to_mgmt_server.post(management_server.ADD_RESOURCES, data=json.dumps([res3_with_token]))
+    qrm_status = await post_to_mgmt_server.get(management_server.STATUS)
+    qrm_status_dict = await qrm_status.json()
+    assert qrm_status.status == 200
+    assert {res1_with_token['name']: res1_with_token['type']} in qrm_status_dict['groups']['token1']
+    assert {res2_with_token['name']: res2_with_token['type']} in qrm_status_dict['groups']['token1']
+    assert [{res3_with_token['name']: res3_with_token['type']}] == qrm_status_dict['groups']['token2']
