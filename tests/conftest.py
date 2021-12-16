@@ -1,4 +1,6 @@
 import logging
+import time
+
 import pytest
 from aiohttp import web
 from db_adapters import redis_adapter
@@ -46,6 +48,16 @@ def redis_db_object(redis_my) -> redis_adapter.RedisDB:
     yield test_adapter_obj
     del test_adapter_obj
 
+
+@pytest.fixture(scope='function')
+def redis_db_object_with_resources(redis_my, resource_foo) -> redis_adapter.RedisDB:
+    import asyncio
+    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT)
+    asyncio.ensure_future(test_adapter_obj.add_resource(resource_foo))
+    asyncio.ensure_future(test_adapter_obj.set_qrm_status(status='active'))
+    asyncio.ensure_future(test_adapter_obj.get_all_resources_dict())
+    yield test_adapter_obj
+    del test_adapter_obj
 
 @pytest.fixture(scope='function')
 def post_to_mgmt_server(loop, aiohttp_client):
