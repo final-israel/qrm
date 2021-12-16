@@ -46,3 +46,9 @@ Show status of the server with it's resources and their jobs url:
 ```console
 http://127.0.0.1:8080/status
 ```
+
+#  developer environment setup:
+1. install db backend:
+   ```bash
+   sudo apt install redis-server
+   ```

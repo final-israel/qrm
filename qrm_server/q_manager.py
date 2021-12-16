@@ -7,7 +7,7 @@ import logging
 class QueueManager(asyncio.Protocol):
     def __init__(self):
         self.transport = None
-        self.client_name = ''                       # type: str
+        self.client_name = ''  # type: str
         self.redis = aioredis.from_url(
             "redis://localhost", encoding="utf-8", decode_responses=True
         )
@@ -34,14 +34,14 @@ class QueueManager(asyncio.Protocol):
         self.transport.close()
 
 
-async def main():
+async def main(port: int = 8888):
     # Get a reference to the event loop as we plan to use
     # low-level APIs.
     loop = asyncio.get_running_loop()
-
+    asyncio.start_server()
     server = await loop.create_server(
         lambda: QueueManager(),
-        '127.0.0.1', 8888)
+        '127.0.0.1', port)
 
     async with server:
         await server.serve_forever()

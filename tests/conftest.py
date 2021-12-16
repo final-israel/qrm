@@ -5,7 +5,7 @@ from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
 from qrm_server.resource_definition import Resource
-
+from qrm_server.q_manager import QueueManager, main
 
 REDIS_PORT = 6379
 
@@ -59,3 +59,27 @@ def post_to_mgmt_server(loop, aiohttp_client):
     app.router.add_post(management_server.ADD_JOB_TO_RESOURCE, management_server.add_job_to_resource)
     app.router.add_post(management_server.REMOVE_JOB, management_server.remove_job)
     yield loop.run_until_complete(aiohttp_client(app))
+
+
+@pytest.fixture()
+def q_manager_for_test(event_loop, unused_tcp_port):
+    print(f'##### ron fixture {unused_tcp_port}')
+    cancel_handle = asyncio.ensure_future(main(unused_tcp_port), loop=event_loop)
+    event_loop.run_until_complete(asyncio.sleep(0.01))
+
+    try:
+        print(f'##### ron b4 yield')
+        yield unused_tcp_port
+    finally:
+        cancel_handle.cancel()
+
+'''
+@pytest.fixture(scope='function')
+async def q_manager_for_test(loop, aiohttp_client):
+    server = await loop.create_server(
+            lambda: QueueManager(),
+        '127.0.0.1', 8888)
+
+    async with server:
+        await server.serve_forever()
+'''
