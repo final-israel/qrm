@@ -1,6 +1,8 @@
+from __future__ import annotations
 import json
 import pickle
 from dataclasses import dataclass, asdict
+
 
 
 RESOURCE_NAME_PREFIX = 'resource_name'
@@ -21,6 +23,7 @@ class Resource:
     type: str
     status: str = ''
     token: str = ''
+    as_regex: bool = False
 
     def db_name(self) -> str:
         return f'{RESOURCE_NAME_PREFIX}_{self.name}'
@@ -35,7 +38,14 @@ class Resource:
         return pickle.dumps(self.as_dict())
 
     def __eq__(self, other) -> bool:
-        return self.name == other.name
+        try:
+            return self.name == other.name
+
+        except Exception:
+            return False
 
     def __str__(self) -> str:
         return f'{self.type}_{self.name}'
+
+    def is_res_full_match(self, resource: Resource) -> bool:
+        return resource.name == self.name and resource.token
