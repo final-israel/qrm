@@ -7,6 +7,7 @@ from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
 from qrm_server.resource_definition import Resource
+from qrm_server.q_manager import QueueManagerBackEnd
 
 
 REDIS_PORT = 6379
@@ -31,12 +32,12 @@ def resource_dict_3() -> dict:
     return {'name': 'resource_3', 'type': 'server'}
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def resource_foo() -> Resource:
     return Resource(name='foo', type='server')
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def resource_bar() -> Resource:
     return Resource(name='bar', type='server')
 
@@ -59,6 +60,7 @@ def redis_db_object_with_resources(redis_my, resource_foo) -> redis_adapter.Redi
     yield test_adapter_obj
     del test_adapter_obj
 
+
 @pytest.fixture(scope='function')
 def post_to_mgmt_server(loop, aiohttp_client):
     app = web.Application(loop=loop)
@@ -71,3 +73,8 @@ def post_to_mgmt_server(loop, aiohttp_client):
     app.router.add_post(management_server.ADD_JOB_TO_RESOURCE, management_server.add_job_to_resource)
     app.router.add_post(management_server.REMOVE_JOB, management_server.remove_job)
     yield loop.run_until_complete(aiohttp_client(app))
+
+
+@pytest.fixture(scope='function')
+def qrm_backend_with_db(redis_db_object) -> QueueManagerBackEnd:
+    return QueueManagerBackEnd(redis_port=REDIS_PORT)

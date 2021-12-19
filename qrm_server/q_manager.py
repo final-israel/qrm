@@ -1,9 +1,8 @@
-import aioredis
 import asyncio
 import json
 import logging
 from redis_adapter import RedisDB
-from qrm_server import resource_definition
+from qrm_server.resource_definition import Resource
 from typing import Dict, List
 
 REDIS_PORT = 6379
@@ -11,65 +10,41 @@ REDIS_PORT = 6379
 
 class QueueManagerBackEnd(object):
     def __init__(self, redis_port: int = REDIS_PORT):
-        self.redis: RedisDB = None
         if redis_port:
             self.redis = RedisDB(redis_port)
+        else:
+            self.redis = RedisDB(REDIS_PORT)
 
-    def find_one_resource(self, resource: resource_definition.Resource, all_resources_dict:Dict['str', resource_definition.Resource]) \
-            -> resource_definition.Resource:
-        dict_of_resources_with_token = self.find_all_resources_with_token(resource.token, all_resources_dict)
-        if len(dict_of_resources_with_token) == 1:
-            for one_resource in dict_of_resources_with_token.values():
+    def find_one_resource(self, resource: Resource, all_resources_list: List[Resource]) -> Resource:
+        list_of_resources_with_token = self.find_all_resources_with_token(resource.token, all_resources_list)
+        if len(list_of_resources_with_token) == 1:
+            for one_resource in list_of_resources_with_token:
                 return one_resource
-        elif len(dict_of_resources_with_token) == 0:
+        elif len(list_of_resources_with_token) == 0:
             return []
         else:
             raise NotImplemented
 
-
     @staticmethod
-    def find_all_resources_with_token(token: str, all_resources_dict: Dict['str', resource_definition.Resource]) -> \
-            Dict[str,resource_definition.Resource]:
-        tmp_dict = {}
-        for k, v in all_resources_dict.items():
-            if v.token == token:
-                tmp_dict[k] = v
-        return tmp_dict
+    def find_all_resources_with_token(token: str, all_resources_list: List[Resource]) -> List[Resource]:
+        tmp_list = []
+        for resource in all_resources_list:
+            if resource.token == token:
+                tmp_list.append(resource)
+        return tmp_list
 
-
-    @staticmethod
-    def get_resource(self, resource_group: resource_definition.Resource or tuple) -> resource_definition.Resource:
-        if isinstance(resource_group, resource_definition.Resource):
-            yield resource_group
-        else:
-            for resource in resource_group:
-                yield resource
-
-    async def _get_all_obj_resources_dict_from_db(self) -> Dict[str, resource_definition.Resource]:
-        all_resources_dict = await self.redis.get_all_resources_dict()
-        for k, v in all_resources_dict.items():
-            all_resources_dict[k] = resource_definition.load_from_json(v)
-        return all_resources_dict
-
-    async def find_resources(self, client_req_resources_list) -> List[resource_definition.Resource]:
-        all_resources_dict = await self._get_all_obj_resources_dict_from_db()
+    async def find_resources(self, client_req_resources_list) -> List[Resource]:
         out_resources_list = []
+        all_resources_list = await self.redis.get_all_resources()
         for resource_group in client_req_resources_list:
-            if isinstance(resource_group, resource_definition.Resource):
-                one_resource = self.find_one_resource(resource_group, all_resources_dict)
+            if isinstance(resource_group, Resource):
+                one_resource = self.find_one_resource(resource_group, all_resources_list)
                 out_resources_list.append(one_resource)
             else:
                 for resource in resource_group:
-                    one_resource = self.find_one_resource(resource, all_resources_dict)
+                    one_resource = self.find_one_resource(resource, all_resources_list)
                     out_resources_list.append(one_resource)
         return out_resources_list
-
-
-
-
-
-        for resource_obj in client_req_resources_list:
-            return all_resources_dict
 
 
 class QueueManager(asyncio.Protocol):

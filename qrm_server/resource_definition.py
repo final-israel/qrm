@@ -38,11 +38,9 @@ class Resource:
         return pickle.dumps(self.as_dict())
 
     def __eq__(self, other) -> bool:
-        try:
-            return self.name == other.name
-
-        except Exception:
+        if not isinstance(other, Resource):
             return False
+        return self.name == other.name
 
     def __str__(self) -> str:
         return f'{self.type}_{self.name}'

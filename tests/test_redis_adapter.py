@@ -159,11 +159,11 @@ async def test_add_existing_resource(redis_db_object, resource_foo):
     assert not await redis_db_object.add_resource(resource_foo)
 
 
-@pytest.mark.asyncio
-async def test_equal_operator_resource(redis_db_object, resource_foo):
+def test_equal_operator_resource(redis_db_object, resource_foo):
     resource_bar = copy.deepcopy(resource_foo)
     assert resource_bar == resource_foo
     resource_bar.status = 'something'
     assert resource_bar == resource_foo
     resource_bar.name = 'different_name'
     assert not resource_foo == resource_bar
+    assert not resource_foo == {}

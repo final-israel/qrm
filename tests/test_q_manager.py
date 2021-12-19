@@ -5,19 +5,26 @@ import time
 
 import pytest
 from qrm_server.resource_definition import Resource
-from qrm_server.q_manager import QueueManagerBackEnd
 
 
 @pytest.mark.asyncio
-async def test_qbackend_find_a_resources(redis_db_object):
-    qrm = QueueManagerBackEnd(redis_port=None)
+async def test_qbackend_find_one_resource(redis_db_object, qrm_backend_with_db):
     exp_resource = Resource(name='res1', type='type1', token='12345')
     await redis_db_object.add_resource(exp_resource)
     await redis_db_object.add_resource(Resource(name='res2', type='type1'))
     await redis_db_object.add_resource(Resource(name='res3', type='type1'))
-    qrm.redis = redis_db_object
-    response = await qrm.find_resources([exp_resource])
+    response = await qrm_backend_with_db.find_resources([exp_resource])
     assert exp_resource == response[0]
+
+
+@pytest.mark.asyncio
+async def test_qbackend_find_two_resources(redis_db_object, qrm_backend_with_db, resource_foo, resource_bar):
+    resource_foo.token = '123'
+    resource_bar.token = '123'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    response = await qrm_backend_with_db.find_resources([resource_foo, resource_bar])
+    assert len(response) == 2
 
 
 async def tcp_echo_client(message: dict):
