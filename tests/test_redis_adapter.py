@@ -5,7 +5,7 @@ import pytest
 import subprocess
 
 from redis_adapter import RedisDB
-from qrm_server.resource_definition import Resource
+from qrm_server.resource_definition import Resource, ResourcesRequest
 
 
 def test_env():
@@ -167,3 +167,14 @@ def test_equal_operator_resource(redis_db_object, resource_foo):
     resource_bar.name = 'different_name'
     assert not resource_foo == resource_bar
     assert not resource_foo == {}
+
+
+def test_resources_request():
+    # This usage is OK:
+    ResourcesRequest(token='abc')
+    # two from a,b or c, and one from f, which is actually f:
+    req = ResourcesRequest()
+    req.add_request_by_tags(tags=['a', 'b'], count=2)
+    assert len(req.as_dict()['tags']) == 1
+    req.add_request_by_names(names=['name1', 'name2'], count=1)
+    assert len(req.as_dict()['names']) == 1

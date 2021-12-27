@@ -1,8 +1,6 @@
 import asyncio
 import json
 import logging
-import time
-
 import pytest
 from qrm_server.resource_definition import Resource
 
@@ -13,18 +11,10 @@ async def test_qbackend_find_one_resource(redis_db_object, qrm_backend_with_db):
     await redis_db_object.add_resource(exp_resource)
     await redis_db_object.add_resource(Resource(name='res2', type='type1'))
     await redis_db_object.add_resource(Resource(name='res3', type='type1'))
-    response = await qrm_backend_with_db.find_resources([exp_resource])
+    exp_resource_list = [exp_resource]
+    response = await qrm_backend_with_db.find_resources([exp_resource_list])
+    assert len(response) == 1
     assert exp_resource == response[0]
-
-
-@pytest.mark.asyncio
-async def test_qbackend_find_two_resources(redis_db_object, qrm_backend_with_db, resource_foo, resource_bar):
-    resource_foo.token = '123'
-    resource_bar.token = '123'
-    await redis_db_object.add_resource(resource_foo)
-    await redis_db_object.add_resource(resource_bar)
-    response = await qrm_backend_with_db.find_resources([resource_foo, resource_bar])
-    assert len(response) == 2
 
 
 async def tcp_echo_client(message: dict):

@@ -3,9 +3,11 @@ import json
 import logging
 from redis_adapter import RedisDB
 from qrm_server.resource_definition import Resource
-from typing import Dict, List
+from typing import List
+
 
 REDIS_PORT = 6379
+ResourcesListType = List[Resource]
 
 
 class QueueManagerBackEnd(object):
@@ -15,25 +17,32 @@ class QueueManagerBackEnd(object):
         else:
             self.redis = RedisDB(REDIS_PORT)
 
-    def find_one_resource(self, resource: Resource, all_resources_list: List[Resource]) -> Resource:
+    def find_one_resource(self, resource: Resource, all_resources_list: ResourcesListType) -> Resource or None:
         list_of_resources_with_token = self.find_all_resources_with_token(resource.token, all_resources_list)
         if len(list_of_resources_with_token) == 1:
             for one_resource in list_of_resources_with_token:
                 return one_resource
         elif len(list_of_resources_with_token) == 0:
-            return []
+            return None
         else:
             raise NotImplemented
 
     @staticmethod
-    def find_all_resources_with_token(token: str, all_resources_list: List[Resource]) -> List[Resource]:
+    def find_all_resources_with_token(token: str, all_resources_list: ResourcesListType) -> ResourcesListType:
         tmp_list = []
         for resource in all_resources_list:
             if resource.token == token:
                 tmp_list.append(resource)
         return tmp_list
 
-    async def find_resources(self, client_req_resources_list) -> List[Resource]:
+    async def find_resources(self, client_req_resources_list: List[ResourcesListType]) -> ResourcesListType:
+        """
+        find all resources that match the client_req_list
+        :param client_req_resources_list: list of resources list
+        example: [[a,b,c], [a,b,c], [d,e], [f]] -> must have: one of (a or b or c) and one of (a or b or c)
+        and one of (d or e) and f
+        :return: list of all resources that matched the client request
+        """
         out_resources_list = []
         all_resources_list = await self.redis.get_all_resources()
         for resource_group in client_req_resources_list:

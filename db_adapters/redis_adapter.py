@@ -43,7 +43,7 @@ class RedisDB(QrmBaseDB):
         try:
             all_db_resources = await self.redis.hgetall(ALL_RESOURCES)
             for resource in all_db_resources.values():
-                resources_list.append(resource_definition.load_from_json(resource))
+                resources_list.append(resource_definition.resource_from_json(resource))
         except ValueError as e:
             if 'too many values to unpack' in e.args[0]:
                 pass
@@ -74,7 +74,7 @@ class RedisDB(QrmBaseDB):
         all_resources_dict = await self.get_all_resources_dict()
         if all_resources_dict.get(resource.name):
             resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
-            resource_obj = resource_definition.load_from_json(resource_json)
+            resource_obj = resource_definition.resource_from_json(resource_json)
             resource_obj.status = status
             return not await self.redis.hset(ALL_RESOURCES, resource.name, resource_obj.as_json())
         else:
@@ -82,7 +82,7 @@ class RedisDB(QrmBaseDB):
 
     async def get_resource_status(self, resource: Resource) -> str:
         resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
-        resource_obj = resource_definition.load_from_json(resource_json)
+        resource_obj = resource_definition.resource_from_json(resource_json)
         return resource_obj.status
 
     async def add_job_to_resource(self, resource: Resource, job: dict) -> bool:
