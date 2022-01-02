@@ -2,9 +2,8 @@ import asyncio
 import json
 import logging
 from redis_adapter import RedisDB
-from qrm_server.resource_definition import Resource
+from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
 from typing import List
-
 
 REDIS_PORT = 6379
 ResourcesListType = List[Resource]
@@ -16,6 +15,24 @@ class QueueManagerBackEnd(object):
             self.redis = RedisDB(redis_port)
         else:
             self.redis = RedisDB(REDIS_PORT)
+
+    def found_token(self, resources_request_resp: ResourcesRequestResponse,
+                    resources_with_token:  ResourcesListType) -> ResourcesRequestResponse:
+        # TODO we need to refactor this as it is not exactly as specified in the design.
+        for resource in resources_with_token:
+            resources_request_resp.names.append(resource.name)
+        return resources_request_resp
+
+    async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
+        resources_request_resp = ResourcesRequestResponse()
+        token = resources_request.token
+        all_resources_list = await self.redis.get_all_resources()
+        resources_with_token = self.find_all_resources_with_token(token=token, all_resources_list=all_resources_list)
+        if resources_with_token:
+            resources_request_resp.token = token
+            return self.found_token(resources_request_resp=resources_request_resp, resources_with_token=resources_with_token)
+
+        return resources_request
 
     def find_one_resource(self, resource: Resource, all_resources_list: ResourcesListType) -> Resource or None:
         list_of_resources_with_token = self.find_all_resources_with_token(resource.token, all_resources_list)

@@ -63,6 +63,11 @@ class ResourcesByTags:
     count: int
 
 
+@dataclass
+class ResourcesRequestResponse:
+    names: List[str] = field(default_factory=list)
+    token: str = ''
+
 @dataclass_validate
 @dataclass
 class ResourcesRequest:
@@ -93,6 +98,9 @@ class ResourcesRequest:
         """
         assert count <= len(names), 'count must be <= number of resources in the list'
         self.names.append(ResourcesByName(names, count))
+
+    def add_request_by_token(self, token: str) -> None:
+        self.token = token
 
     def as_dict(self) -> dict:
         return asdict(self)
