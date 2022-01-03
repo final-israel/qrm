@@ -1,6 +1,4 @@
 import logging
-import time
-
 import pytest
 from aiohttp import web
 from db_adapters import redis_adapter

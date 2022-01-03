@@ -178,3 +178,32 @@ def test_resources_request():
     assert len(req.as_dict()['tags']) == 1
     req.add_request_by_names(names=['name1', 'name2'], count=1)
     assert len(req.as_dict()['names']) == 1
+
+
+@pytest.mark.asyncio
+async def test_set_get_token(redis_db_object, resource_foo, resource_bar):
+    resource_foo.token = '123'
+    resource_bar.token = '123'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    await redis_db_object.generate_token('123', [resource_foo, resource_bar])
+    token_list_in_db = await redis_db_object.get_token_resources('123')
+    assert type(token_list_in_db) == list
+    assert len(token_list_in_db) == 2
+    assert resource_foo in token_list_in_db
+    assert resource_bar in token_list_in_db
+
+
+@pytest.mark.asyncio
+async def test_generate_exists_token(redis_db_object, resource_foo, resource_bar):
+    resource_foo.token = 'test_set_exists_token'
+    resource_bar.token = 'test_set_exists_token'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    assert await redis_db_object.generate_token('test_set_exists_token', [resource_foo, resource_bar])
+    assert not await redis_db_object.generate_token('test_set_exists_token', [resource_foo, resource_bar])
+
+
+@pytest.mark.asyncio
+async def test_token_not_in_db(redis_db_object):
+    assert not await redis_db_object.get_token_resources('non_existing_token')

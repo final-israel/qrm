@@ -2,8 +2,8 @@ import asyncio
 import json
 import logging
 from redis_adapter import RedisDB
-from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
-from typing import List
+from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName
+from typing import List, Dict
 
 REDIS_PORT = 6379
 ResourcesListType = List[Resource]
@@ -24,15 +24,31 @@ class QueueManagerBackEnd(object):
         return resources_request_resp
 
     async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
-        resources_request_resp = ResourcesRequestResponse()
         token = resources_request.token
-        all_resources_list = await self.redis.get_all_resources()
-        resources_with_token = self.find_all_resources_with_token(token=token, all_resources_list=all_resources_list)
-        if resources_with_token:
-            resources_request_resp.token = token
-            return self.found_token(resources_request_resp=resources_request_resp, resources_with_token=resources_with_token)
+        all_resources_dict = await self.redis.get_all_resources_dict()
+        resources_token_list = await self.redis.get_token_resources(token)
+        if self.is_token_valid(token, all_resources_dict, resources_token_list):
+            return await self.handle_token_request(token, resources_token_list)
+        elif resources_request.names:
+            return await self.handle_names_request(token, resources_request.names, all_resources_dict)
 
-        return resources_request
+    async def handle_names_request(self, token: str, resources_by_name: List[ResourcesByName],
+                                   all_resources_dict: Dict[str, Resource]) -> ResourcesRequestResponse:
+        original_resources = await self.redis.get_token_resources(token)
+        original_resources_names = [resource.name for resource in original_resources]
+        for resources_req in resources_by_name:
+            for resource_name in resources_req.names:
+                # first try to add it to the resources with the same token to preserve system steady state:
+                if resource_name in original_resources_names:  # the resource is in the token list
+                    # find the resource index and move it to the beginning of the list, so it will be handled first:
+                    old_index = resources_req.names.index(resource_name)
+                    resources_req.names.insert(0, resources_req.names.pop(old_index))
+                else:  # leave the resource in its place
+                    resource_obj = all_resources_dict.get(resource_name)
+                    if not resource_obj:
+                        logging.error(f'got request for resource {resource_name} which is not in db')
+                        resources_req.names.remove(resource_name)
+        raise NotImplementedError
 
     def find_one_resource(self, resource: Resource, all_resources_list: ResourcesListType) -> Resource or None:
         list_of_resources_with_token = self.find_all_resources_with_token(resource.token, all_resources_list)
@@ -43,6 +59,33 @@ class QueueManagerBackEnd(object):
             return None
         else:
             raise NotImplemented
+
+    async def handle_token_request(self, token: str, resources_token_list: List[Resource]) -> ResourcesRequestResponse:
+        # this method assumes that the token is valid and all resources are available with this token
+        resources_request_resp = ResourcesRequestResponse()
+        resources_request_resp.token = token
+        for resource in resources_token_list:
+            # TODO: replace job dict with method?
+            await self.redis.add_job_to_resource(resource, {'token': token})
+            resources_request_resp.names.append(resource.name)
+        return resources_request_resp
+
+    @staticmethod
+    def is_token_valid(token: str, resources_dict: Dict[str, Resource],
+                       original_resources_token_list: List[Resource]) -> bool:
+        if not token:
+            return False
+        for orig_resource_in_group in original_resources_token_list:
+            resource_obj = resources_dict.get(orig_resource_in_group.name)
+            if resource_obj:
+                if resource_obj.token != token:  # token expired
+                    logging.info(f'resource {resource_obj.name} is no longer belongs to token: {token}')
+                    return False
+            else:
+                logging.info(f'resource {resource_obj.name} is no longer exists in the system, therefore token '
+                             f'{token} is not valid')
+                return False
+        return True
 
     @staticmethod
     def find_all_resources_with_token(token: str, all_resources_list: ResourcesListType) -> ResourcesListType:

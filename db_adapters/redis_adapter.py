@@ -10,6 +10,7 @@ from typing import Dict, List
 ALL_RESOURCES = 'all_resources'
 SERVER_STATUS_IN_DB = 'qrm_status'
 ACTIVE_STATUS = 'active'
+TOKEN_DICT = 'token_dict'
 
 
 class RedisDB(QrmBaseDB):
@@ -52,7 +53,14 @@ class RedisDB(QrmBaseDB):
         return resources_list
 
     async def get_all_resources_dict(self) -> Dict[str, Resource]:
-        return await self.redis.hgetall(ALL_RESOURCES)
+        """
+        return: {resource_name1: Resource, resource_name2: resource)}
+        """
+        ret_dict = {}
+        all_resources = await self.redis.hgetall(ALL_RESOURCES)
+        for res_name, res_json in all_resources.items():
+            ret_dict[res_name] = resource_definition.resource_from_json(res_json)
+        return ret_dict
 
     async def add_resource(self, resource: Resource) -> bool:
         all_resources = await self.get_all_resources()
@@ -124,6 +132,25 @@ class RedisDB(QrmBaseDB):
         for job in resource_jobs:
             if job['id'] == job_id:
                 return json.dumps(job)
+
+    async def generate_token(self, token: str, resources: List[Resource]) -> bool:
+        if await self.redis.hget(TOKEN_DICT, token):
+            logging.error(f'token {token} already exists in DB, can\'t generate it again')
+            return False
+        resources_list = []
+        for resource in resources:
+            resources_list.append(resource.as_json())
+        return await self.redis.hset(TOKEN_DICT, token, json.dumps(resources_list))
+
+    async def get_token_resources(self, token: str) -> List[Resource]:
+        resources_list = []
+        token_json = await self.redis.hget(TOKEN_DICT, token)
+        if not token_json:
+            logging.error(f'token {token} does not exists in db')
+            return []
+        for resource_json in json.loads(token_json):
+            resources_list.append(resource_definition.resource_from_json(resource_json))
+        return resources_list
 
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:

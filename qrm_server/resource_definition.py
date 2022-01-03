@@ -68,6 +68,7 @@ class ResourcesRequestResponse:
     names: List[str] = field(default_factory=list)
     token: str = ''
 
+
 @dataclass_validate
 @dataclass
 class ResourcesRequest:
