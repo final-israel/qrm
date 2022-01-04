@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import pytest
-from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
+from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName
 
 
 @pytest.mark.asyncio
@@ -56,18 +56,67 @@ async def test_request_by_token_not_valid(redis_db_object, qrm_backend_with_db):
 
 
 @pytest.mark.asyncio
-async def test_request_by_names(redis_db_object, qrm_backend_with_db):
-    req_token = 'some_token'
-    res_1 = Resource(name='res1', type='type1', token='other_token')
-    res_2 = Resource(name='res2', type='type1', token='other_token')
+async def test_request_reorder_names_request(redis_db_object, qrm_backend_with_db):
+    old_token = 'old_token'
+    res_1 = Resource(name='res1', type='type1', token=old_token)
+    res_2 = Resource(name='res2', type='type1', token=old_token)
+    res_3 = Resource(name='res3', type='type1', token='other_token')
+    res_4 = Resource(name='res4', type='type1', token=old_token)
+    res_5 = Resource(name='res5', type='type1', token=old_token)
     await redis_db_object.add_resource(res_1)
     await redis_db_object.add_resource(res_2)
-    await redis_db_object.generate_token(req_token, [res_1, res_2])
-    user_request = ResourcesRequest()
-    user_request.add_request_by_token(req_token)
-    user_request.add_request_by_names(names=['res_1'], count=1)
-    response = await qrm_backend_with_db.new_request(resources_request=user_request)
-    assert response == ResourcesRequestResponse(token=req_token, names=[res_1.name])
+    await redis_db_object.add_resource(res_3)
+    await redis_db_object.add_resource(res_4)
+    await redis_db_object.add_resource(res_5)
+    await redis_db_object.generate_token(old_token, [res_1, res_2, res_3, res_4, res_5])
+    names_request = ResourcesByName(names=[res_1.name, res_2.name, res_3.name, res_4.name, res_5.name], count=2)
+    all_resources_dict = await redis_db_object.get_all_resources_dict()
+    await qrm_backend_with_db.reorder_names_request(old_token, [names_request], all_resources_dict=all_resources_dict)
+    assert names_request.names[-1] == res_3.name
+
+
+@pytest.mark.asyncio
+async def test_request_reorder_names_resource_not_in_db(redis_db_object, qrm_backend_with_db):
+    # in this case the method should remove the resource from the request:
+    old_token = 'old_token'
+    res_1 = Resource(name='res1', type='type1', token=old_token)
+    res_2 = Resource(name='res2', type='type1', token=old_token)
+    res_3 = Resource(name='res3', type='type1', token='other_token')
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+    await redis_db_object.generate_token(old_token, [res_1, res_2, res_3])
+    # remove res_2 from db:
+    await redis_db_object.remove_resource(res_2)
+    names_request = ResourcesByName(names=[res_1.name, res_2.name, res_3.name], count=2)
+    all_resources_dict = await redis_db_object.get_all_resources_dict()
+    await qrm_backend_with_db.reorder_names_request(old_token, [names_request], all_resources_dict=all_resources_dict)
+    assert names_request.names[0] == res_1.name
+    assert names_request.names[-1] == res_3.name
+    assert res_2.name not in names_request.names
+
+
+@pytest.mark.asyncio
+async def test_request_reorder_names_request_multiple_requestes(redis_db_object, qrm_backend_with_db):
+    old_token = 'token1'
+    res_1 = Resource(name='res1', type='type1', token=old_token)
+    res_2 = Resource(name='res2', type='type1', token='other_token')
+    res_3 = Resource(name='res3', type='type1', token=old_token)
+    res_4 = Resource(name='res4', type='type1', token='other_token')
+    res_5 = Resource(name='res5', type='type1', token=old_token)
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+    await redis_db_object.add_resource(res_4)
+    await redis_db_object.add_resource(res_5)
+    await redis_db_object.generate_token(old_token, [res_1, res_2, res_3, res_4, res_5])
+    names_request1 = ResourcesByName(names=[res_1.name, res_2.name, res_3.name], count=2)
+    names_request2 = ResourcesByName(names=[res_4.name, res_5.name], count=2)
+    all_resources_dict = await redis_db_object.get_all_resources_dict()
+    await qrm_backend_with_db.reorder_names_request(old_token, [names_request1, names_request2],
+                                                    all_resources_dict=all_resources_dict)
+    assert names_request1.names[-1] == res_2.name
+    assert names_request2.names[-1] == res_4.name
 
 
 async def tcp_echo_client(message: dict):

@@ -16,39 +16,45 @@ class QueueManagerBackEnd(object):
         else:
             self.redis = RedisDB(REDIS_PORT)
 
-    def found_token(self, resources_request_resp: ResourcesRequestResponse,
-                    resources_with_token:  ResourcesListType) -> ResourcesRequestResponse:
-        # TODO we need to refactor this as it is not exactly as specified in the design.
-        for resource in resources_with_token:
-            resources_request_resp.names.append(resource.name)
-        return resources_request_resp
-
     async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
         token = resources_request.token
         all_resources_dict = await self.redis.get_all_resources_dict()
         resources_token_list = await self.redis.get_token_resources(token)
         if self.is_token_valid(token, all_resources_dict, resources_token_list):
-            return await self.handle_token_request(token, resources_token_list)
+            return await self.handle_token_request_for_valid_token(token, resources_token_list)
         elif resources_request.names:
-            return await self.handle_names_request(token, resources_request.names, all_resources_dict)
+            # TODO: generate new token for this job, since this token expired. but don't override the old token since
+            #  it's used to give priority to resources with the old token
+            await self.reorder_names_request(token, resources_request.names, all_resources_dict)
 
-    async def handle_names_request(self, token: str, resources_by_name: List[ResourcesByName],
-                                   all_resources_dict: Dict[str, Resource]) -> ResourcesRequestResponse:
-        original_resources = await self.redis.get_token_resources(token)
-        original_resources_names = [resource.name for resource in original_resources]
+    async def reorder_names_request(self, old_token: str, resources_by_name: List[ResourcesByName],
+                                    all_resources_dict: Dict[str, Resource]) -> None:
+        """
+        this method prioritize the resources order by checking their old token and put all the resources with the old
+        active token at the beginning of the resources_by_names
+        :param old_token: the old token of the request which is no longer valid
+        :param resources_by_name: List[ResourcesByName] as requested by client
+        :param all_resources_dict: all resources dictionary from the db
+        :return: None, the method changes the resources_by_name structure
+        """
+        original_resources = await self.redis.get_token_resources(old_token)
+        current_resources_names_with_old_token = []
+        for res in original_resources:
+            if res.token == old_token:  # all resources that currently hold this token
+                current_resources_names_with_old_token.append(res.name)
         for resources_req in resources_by_name:
             for resource_name in resources_req.names:
+                if not all_resources_dict.get(resource_name):
+                    resources_req.names.remove(resource_name)
+                    continue
                 # first try to add it to the resources with the same token to preserve system steady state:
-                if resource_name in original_resources_names:  # the resource is in the token list
+                if resource_name in current_resources_names_with_old_token:
                     # find the resource index and move it to the beginning of the list, so it will be handled first:
                     old_index = resources_req.names.index(resource_name)
                     resources_req.names.insert(0, resources_req.names.pop(old_index))
-                else:  # leave the resource in its place
-                    resource_obj = all_resources_dict.get(resource_name)
-                    if not resource_obj:
-                        logging.error(f'got request for resource {resource_name} which is not in db')
-                        resources_req.names.remove(resource_name)
-        raise NotImplementedError
+                else:
+                    # leave the resource in its place
+                    pass
 
     def find_one_resource(self, resource: Resource, all_resources_list: ResourcesListType) -> Resource or None:
         list_of_resources_with_token = self.find_all_resources_with_token(resource.token, all_resources_list)
@@ -60,15 +66,18 @@ class QueueManagerBackEnd(object):
         else:
             raise NotImplemented
 
-    async def handle_token_request(self, token: str, resources_token_list: List[Resource]) -> ResourcesRequestResponse:
+    async def handle_token_request_for_valid_token(self, token: str, resources_token_list: List[Resource]) \
+            -> ResourcesRequestResponse:
         # this method assumes that the token is valid and all resources are available with this token
         resources_request_resp = ResourcesRequestResponse()
         resources_request_resp.token = token
         for resource in resources_token_list:
-            # TODO: replace job dict with method?
-            await self.redis.add_job_to_resource(resource, {'token': token})
+            await self.generate_job(resource, token)
             resources_request_resp.names.append(resource.name)
         return resources_request_resp
+
+    async def generate_job(self, resource, token):
+        await self.redis.add_job_to_resource(resource, {'job_id': token})
 
     @staticmethod
     def is_token_valid(token: str, resources_dict: Dict[str, Resource],

@@ -111,7 +111,7 @@ class RedisDB(QrmBaseDB):
     async def is_resource_exists(self, resource: Resource) -> bool:
         return resource in await self.get_all_resources()
 
-    async def remove_job(self, job_id: int, resources_list: List[Resource] = None) -> None:
+    async def remove_job(self, job_id: str, resources_list: List[Resource] = None) -> None:
         """
         this method remove job by it's id from list of resources or from all the resources in the DB
         :param job_id: the unique job id
@@ -127,7 +127,7 @@ class RedisDB(QrmBaseDB):
                 return
             await self.redis.lrem(resource.db_name(), 1, job)
 
-    async def get_job_for_resource_by_id(self, resource: Resource, job_id: int) -> str:
+    async def get_job_for_resource_by_id(self, resource: Resource, job_id: str) -> str:
         resource_jobs = await self.get_resource_jobs(resource)
         for job in resource_jobs:
             if job['id'] == job_id:
