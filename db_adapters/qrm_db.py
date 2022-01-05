@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from qrm_server.resource_definition import Resource
-from typing import List
+from typing import List, Dict
 
 
 class QrmBaseDB(ABC):
@@ -50,4 +50,20 @@ class QrmBaseDB(ABC):
 
     @abstractmethod
     async def remove_job(self, job_id: int, resources_list: List[Resource] = None) -> None:
+        pass
+
+    @abstractmethod
+    async def get_all_resources_dict(self) -> Dict[str, Resource]:
+        pass
+
+    @abstractmethod
+    async def get_job_for_resource_by_id(self, resource: Resource, job_id: str) -> str:
+        pass
+
+    @abstractmethod
+    async def generate_token(self, token: str, resources: List[Resource]) -> bool:
+        pass
+
+    @abstractmethod
+    async def get_token_resources(self, token: str) -> List[Resource]:
         pass
