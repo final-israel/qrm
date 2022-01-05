@@ -3,9 +3,11 @@ import asyncio
 import json
 import logging
 from qrm_server import resource_definition
-from qrm_server.resource_definition import Resource, ALLOWED_SERVER_STATUSES
+from qrm_server.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest
 from qrm_db import QrmBaseDB
 from typing import Dict, List
+
+OPEN_REQUESTS = 'open_requests'
 
 ALL_RESOURCES = 'all_resources'
 SERVER_STATUS_IN_DB = 'qrm_status'
@@ -151,6 +153,38 @@ class RedisDB(QrmBaseDB):
         for resource_json in json.loads(token_json):
             resources_list.append(resource_definition.resource_from_json(resource_json))
         return resources_list
+
+    async def add_resources_request(self, resources_req: ResourcesRequest) -> None:
+        await self.redis.hset(OPEN_REQUESTS, resources_req.token, resources_req.as_json())
+
+    async def get_open_requests(self) -> Dict[str, ResourcesRequest]:
+        open_requests = await self.redis.hgetall(OPEN_REQUESTS)
+        ret_dict = {}
+        for token, req in open_requests.items():
+            ret_dict[token] = resource_definition.resource_request_from_json(req)
+        return ret_dict
+
+    async def get_open_request_by_token(self, token: str) -> ResourcesRequest:
+        # use this method if you know the token request since it's much faster than get_open_requests
+        open_req = await self.redis.hget(OPEN_REQUESTS, token)
+        if open_req:
+            return resource_definition.resource_request_from_json(open_req)
+        else:
+            return ResourcesRequest()
+
+    async def update_open_request(self, token: str, updated_request: ResourcesRequest) -> bool:
+        if await self.redis.hget(OPEN_REQUESTS, token):
+            await self.redis.hset(OPEN_REQUESTS, token, updated_request.as_json())
+            return True
+        else:
+            logging.error(f'request with token {token} is not in DB!')
+            return False
+
+    async def remove_open_request(self, token: str) -> None:
+        if await self.redis.hget(OPEN_REQUESTS, token):
+            await self.redis.hdel(OPEN_REQUESTS, token)
+        else:
+            logging.warning(f'request with token {token} is not in DB!')
 
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:

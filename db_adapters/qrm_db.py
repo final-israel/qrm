@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from qrm_server.resource_definition import Resource
+from qrm_server.resource_definition import Resource, ResourcesRequest
 from typing import List, Dict
 
 
@@ -66,4 +66,24 @@ class QrmBaseDB(ABC):
 
     @abstractmethod
     async def get_token_resources(self, token: str) -> List[Resource]:
+        pass
+
+    @abstractmethod
+    async def add_resources_request(self, resources_req: ResourcesRequest) -> None:
+        pass
+
+    @abstractmethod
+    async def get_open_requests(self) -> Dict[str, ResourcesRequest]:
+        pass
+
+    @abstractmethod
+    async def get_open_request_by_token(self, token: str) -> ResourcesRequest:
+        pass
+
+    @abstractmethod
+    async def update_open_request(self, token: str, updated_request: ResourcesRequest) -> bool:
+        pass
+
+    @abstractmethod
+    async def remove_open_request(self, token: str) -> None:
         pass

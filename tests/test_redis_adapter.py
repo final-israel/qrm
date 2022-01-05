@@ -207,3 +207,93 @@ async def test_generate_exists_token(redis_db_object, resource_foo, resource_bar
 @pytest.mark.asyncio
 async def test_token_not_in_db(redis_db_object):
     assert not await redis_db_object.get_token_resources('non_existing_token')
+
+
+@pytest.mark.asyncio
+async def test_add_resources_request(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    res_req = ResourcesRequest()
+    res_req.add_request_by_token(req_token)
+    res_req.add_request_by_names(names=[resource_foo.name, resource_bar.name], count=1)
+    await redis_db_object.add_resources_request(res_req)
+    open_requests = await redis_db_object.get_open_requests()
+    assert req_token in open_requests
+    assert res_req == open_requests[req_token]
+
+
+@pytest.mark.asyncio
+async def test_get_resources_request_by_token(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    res_req = ResourcesRequest()
+    res_req.add_request_by_token(req_token)
+    res_req.add_request_by_names(names=[resource_foo.name, resource_bar.name], count=1)
+    await redis_db_object.add_resources_request(res_req)
+    open_request = await redis_db_object.get_open_request_by_token(req_token)
+    assert res_req == open_request
+
+
+@pytest.mark.asyncio
+async def test_get_resources_request_by_token_which_expired(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    res_req = ResourcesRequest()
+    res_req.add_request_by_token(req_token)
+    res_req.add_request_by_names(names=[resource_foo.name, resource_bar.name], count=1)
+    await redis_db_object.add_resources_request(res_req)
+    open_request = await redis_db_object.get_open_request_by_token('other_token')
+    assert open_request == ResourcesRequest()
+
+
+@pytest.mark.asyncio
+async def test_update_open_request(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    res_req = ResourcesRequest()
+    res_req.add_request_by_token(req_token)
+    res_req.add_request_by_names(names=[resource_foo.name, resource_bar.name], count=1)
+    await redis_db_object.add_resources_request(res_req)
+    open_request = await redis_db_object.get_open_request_by_token(req_token)
+    assert len(open_request.names) == 1
+    res_req.names.pop(0)
+    await redis_db_object.update_open_request(req_token, res_req)
+    open_request = await redis_db_object.get_open_request_by_token(req_token)
+    assert len(open_request.names) == 0
+
+
+@pytest.mark.asyncio
+async def test_update_open_request_when_request_not_exist(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    res_req = ResourcesRequest()
+    assert not await redis_db_object.update_open_request(req_token, res_req)
+
+
+@pytest.mark.asyncio
+async def test_remove_open_request(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    res_req = ResourcesRequest()
+    res_req.add_request_by_token(req_token)
+    res_req.add_request_by_names(names=[resource_foo.name, resource_bar.name], count=1)
+    await redis_db_object.add_resources_request(res_req)
+    await redis_db_object.remove_open_request(req_token)
+    assert ResourcesRequest() == await redis_db_object.get_open_request_by_token(req_token)
+
+
+@pytest.mark.asyncio
+async def test_remove_open_request_not_exists_request(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    res_req = ResourcesRequest()
+    res_req.add_request_by_token(req_token)
+    res_req.add_request_by_names(names=[resource_foo.name, resource_bar.name], count=1)
+    await redis_db_object.add_resources_request(res_req)
+    await redis_db_object.remove_open_request('other_token')
+    assert res_req == await redis_db_object.get_open_request_by_token(req_token)

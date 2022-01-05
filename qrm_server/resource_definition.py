@@ -19,7 +19,14 @@ def resource_from_pickle(resource_as_pickle: pickle):
 
 
 def resource_request_from_json(resource_req_as_json: json):
-    return ResourcesRequest(**json.loads(resource_req_as_json))
+    res_req = ResourcesRequest()
+    res_dict = json.loads(resource_req_as_json)
+    res_req.add_request_by_token(res_dict.get('token'))
+    for name_req in res_dict['names']:
+        res_req.add_request_by_names(**name_req)
+    for tags_req in res_dict['tags']:
+        res_req.add_request_by_tags(**tags_req)
+    return res_req
 
 
 @dataclass_validate

@@ -45,6 +45,7 @@ class QueueManagerBackEnd(object):
         for resources_req in resources_by_name:
             for resource_name in resources_req.names:
                 if not all_resources_dict.get(resource_name):
+                    logging.error(f'got request for resource which is not in DB: {resource_name}')
                     resources_req.names.remove(resource_name)
                     continue
                 # first try to add it to the resources with the same token to preserve system steady state:
