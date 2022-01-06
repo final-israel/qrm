@@ -43,19 +43,18 @@ class QueueManagerBackEnd(object):
             if res.token == old_token:  # all resources that currently hold this token
                 current_resources_names_with_old_token.append(res.name)
         for resources_req in resources_by_name:
+            tmp_list_active_token = []
+            tmp_list_non_active_token = []
             for resource_name in resources_req.names:
                 if not all_resources_dict.get(resource_name):
                     logging.error(f'got request for resource which is not in DB: {resource_name}')
-                    resources_req.names.remove(resource_name)
-                    continue
                 # first try to add it to the resources with the same token to preserve system steady state:
-                if resource_name in current_resources_names_with_old_token:
+                elif resource_name in current_resources_names_with_old_token:
                     # find the resource index and move it to the beginning of the list, so it will be handled first:
-                    old_index = resources_req.names.index(resource_name)
-                    resources_req.names.insert(0, resources_req.names.pop(old_index))
+                    tmp_list_active_token.append(resource_name)
                 else:
-                    # leave the resource in its place
-                    pass
+                    tmp_list_non_active_token.append(resource_name)
+            resources_req.names = tmp_list_active_token + tmp_list_non_active_token
 
     def find_one_resource(self, resource: Resource, all_resources_list: ResourcesListType) -> Resource or None:
         list_of_resources_with_token = self.find_all_resources_with_token(resource.token, all_resources_list)
@@ -83,8 +82,6 @@ class QueueManagerBackEnd(object):
     @staticmethod
     def is_token_valid(token: str, resources_dict: Dict[str, Resource],
                        original_resources_token_list: List[Resource]) -> bool:
-        if not token:
-            return False
         for orig_resource_in_group in original_resources_token_list:
             resource_obj = resources_dict.get(orig_resource_in_group.name)
             if resource_obj:
