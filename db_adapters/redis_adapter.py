@@ -3,12 +3,12 @@ import asyncio
 import json
 import logging
 from qrm_server import resource_definition
-from qrm_server.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest
+from qrm_server.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest, ResourcesRequestResponse
 from qrm_db import QrmBaseDB
 from typing import Dict, List
 
+PARTIAL_FILL_REQUESTS = 'fill_requests'
 OPEN_REQUESTS = 'open_requests'
-
 ALL_RESOURCES = 'all_resources'
 SERVER_STATUS_IN_DB = 'qrm_status'
 ACTIVE_STATUS = 'active'
@@ -185,6 +185,25 @@ class RedisDB(QrmBaseDB):
             await self.redis.hdel(OPEN_REQUESTS, token)
         else:
             logging.warning(f'request with token {token} is not in DB!')
+
+    async def partial_fill_request(self, token: str, resource: Resource) -> None:
+        partial_fill_req = await self.redis.hget(PARTIAL_FILL_REQUESTS, token)
+        if partial_fill_req:
+            partial_fill_list = json.loads(partial_fill_req)
+            partial_fill_list.append(resource.name)
+            await self.redis.hset(PARTIAL_FILL_REQUESTS, token, json.dumps(partial_fill_list))
+        else:
+            await self.redis.hset(PARTIAL_FILL_REQUESTS, token, json.dumps([resource.name]))
+
+    async def get_partial_fill(self, token: str) -> ResourcesRequestResponse:
+        partial_fill_req = await self.redis.hget(PARTIAL_FILL_REQUESTS, token)
+        if partial_fill_req:
+            return ResourcesRequestResponse(json.loads(partial_fill_req), token)
+        else:
+            return ResourcesRequestResponse()
+
+    async def remove_partially_fill_request(self, token: str) -> None:
+        await self.redis.hdel(PARTIAL_FILL_REQUESTS, token)
 
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:

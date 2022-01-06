@@ -5,7 +5,7 @@ import pytest
 import subprocess
 
 from redis_adapter import RedisDB
-from qrm_server.resource_definition import Resource, ResourcesRequest
+from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
 
 
 def test_env():
@@ -297,3 +297,29 @@ async def test_remove_open_request_not_exists_request(redis_db_object, resource_
     await redis_db_object.add_resources_request(res_req)
     await redis_db_object.remove_open_request('other_token')
     assert res_req == await redis_db_object.get_open_request_by_token(req_token)
+
+
+@pytest.mark.asyncio
+async def test_add_partially_fill_request(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    res_req = ResourcesRequest()
+    res_req.add_request_by_token(req_token)
+    res_req.add_request_by_names(names=[resource_foo.name, resource_bar.name], count=1)
+    await redis_db_object.partial_fill_request(req_token, resource_foo)
+    assert await redis_db_object.get_partial_fill(req_token) == ResourcesRequestResponse([resource_foo.name], req_token)
+
+
+@pytest.mark.asyncio
+async def test_remove_partially_fill_requset(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    res_req = ResourcesRequest()
+    res_req.add_request_by_token(req_token)
+    res_req.add_request_by_names(names=[resource_foo.name, resource_bar.name], count=1)
+    await redis_db_object.partial_fill_request(req_token, resource_foo)
+    assert await redis_db_object.get_partial_fill(req_token) == ResourcesRequestResponse([resource_foo.name], req_token)
+    await redis_db_object.remove_partially_fill_request(req_token)
+    assert await redis_db_object.get_partial_fill(token=req_token) == ResourcesRequestResponse()
