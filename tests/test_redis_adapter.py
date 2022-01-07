@@ -336,3 +336,57 @@ async def test_get_resource_by_name_resource_not_exist(redis_db_object, resource
     await redis_db_object.add_resource(resource_foo)
     assert resource_foo == await redis_db_object.get_resource_by_name(resource_foo.name)
     assert await redis_db_object.get_resource_by_name('other_resource') is None
+
+
+@pytest.mark.asyncio
+async def test_get_active_job(redis_db_object, resource_foo):
+    await redis_db_object.add_resource(resource_foo)
+    job1 = {'id': '1', 'user': 'bar'}
+    job2 = {'id': '2', 'user': 'bar'}
+    await redis_db_object.add_job_to_resource(resource_foo, job=job1)
+    await redis_db_object.add_job_to_resource(resource_foo, job=job2)
+    assert job1 == await redis_db_object.get_active_job(resource_foo)
+    await redis_db_object.remove_job(job1['id'], [resource_foo])
+    assert job2 == await redis_db_object.get_active_job(resource_foo)
+
+
+@pytest.mark.asyncio
+async def test_get_active_job_multiple_resources(redis_db_object, resource_foo, resource_bar):
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    job1 = {'id': '1', 'user': 'bar'}
+    job2 = {'id': '2', 'user': 'bar'}
+    await redis_db_object.add_job_to_resource(resource_foo, job1)
+    await redis_db_object.add_job_to_resource(resource_foo, job2)
+    await redis_db_object.add_job_to_resource(resource_bar, job2)
+    await redis_db_object.add_job_to_resource(resource_bar, job1)
+    assert job1 == await redis_db_object.get_active_job(resource_foo)
+    assert job2 == await redis_db_object.get_active_job(resource_bar)
+    await redis_db_object.remove_job(job1['id'])
+    assert job2 == await redis_db_object.get_active_job(resource_bar)
+    assert job2 == await redis_db_object.get_active_job(resource_foo)
+    await redis_db_object.remove_job(job2['id'])
+    assert {} == await redis_db_object.get_active_job(resource_bar)
+    assert {} == await redis_db_object.get_active_job(resource_foo)
+
+
+@pytest.mark.asyncio
+async def test_set_token_for_resource(redis_db_object, resource_foo):
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.set_token_for_resource('unique_token', resource_foo)
+    res_from_db = await redis_db_object.get_resource_by_name(resource_foo.name)
+    assert 'unique_token' == res_from_db.token
+
+
+@pytest.mark.asyncio
+async def test_get_resources_by_names(redis_db_object, resource_foo, resource_bar):
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    assert [resource_foo] == await redis_db_object.get_resources_by_names([resource_foo.name])
+    assert resource_foo and resource_bar in await \
+        redis_db_object.get_resources_by_names([resource_foo.name, resource_bar.name])
+
+
+@pytest.mark.asyncio
+async def test_get_resources_by_names_resource_not_in_db(redis_db_object, resource_foo):
+    assert [] == await redis_db_object.get_resources_by_names([resource_foo.name])

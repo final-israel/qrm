@@ -119,6 +119,36 @@ async def test_request_reorder_names_request_multiple_requestes(redis_db_object,
     assert names_request2.names[-1] == res_4.name
 
 
+@pytest.mark.asyncio
+async def test_names_worker_basic(qrm_backend_with_db, redis_db_object):
+    token = 'token1'
+    job1 = {'id': token, 'user': 'bar'}
+    job2 = {'id': 'other_token', 'user': 'bar'}
+    res_1 = Resource(name='res1', type='type1')
+    res_2 = Resource(name='res2', type='type1')
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    # resources queues: {res_1: [job1, job2], res_2: [job1]}, so currently job2 is active in res_1
+    await redis_db_object.add_job_to_resource(res_1, job=job2)
+    await redis_db_object.add_job_to_resource(res_1, job=job1)
+    await redis_db_object.add_job_to_resource(res_2, job=job1)
+    # we want both res_1 and res_2:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(token)
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    await redis_db_object.add_resources_request(user_request)
+    await qrm_backend_with_db.init_event_for_token(token)
+    asyncio.ensure_future(remove_job_by_delay(redis_db_object, qrm_backend_with_db.tokens_event[token]))
+    response = await qrm_backend_with_db.names_worker(token)
+
+
+async def remove_job_by_delay(redis, token_event: asyncio.Event):
+    await asyncio.sleep(7)
+    await redis.remove_job('other_token')
+    await redis.remove_job('bla')
+    await token_event.set()
+
+
 async def tcp_echo_client(message: dict):
     reader, writer = await asyncio.open_connection(
         host='127.0.0.1',

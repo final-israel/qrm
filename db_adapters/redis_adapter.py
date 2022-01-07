@@ -78,8 +78,17 @@ class RedisDB(QrmBaseDB):
         resource_as_json = await self.redis.hget(ALL_RESOURCES, resource_name)
         if resource_as_json:
             return resource_definition.resource_from_json(resource_as_json)
-        else:
-            return None
+        return None
+
+    async def get_resources_by_names(self, resources_names: List[str]) -> List[Resource]:
+        ret_list = []
+        for res_name in resources_names:
+            resource = await self.get_resource_by_name(res_name)
+            if resource:
+                ret_list.append(resource)
+            else:
+                logging.error(f'resource: {res_name} is not in DB')
+        return ret_list
 
     async def remove_resource(self, resource: Resource) -> bool:
         if await self.redis.delete(resource.db_name()) and await self.redis.hdel(ALL_RESOURCES, resource.name):
@@ -141,6 +150,22 @@ class RedisDB(QrmBaseDB):
         for job in resource_jobs:
             if job['id'] == job_id:
                 return json.dumps(job)
+        return ''
+
+    async def get_active_job(self, resource: Resource) -> dict:
+        active_job = await self.redis.lindex(resource.db_name(), -2)
+        if active_job:
+            return json.loads(active_job)
+        else:
+            return {}
+
+    async def set_token_for_resource(self, token: str, resource: Resource) -> None:
+        resource_from_db = await self.get_resource_by_name(resource.name)
+        if resource_from_db:
+            resource_from_db.token = token
+            await self.redis.hset(ALL_RESOURCES, resource.name, resource_from_db.as_json())
+        else:
+            logging.error(f'resource {resource.name} is not in DB, so can\'t add token to it')
 
     async def generate_token(self, token: str, resources: List[Resource]) -> bool:
         if await self.redis.hget(TOKEN_DICT, token):
@@ -197,6 +222,8 @@ class RedisDB(QrmBaseDB):
         partial_fill_req = await self.redis.hget(PARTIAL_FILL_REQUESTS, token)
         if partial_fill_req:
             partial_fill_list = json.loads(partial_fill_req)
+            if resource.name in partial_fill_list:
+                return
             partial_fill_list.append(resource.name)
             await self.redis.hset(PARTIAL_FILL_REQUESTS, token, json.dumps(partial_fill_list))
         else:

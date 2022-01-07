@@ -21,6 +21,10 @@ class QrmBaseDB(ABC):
         pass
 
     @abstractmethod
+    async def get_resources_by_names(self, resources_names: List[str]) -> List[Resource]:
+        pass
+
+    @abstractmethod
     async def remove_resource(self, resource: Resource) -> bool:
         pass
 
@@ -102,4 +106,12 @@ class QrmBaseDB(ABC):
 
     @abstractmethod
     async def remove_partially_fill_request(self, token: str) -> None:
+        pass
+
+    @abstractmethod
+    async def get_active_job(self, resource: Resource) -> dict:
+        pass
+
+    @abstractmethod
+    async def set_token_for_resource(self, token: str, resource: Resource) -> None:
         pass
