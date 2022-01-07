@@ -323,3 +323,16 @@ async def test_remove_partially_fill_requset(redis_db_object, resource_foo, reso
     assert await redis_db_object.get_partial_fill(req_token) == ResourcesRequestResponse([resource_foo.name], req_token)
     await redis_db_object.remove_partially_fill_request(req_token)
     assert await redis_db_object.get_partial_fill(token=req_token) == ResourcesRequestResponse()
+
+
+@pytest.mark.asyncio
+async def test_get_resource_by_name(redis_db_object, resource_foo):
+    await redis_db_object.add_resource(resource_foo)
+    assert resource_foo == await redis_db_object.get_resource_by_name(resource_foo.name)
+
+
+@pytest.mark.asyncio
+async def test_get_resource_by_name_resource_not_exist(redis_db_object, resource_foo):
+    await redis_db_object.add_resource(resource_foo)
+    assert resource_foo == await redis_db_object.get_resource_by_name(resource_foo.name)
+    assert await redis_db_object.get_resource_by_name('other_resource') is None

@@ -17,6 +17,10 @@ class QrmBaseDB(ABC):
         pass
 
     @abstractmethod
+    async def get_resource_by_name(self, resource_name: str) -> Resource or None:
+        pass
+
+    @abstractmethod
     async def remove_resource(self, resource: Resource) -> bool:
         pass
 

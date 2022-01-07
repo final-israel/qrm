@@ -74,6 +74,13 @@ class RedisDB(QrmBaseDB):
         await self.redis.rpush(resource.db_name(), json.dumps({}))
         return True
 
+    async def get_resource_by_name(self, resource_name: str) -> Resource or None:
+        resource_as_json = await self.redis.hget(ALL_RESOURCES, resource_name)
+        if resource_as_json:
+            return resource_definition.resource_from_json(resource_as_json)
+        else:
+            return None
+
     async def remove_resource(self, resource: Resource) -> bool:
         if await self.redis.delete(resource.db_name()) and await self.redis.hdel(ALL_RESOURCES, resource.name):
             return True
