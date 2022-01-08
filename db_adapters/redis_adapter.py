@@ -148,7 +148,7 @@ class RedisDB(QrmBaseDB):
     async def get_job_for_resource_by_id(self, resource: Resource, job_id: str) -> str:
         resource_jobs = await self.get_resource_jobs(resource)
         for job in resource_jobs:
-            if job['id'] == job_id:
+            if job.get('id') == job_id:
                 return json.dumps(job)
         return ''
 
@@ -238,6 +238,11 @@ class RedisDB(QrmBaseDB):
 
     async def remove_partially_fill_request(self, token: str) -> None:
         await self.redis.hdel(PARTIAL_FILL_REQUESTS, token)
+
+    async def is_request_filled(self, token: str) -> bool:
+        if await self.redis.hget(TOKEN_DICT, token) and not await self.redis.hget(OPEN_REQUESTS, token):
+            return True
+        return False
 
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:

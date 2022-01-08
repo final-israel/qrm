@@ -115,3 +115,7 @@ class QrmBaseDB(ABC):
     @abstractmethod
     async def set_token_for_resource(self, token: str, resource: Resource) -> None:
         pass
+
+    @abstractmethod
+    async def is_request_filled(self, token: str) -> bool:
+        pass

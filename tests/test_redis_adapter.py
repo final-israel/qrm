@@ -390,3 +390,11 @@ async def test_get_resources_by_names(redis_db_object, resource_foo, resource_ba
 @pytest.mark.asyncio
 async def test_get_resources_by_names_resource_not_in_db(redis_db_object, resource_foo):
     assert [] == await redis_db_object.get_resources_by_names([resource_foo.name])
+
+
+@pytest.mark.asyncio
+async def test_is_request_filled(redis_db_object, resource_foo):
+    token = 'test_token'
+    assert not await redis_db_object.is_request_filled(token=token)
+    await redis_db_object.generate_token(token, [resource_foo])
+    assert await redis_db_object.is_request_filled(token=token)
