@@ -120,7 +120,7 @@ async def test_request_reorder_names_request_multiple_requestes(redis_db_object,
 
 
 @pytest.mark.asyncio
-async def test_names_worker_basic(qrm_backend_with_db, redis_db_object):
+async def test_names_worker_basic_request(qrm_backend_with_db, redis_db_object):
     token = 'token1'
     job1 = {'id': token, 'user': 'bar'}
     job2 = {'id': 'other_token', 'user': 'bar'}
@@ -138,15 +138,12 @@ async def test_names_worker_basic(qrm_backend_with_db, redis_db_object):
     user_request.add_request_by_names([res_1.name, res_2.name], count=2)
     await redis_db_object.add_resources_request(user_request)
     await qrm_backend_with_db.init_event_for_token(token)
-    asyncio.ensure_future(remove_job_by_delay(redis_db_object, qrm_backend_with_db.tokens_event[token]))
-    response = await qrm_backend_with_db.names_worker(token)
-
-
-async def remove_job_by_delay(redis, token_event: asyncio.Event):
-    await asyncio.sleep(7)
-    await redis.remove_job('other_token')
-    await redis.remove_job('bla')
-    await token_event.set()
+    response = qrm_backend_with_db.names_worker(token)
+    # token is not completed since the work in progress until job2 will be removed from res_1:
+    assert not await redis_db_object.is_request_filled(token)
+    await redis_db_object.remove_job('other_token')
+    assert await response == ResourcesRequestResponse(names=['res1', 'res2'], token=token)
+    assert await redis_db_object.is_request_filled(token)
 
 
 async def tcp_echo_client(message: dict):
