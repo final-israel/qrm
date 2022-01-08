@@ -52,7 +52,7 @@ async def test_request_by_token_not_valid(redis_db_object, qrm_backend_with_db):
     user_request.add_request_by_token('123456')
     response = await qrm_backend_with_db.new_request(resources_request=user_request)
     # in this case the token is not active in qrm, so the response is only with the requested token:
-    assert response == ResourcesRequestResponse(token='123456')
+    assert response == ResourcesRequestResponse(token='123456', names=[])
 
 
 @pytest.mark.asyncio
@@ -144,6 +144,27 @@ async def test_names_worker_basic_request(qrm_backend_with_db, redis_db_object):
     await redis_db_object.remove_job('other_token')
     assert await response == ResourcesRequestResponse(names=['res1', 'res2'], token=token)
     assert await redis_db_object.is_request_filled(token)
+
+
+@pytest.mark.asyncio
+async def test_request_by_names(redis_db_object, qrm_backend_with_db):
+    token = 'token1'
+    job1 = {'id': token, 'user': 'bar'}
+    job2 = {'id': 'other_token', 'user': 'bar'}
+    res_1 = Resource(name='res1', type='type1')
+    res_2 = Resource(name='res2', type='type1')
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    # resources queues: {res_1: [job1, job2], res_2: [job1]}, so currently job2 is active in res_1
+    # await redis_db_object.add_job_to_resource(res_1, job=job2)
+    await redis_db_object.add_job_to_resource(res_1, job=job1)
+    await redis_db_object.add_job_to_resource(res_2, job=job1)
+    # we want both res_1 and res_2:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(token)
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert result == ResourcesRequestResponse(names=['res1', 'res2'], token=token)
 
 
 async def tcp_echo_client(message: dict):

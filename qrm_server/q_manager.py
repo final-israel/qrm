@@ -15,34 +15,49 @@ class QueueManagerBackEnd(object):
             self.redis = RedisDB(redis_port)
         else:
             self.redis = RedisDB(REDIS_PORT)
-        self.tokens_event = {}  # {token1: asyncio.Event(), token2: asyncio.Event(), ...}
+        self.tokens_change_event = {}  # type: Dict[str, asyncio.Event]
+        self.tokens_done_event = {}  # type: Dict[str, asyncio.Event]
 
     async def init_tokens_events(self) -> None:
         open_requests = await self.redis.get_open_requests()
         for token, in open_requests.keys():
-            self.tokens_event[token] = asyncio.Event()
-            self.tokens_event[token].set()
+            self.tokens_done_event[token] = asyncio.Event()
+            self.tokens_change_event[token] = asyncio.Event()
+            self.tokens_change_event[token].set()
+            self.tokens_done_event[token].clear()
 
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
         user_req = await self.redis.get_open_request_by_token(token)
         for resources_list_request in user_req.names:
             counter = resources_list_request.count
             while counter != 0:
-                for resource_name in resources_list_request.names:
-                    resource = await self.redis.get_resource_by_name(resource_name)
-                    active_job = await self.redis.get_active_job(resource)
-                    if active_job.get('id') == token:
-                        await self.redis.set_token_for_resource(token, resource)
-                        await self.redis.partial_fill_request(token, resource)
-                        counter -= 1
+                counter = await self.find_available_resources_by_names(counter, resources_list_request, token)
                 if counter != 0:
-                    self.tokens_event[token].clear()
-                    await self.tokens_event[token].wait()
+                    await self.worker_wait_for_continue_event(token)
+        return await self.finalize_filled_request(token)
+
+    async def finalize_filled_request(self, token: str):
         await self.redis.remove_open_request(token)
         response = await self.redis.get_partial_fill(token)
         resources_list = await self.redis.get_resources_by_names(response.names)
         await self.redis.generate_token(token, resources_list)
+        self.tokens_done_event[token].set()
         return response
+
+    async def worker_wait_for_continue_event(self, token: str):
+        self.tokens_change_event[token].clear()
+        await self.tokens_change_event[token].wait()
+
+    async def find_available_resources_by_names(self, counter: int, resources_list_request: ResourcesByName,
+                                                token: str):
+        for resource_name in resources_list_request.names:
+            resource = await self.redis.get_resource_by_name(resource_name)
+            active_job = await self.redis.get_active_job(resource)
+            if active_job.get('id') == token:
+                await self.redis.set_token_for_resource(token, resource)
+                await self.redis.partial_fill_request(token, resource)
+                counter -= 1
+        return counter
 
     async def generate_jobs_from_names_request(self, token: str):
         user_req = await self.redis.get_open_request_by_token(token)
@@ -52,25 +67,36 @@ class QueueManagerBackEnd(object):
                 await self.generate_job(resource, user_req.token)
 
     async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
-        token = resources_request.token
+        requested_token = resources_request.token
         all_resources_dict = await self.redis.get_all_resources_dict()
-        resources_token_list = await self.redis.get_token_resources(token)
-        if self.is_token_valid(token, all_resources_dict, resources_token_list):
-            return await self.handle_token_request_for_valid_token(token, resources_token_list)
-        elif resources_request.names:
-            # TODO: generate new token for this job, since this token expired. but don't override the old token since
-            #  it's used to give priority to resources with the old token
-            await self.reorder_names_request(token, resources_request.names, all_resources_dict)
-            await self.redis.add_resources_request(resources_request)
-            # TODO: replace all this chunk to new token:
-            await self.init_event_for_token(token)
-            await self.generate_jobs_from_names_request(token)
-            # TODO: replace to new token:
-            return await self.names_worker(token)
+        resources_token_list = await self.redis.get_token_resources(requested_token)
+        if self.is_token_valid(requested_token, all_resources_dict, resources_token_list):
+            return await self.handle_token_request_for_valid_token(requested_token, resources_token_list)
+        # TODO: generate the new token here and init relevant token events
+        await self.init_event_for_token(requested_token)
+        if resources_request.names:
+            result = await self.handle_names_request(all_resources_dict, resources_request, requested_token)
+            # await self.tokens_done_event[requested_token].wait()
+            return await result
 
-    async def init_event_for_token(self, token):
-        self.tokens_event[token] = asyncio.Event()
-        self.tokens_event[token].set()
+        return ResourcesRequestResponse(token=requested_token)  # return empty response
+
+    async def handle_names_request(self, all_resources_dict: Dict[str, Resource], resources_request: ResourcesRequest,
+                                   requested_token: str):
+        # TODO: generate new token for this job, since this token expired. but don't override the old token since
+        #  it's used to give priority to resources with the old token
+        await self.reorder_names_request(requested_token, resources_request.names, all_resources_dict)
+        await self.redis.add_resources_request(resources_request)
+        # TODO: replace all this chunk to new token:
+        await self.generate_jobs_from_names_request(requested_token)
+        # return await self.names_worker(requested_token)
+        return self.names_worker(requested_token)
+
+    async def init_event_for_token(self, token) -> None:
+        self.tokens_change_event[token] = asyncio.Event()
+        self.tokens_done_event[token] = asyncio.Event()
+        self.tokens_change_event[token].set()
+        self.tokens_done_event[token].clear()
 
     async def reorder_names_request(self, old_token: str, resources_by_name: List[ResourcesByName],
                                     all_resources_dict: Dict[str, Resource]) -> None:
@@ -127,6 +153,8 @@ class QueueManagerBackEnd(object):
     @staticmethod
     def is_token_valid(token: str, resources_dict: Dict[str, Resource],
                        original_resources_token_list: List[Resource]) -> bool:
+        if not original_resources_token_list:
+            return False
         for orig_resource_in_group in original_resources_token_list:
             resource_obj = resources_dict.get(orig_resource_in_group.name)
             if resource_obj:
@@ -193,9 +221,6 @@ class QueueManager(asyncio.Protocol):
     def connection_lost(self, exc: Exception or None) -> None:
         logging.info(f'connection closed: {exc}')
         self.transport.close()
-
-    def get_resources(self, resources_list: list) -> list:
-        return []
 
 
 async def main():
