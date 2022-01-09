@@ -17,14 +17,13 @@ class QueueManagerBackEnd(object):
             self.redis = RedisDB(REDIS_PORT)
         self.tokens_change_event = {}  # type: Dict[str, asyncio.Event]
         self.tokens_done_event = {}  # type: Dict[str, asyncio.Event]
+        asyncio.ensure_future(self.init_tokens_events())
 
     async def init_tokens_events(self) -> None:
+        # this method is used for recovery
         open_requests = await self.redis.get_open_requests()
         for token, in open_requests.keys():
-            self.tokens_done_event[token] = asyncio.Event()
-            self.tokens_change_event[token] = asyncio.Event()
-            self.tokens_change_event[token].set()
-            self.tokens_done_event[token].clear()
+            await self.init_event_for_token(token)
 
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
         user_req = await self.redis.get_open_request_by_token(token)
