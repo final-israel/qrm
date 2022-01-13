@@ -167,11 +167,11 @@ async def test_request_by_names(redis_db_object, qrm_backend_with_db):
     result = await qrm_backend_with_db.new_request(user_request)
     assert result == ResourcesRequestResponse(names=['res1', 'res2'], token=token)
 
+
 async def help_remove_job(time_until_job_is_removed: int, redis_db_object: redis_adapter.RedisDB, job2: dict, res_1: Resource):
-    # this part needs to happen in parallel
     time.sleep(time_until_job_is_removed)
     await redis_db_object.remove_job(job_id=job2['id'], resources_list=[res_1])
-    # end of parallel
+
 
 
 @pytest.mark.asyncio
@@ -192,7 +192,9 @@ async def test_request_by_names_one_job_in_q(redis_db_object, qrm_backend_with_d
     user_request.add_request_by_token(token)
     user_request.add_request_by_names([res_1.name, res_2.name], count=2)
     time_until_job_is_removed = 3
+    # this part needs to happen in parallel
     await help_remove_job(time_until_job_is_removed=time_until_job_is_removed, redis_db_object=redis_db_object, job2=job2, res_1=res_1)
+    # end of parallel
     t1 = time.time()
     result = await qrm_backend_with_db.new_request(user_request)
     t2 = time.time()
