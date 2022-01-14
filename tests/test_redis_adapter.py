@@ -5,7 +5,8 @@ import pytest
 import subprocess
 
 from redis_adapter import RedisDB
-from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
+from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, \
+    generate_token_from_seed
 
 
 def test_env():
@@ -125,14 +126,14 @@ async def test_remove_job_from_multiple_resources(redis_db_object, resource_foo,
     await redis_db_object.add_resource(resource_bar)
     resource_aaa = Resource(name='aaa', type='server')
     await redis_db_object.add_resource(resource_aaa)
-    job1 = {'id': 1, 'user': 'bar'}
+    job1 = {'id': '1', 'user': 'bar'}
     await redis_db_object.add_job_to_resource(resource_foo, job=job1)
     await redis_db_object.add_job_to_resource(resource_bar, job=job1)
     await redis_db_object.add_job_to_resource(resource_aaa, job=job1)
     assert job1 in await redis_db_object.get_resource_jobs(resource_foo)
     assert job1 in await redis_db_object.get_resource_jobs(resource_bar)
     assert job1 in await redis_db_object.get_resource_jobs(resource_aaa)
-    await redis_db_object.remove_job(job_id=1, resources_list=[resource_foo, resource_bar])
+    await redis_db_object.remove_job(job_id='1', resources_list=[resource_foo, resource_bar])
     assert job1 not in await redis_db_object.get_resource_jobs(resource_foo)
     assert job1 not in await redis_db_object.get_resource_jobs(resource_bar)
     assert job1 in await redis_db_object.get_resource_jobs(resource_aaa)
@@ -142,15 +143,19 @@ async def test_remove_job_from_multiple_resources(redis_db_object, resource_foo,
 async def test_remove_job_from_all_resources_in_db(redis_db_object, resource_foo, resource_bar):
     await redis_db_object.add_resource(resource_foo)
     await redis_db_object.add_resource(resource_bar)
-    job1 = {'id': 1, 'user': 'bar'}
+    job1 = {'id': '1', 'user': 'bar'}
+    job2 = {'id': '2'}
     await redis_db_object.add_job_to_resource(resource_foo, job=job1)
+    await redis_db_object.add_job_to_resource(resource_foo, job=job2)
     await redis_db_object.add_job_to_resource(resource_bar, job=job1)
     assert job1 in await redis_db_object.get_resource_jobs(resource_foo)
     assert job1 in await redis_db_object.get_resource_jobs(resource_bar)
     # in this case the job should be removed from all resources queue:
-    await redis_db_object.remove_job(job_id=1)
+    await redis_db_object.remove_job(job_id='1')
     assert job1 not in await redis_db_object.get_resource_jobs(resource_foo)
     assert job1 not in await redis_db_object.get_resource_jobs(resource_bar)
+    await redis_db_object.remove_job(job_id='2')
+    assert job2 not in await redis_db_object.get_resource_jobs(resource_foo)
 
 
 @pytest.mark.asyncio
@@ -398,3 +403,23 @@ async def test_is_request_filled(redis_db_object, resource_foo):
     assert not await redis_db_object.is_request_filled(token=token)
     await redis_db_object.generate_token(token, [resource_foo])
     assert await redis_db_object.is_request_filled(token=token)
+
+
+def test_generate_seed_basic():
+    seed = 'basic_token'
+    token = generate_token_from_seed(seed)
+    assert len(token.split('_')) == 8
+
+
+def test_generate_token_from_existing_one():
+    token = 'basic_token_2022_01_14_07_53_28'
+    new_token = generate_token_from_seed(token)
+    assert len(new_token.split('_')) == 8
+    assert token != new_token
+
+
+def test_generate_token_long_name_special_chars():
+    token = 'just-a-long_name-with$pecial*chars&_2022_01_14_07_53_28'
+    new_token = generate_token_from_seed(token)
+    assert len(new_token.split('_')) == 8
+    assert token != new_token

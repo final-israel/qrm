@@ -2,7 +2,8 @@ import asyncio
 import json
 import logging
 from redis_adapter import RedisDB
-from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName
+from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
+    generate_token_from_seed
 from typing import List, Dict
 
 REDIS_PORT = 6379
@@ -29,11 +30,15 @@ class QueueManagerBackEnd(object):
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
         user_req = await self.redis.get_open_request_by_token(token)
         for resources_list_request in user_req.names:
-            counter = resources_list_request.count
-            while counter != 0:
-                counter = await self.find_available_resources_by_names(counter, resources_list_request, token)
-                if counter != 0:
+            remaining_resources = resources_list_request.count
+            while remaining_resources > 0:
+                logging.info(f'remaining resources for token: {token} is: {remaining_resources}')
+                remaining_resources = await self.find_available_resources_by_names(remaining_resources,
+                                                                                   resources_list_request, token)
+                logging.info(f'waiting for signal on token: {token}')
+                if remaining_resources != 0:
                     await self.worker_wait_for_continue_event(token)
+        logging.info(f'done handling token: {token}')
         return await self.finalize_filled_request(token)
 
     async def finalize_filled_request(self, token: str):
@@ -48,16 +53,28 @@ class QueueManagerBackEnd(object):
         self.tokens_change_event[token].clear()
         await self.tokens_change_event[token].wait()
 
-    async def find_available_resources_by_names(self, counter: int, resources_list_request: ResourcesByName,
+    async def find_available_resources_by_names(self, remaining_resources: int, resources_list_request: ResourcesByName,
                                                 token: str):
+        matched_resources = []
         for resource_name in resources_list_request.names:
             resource = await self.redis.get_resource_by_name(resource_name)
             active_job = await self.redis.get_active_job(resource)
-            if active_job.get('id') == token:
+            logging.info(f'active job for resource: {resource_name} is: {active_job.get("id")}')
+            if active_job.get('id') == token and remaining_resources > 0:
                 await self.redis.set_token_for_resource(token, resource)
                 await self.redis.partial_fill_request(token, resource)
-                counter -= 1
-        return counter
+                matched_resources.append(resource_name)
+                remaining_resources -= 1
+        # TODO: replace this for loop with nicer one:
+        for res_name in matched_resources:
+            if res_name in resources_list_request.names:
+                resources_list_request.names.remove(res_name)
+        return remaining_resources
+
+    async def remove_matched_resources(self, matched_resources, resources_list_request):
+        for res in matched_resources:
+            if res in resources_list_request.names:
+                resources_list_request.names.remove(res)
 
     async def generate_jobs_from_names_request(self, token: str):
         user_req = await self.redis.get_open_request_by_token(token)
@@ -77,7 +94,7 @@ class QueueManagerBackEnd(object):
         if resources_request.names:
             result = await self.handle_names_request(all_resources_dict, resources_request, requested_token)
             # await self.tokens_done_event[requested_token].wait()
-            return await result
+            return result
 
         return ResourcesRequestResponse(token=requested_token)  # return empty response
 
@@ -90,7 +107,7 @@ class QueueManagerBackEnd(object):
         # TODO: replace all this chunk to new token:
         await self.generate_jobs_from_names_request(requested_token)
         # return await self.names_worker(requested_token)
-        return self.names_worker(requested_token)
+        return await self.names_worker(requested_token)
 
     async def init_event_for_token(self, token) -> None:
         self.tokens_change_event[token] = asyncio.Event()

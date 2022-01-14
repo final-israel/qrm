@@ -4,10 +4,12 @@ import pickle
 from dataclasses import dataclass, asdict, field
 from typing import List
 from dataclass_type_validator import dataclass_validate
+from datetime import datetime
 
 
 RESOURCE_NAME_PREFIX = 'resource_name'
 ALLOWED_SERVER_STATUSES = ['active', 'disabled']
+DATE_FMT = '%Y_%m_%d_%H_%M_%S'
 
 
 def resource_from_json(resource_as_json: json):
@@ -16,6 +18,24 @@ def resource_from_json(resource_as_json: json):
 
 def resource_from_pickle(resource_as_pickle: pickle):
     return Resource(**pickle.loads(resource_as_pickle))
+
+
+def generate_token_from_seed(seed: str) -> str:
+    # replace the datetime of the token if exists, or add datetime in case it's a seed token
+    if is_token_format(seed):
+        seed_as_list = seed.split('_')[0:-6]
+        seed = '_'.join(seed_as_list)
+    return f'{seed}_{datetime.now().strftime(DATE_FMT)}'
+
+
+def is_token_format(token: str) -> bool:
+    # token format is: seed_DATE_FMT
+    try:
+        date_str = '_'.join(token.split('_')[-6:])
+        datetime.strptime(date_str, DATE_FMT)
+        return True
+    except Exception as e:
+        return False
 
 
 def resource_request_from_json(resource_req_as_json: json):

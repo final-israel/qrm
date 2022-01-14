@@ -171,7 +171,7 @@ async def test_add_job_to_resource(post_to_mgmt_server, redis_db_object, resourc
 
 async def test_remove_job_from_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
     await redis_db_object.add_resource(Resource(**resource_dict_1))
-    req_dict = {'resource_name': 'resource_1', 'job': {'id': 1, 'job_name': 'foo'}}
+    req_dict = {'resource_name': 'resource_1', 'job': {'id': '1', 'job_name': 'foo'}}
     resp = await post_to_mgmt_server.post(management_server.ADD_JOB_TO_RESOURCE,
                                           data=json.dumps(req_dict))
     assert resp.status == 200
@@ -180,7 +180,7 @@ async def test_remove_job_from_resource(post_to_mgmt_server, redis_db_object, re
     assert resp.status == 200
     assert qrm_status_dict['resources_status']['resource_1']['jobs'] == [req_dict['job'], {}]
     await post_to_mgmt_server.post(management_server.REMOVE_JOB,
-                                   data=json.dumps({'id': 1, 'resources': ['resource_1']}))
+                                   data=json.dumps({'id': '1', 'resources': ['resource_1']}))
     qrm_status = await post_to_mgmt_server.get(management_server.STATUS)
     qrm_status_dict = await qrm_status.json()
     assert resp.status == 200

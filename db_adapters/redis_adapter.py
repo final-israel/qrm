@@ -142,8 +142,10 @@ class RedisDB(QrmBaseDB):
         for resource in resources_list:
             job = await self.get_job_for_resource_by_id(resource, job_id)
             if not job:
-                return
-            await self.redis.lrem(resource.db_name(), 1, job)
+                continue
+            else:
+                await self.redis.lrem(resource.db_name(), 1, job)
+        return
 
     async def get_job_for_resource_by_id(self, resource: Resource, job_id: str) -> str:
         resource_jobs = await self.get_resource_jobs(resource)

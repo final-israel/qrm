@@ -3,6 +3,7 @@ import json
 import logging
 import pytest
 from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName
+from qrm_server.q_manager import QueueManagerBackEnd
 
 
 @pytest.mark.asyncio
@@ -149,22 +150,31 @@ async def test_names_worker_basic_request(qrm_backend_with_db, redis_db_object):
 @pytest.mark.asyncio
 async def test_request_by_names(redis_db_object, qrm_backend_with_db):
     token = 'token1'
-    job1 = {'id': token, 'user': 'bar'}
-    job2 = {'id': 'other_token', 'user': 'bar'}
+    job1 = {'id': token}
+    job2 = {'id': 'other_token'}
     res_1 = Resource(name='res1', type='type1')
     res_2 = Resource(name='res2', type='type1')
     await redis_db_object.add_resource(res_1)
     await redis_db_object.add_resource(res_2)
     # resources queues: {res_1: [job1, job2], res_2: [job1]}, so currently job2 is active in res_1
-    # await redis_db_object.add_job_to_resource(res_1, job=job2)
-    await redis_db_object.add_job_to_resource(res_1, job=job1)
-    await redis_db_object.add_job_to_resource(res_2, job=job1)
+    await redis_db_object.add_job_to_resource(res_1, job=job2)
     # we want both res_1 and res_2:
     user_request = ResourcesRequest()
     user_request.add_request_by_token(token)
     user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    asyncio.ensure_future(remove_job_and_set_event_after_timeout(0.1, token, qrm_backend_with_db, redis_db_object,
+                                                                 job_id='other_token'))
     result = await qrm_backend_with_db.new_request(user_request)
-    assert result == ResourcesRequestResponse(names=['res1', 'res2'], token=token)
+    assert res_1.name in result.names
+    assert res_2.name in result.names
+    assert len(result.names) == 2
+
+
+async def remove_job_and_set_event_after_timeout(timeout_sec: float, token: str, qrm_be: QueueManagerBackEnd, redis,
+                                                 job_id: str):
+    await asyncio.sleep(timeout_sec)
+    await redis.remove_job(job_id=job_id)
+    qrm_be.tokens_change_event[token].set()
 
 
 async def tcp_echo_client(message: dict):
