@@ -423,3 +423,22 @@ def test_generate_token_long_name_special_chars():
     new_token = generate_token_from_seed(token)
     assert len(new_token.split('_')) == 8
     assert token != new_token
+
+
+@pytest.mark.asyncio
+async def test_user_token_active_token_mapping(redis_db_object):
+    user_token = "123"
+    active_token = "456"
+
+    await redis_db_object.set_active_token_for_user_token(user_token, active_token)
+    res = await redis_db_object.get_active_token_from_user_token(user_token)
+
+    assert res == active_token
+
+
+@pytest.mark.asyncio
+async def test_user_token_active_token_nonexisting_mapping(redis_db_object):
+    user_token = "123"
+    res = await redis_db_object.get_active_token_from_user_token(user_token)
+
+    assert res is None

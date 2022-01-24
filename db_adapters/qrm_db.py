@@ -119,3 +119,11 @@ class QrmBaseDB(ABC):
     @abstractmethod
     async def is_request_filled(self, token: str) -> bool:
         pass
+
+    @abstractmethod
+    async def get_active_token_from_user_token(self, user_token: str) -> str:
+        pass
+
+    @abstractmethod
+    async def set_active_token_for_user_token(self, user_token: str, active_token: str) -> bool:
+        pass

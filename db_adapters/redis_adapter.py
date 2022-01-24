@@ -13,6 +13,7 @@ ALL_RESOURCES = 'all_resources'
 SERVER_STATUS_IN_DB = 'qrm_status'
 ACTIVE_STATUS = 'active'
 TOKEN_DICT = 'token_dict'
+ACTIVE_TOKEN_DICT = 'active_token_dict'
 
 
 class RedisDB(QrmBaseDB):
@@ -129,7 +130,7 @@ class RedisDB(QrmBaseDB):
     async def is_resource_exists(self, resource: Resource) -> bool:
         return resource in await self.get_all_resources()
 
-    async def remove_job(self, job_id: str, resources_list: List[Resource] = None) -> None:
+    async def remove_job(self, job_id: str, resources_list: List[Resource] = None) -> List[Resource]:
         """
         this method remove job by it's id from list of resources or from all the resources in the DB
         :param job_id: the unique job id
@@ -137,6 +138,8 @@ class RedisDB(QrmBaseDB):
         if this param is None, the job will be removed from all resources in the DB
         :return: True if
         """
+        affected_resources = []
+
         if not resources_list:  # in this case remove the job from all the resources
             resources_list = await self.get_all_resources()
         for resource in resources_list:
@@ -145,7 +148,9 @@ class RedisDB(QrmBaseDB):
                 continue
             else:
                 await self.redis.lrem(resource.db_name(), 1, job)
-        return
+                affected_resources.append(resource)
+
+        return affected_resources
 
     async def get_job_for_resource_by_id(self, resource: Resource, job_id: str) -> str:
         resource_jobs = await self.get_resource_jobs(resource)
@@ -161,6 +166,12 @@ class RedisDB(QrmBaseDB):
         else:
             return {}
 
+    async def get_active_token_from_user_token(self, user_token: str) -> str:
+        return await self.redis.hget(ACTIVE_TOKEN_DICT, user_token)
+
+    async def set_active_token_for_user_token(self, user_token: str, active_token: str) -> bool:
+        return await self.redis.hset(ACTIVE_TOKEN_DICT, user_token, active_token)
+
     async def set_token_for_resource(self, token: str, resource: Resource) -> None:
         resource_from_db = await self.get_resource_by_name(resource.name)
         if resource_from_db:
@@ -170,6 +181,9 @@ class RedisDB(QrmBaseDB):
             logging.error(f'resource {resource.name} is not in DB, so can\'t add token to it')
 
     async def generate_token(self, token: str, resources: List[Resource]) -> bool:
+        '''
+            This function will add token and its resources to Redis
+        '''
         if await self.redis.hget(TOKEN_DICT, token):
             logging.error(f'token {token} already exists in DB, can\'t generate it again')
             return False

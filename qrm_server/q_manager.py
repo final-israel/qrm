@@ -6,8 +6,20 @@ from qrm_server.resource_definition import Resource, ResourcesRequest, Resources
     generate_token_from_seed
 from typing import List, Dict
 
+CANCELED = "canceled"
+
 REDIS_PORT = 6379
 ResourcesListType = List[Resource]
+
+
+class QRMEvent(asyncio.Event):
+    def __init__(self):
+        super().__init__()
+        self.reason = None
+
+    def set(self, reason=None):
+        self.reason = reason
+        asyncio.Event.set(self)
 
 
 class QueueManagerBackEnd(object):
@@ -16,14 +28,15 @@ class QueueManagerBackEnd(object):
             self.redis = RedisDB(redis_port)
         else:
             self.redis = RedisDB(REDIS_PORT)
-        self.tokens_change_event = {}  # type: Dict[str, asyncio.Event]
-        self.tokens_done_event = {}  # type: Dict[str, asyncio.Event]
+        self.tokens_change_event = {}  # type: Dict[str, QRMEvent]
+        self.tokens_done_event = {}  # type: Dict[str, QRMEvent]
 
+    # Recovery from DB
     async def init_tokens_events(self) -> None:
         open_requests = await self.redis.get_open_requests()
         for token, in open_requests.keys():
-            self.tokens_done_event[token] = asyncio.Event()
-            self.tokens_change_event[token] = asyncio.Event()
+            self.tokens_done_event[token] = QRMEvent()
+            self.tokens_change_event[token] = QRMEvent()
             self.tokens_change_event[token].set()
             self.tokens_done_event[token].clear()
 
@@ -37,7 +50,10 @@ class QueueManagerBackEnd(object):
                                                                                    resources_list_request, token)
                 logging.info(f'waiting for signal on token: {token}')
                 if remaining_resources != 0:
-                    await self.worker_wait_for_continue_event(token)
+                    reason = await self.worker_wait_for_continue_event(token)
+                    if reason == CANCELED:
+                        return ResourcesRequestResponse()
+
         logging.info(f'done handling token: {token}')
         return await self.finalize_filled_request(token)
 
@@ -49,9 +65,11 @@ class QueueManagerBackEnd(object):
         self.tokens_done_event[token].set()
         return response
 
-    async def worker_wait_for_continue_event(self, token: str):
+    async def worker_wait_for_continue_event(self, token: str) -> str:
         self.tokens_change_event[token].clear()
         await self.tokens_change_event[token].wait()
+
+        return self.tokens_change_event[token].reason
 
     async def find_available_resources_by_names(self, remaining_resources: int, resources_list_request: ResourcesByName,
                                                 token: str):
@@ -83,13 +101,35 @@ class QueueManagerBackEnd(object):
                 resource = await self.redis.get_resource_by_name(res_name)
                 await self.generate_job(resource, user_req.token)
 
+    async def cancel_request(self, user_token: str):
+        active_token = await self.redis.get_active_token_from_user_token(user_token)
+        if active_token is None:
+            return
+
+        affected_resources = await self.redis.remove_job(job_id=active_token)
+        for resource in affected_resources:
+            ret = await self.redis.get_active_job(resource)
+            if "id" not in ret:
+                continue
+
+            token = ret["id"]
+            # release coros
+            self.tokens_change_event[token].set()
+
+        self.tokens_change_event[active_token].set(reason=CANCELED)
+
     async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
         requested_token = resources_request.token
         all_resources_dict = await self.redis.get_all_resources_dict()
         resources_token_list = await self.redis.get_token_resources(requested_token)
         if self.is_token_valid(requested_token, all_resources_dict, resources_token_list):
             return await self.handle_token_request_for_valid_token(requested_token, resources_token_list)
+
         # TODO: generate the new token here and init relevant token events
+        await self.redis.set_active_token_for_user_token(
+            requested_token, requested_token
+        )
+
         await self.init_event_for_token(requested_token)
         if resources_request.names:
             result = await self.handle_names_request(all_resources_dict, resources_request, requested_token)
@@ -110,8 +150,8 @@ class QueueManagerBackEnd(object):
         return await self.names_worker(requested_token)
 
     async def init_event_for_token(self, token) -> None:
-        self.tokens_change_event[token] = asyncio.Event()
-        self.tokens_done_event[token] = asyncio.Event()
+        self.tokens_change_event[token] = QRMEvent()
+        self.tokens_done_event[token] = QRMEvent()
         self.tokens_change_event[token].set()
         self.tokens_done_event[token].clear()
 
@@ -182,6 +222,7 @@ class QueueManagerBackEnd(object):
                 logging.info(f'resource {resource_obj.name} is no longer exists in the system, therefore token '
                              f'{token} is not valid')
                 return False
+
         return True
 
     @staticmethod
