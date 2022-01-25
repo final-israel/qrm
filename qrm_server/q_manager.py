@@ -29,16 +29,12 @@ class QueueManagerBackEnd(object):
         else:
             self.redis = RedisDB(REDIS_PORT)
         self.tokens_change_event = {}  # type: Dict[str, QRMEvent]
-        self.tokens_done_event = {}  # type: Dict[str, QRMEvent]
 
     # Recovery from DB
     async def init_tokens_events(self) -> None:
         open_requests = await self.redis.get_open_requests()
         for token, in open_requests.keys():
-            self.tokens_done_event[token] = QRMEvent()
-            self.tokens_change_event[token] = QRMEvent()
             self.tokens_change_event[token].set()
-            self.tokens_done_event[token].clear()
 
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
         user_req = await self.redis.get_open_request_by_token(token)
@@ -62,7 +58,6 @@ class QueueManagerBackEnd(object):
         response = await self.redis.get_partial_fill(token)
         resources_list = await self.redis.get_resources_by_names(response.names)
         await self.redis.generate_token(token, resources_list)
-        self.tokens_done_event[token].set()
         return response
 
     async def worker_wait_for_continue_event(self, token: str) -> str:
@@ -133,7 +128,6 @@ class QueueManagerBackEnd(object):
         await self.init_event_for_token(requested_token)
         if resources_request.names:
             result = await self.handle_names_request(all_resources_dict, resources_request, requested_token)
-            # await self.tokens_done_event[requested_token].wait()
             return result
 
         return ResourcesRequestResponse(token=requested_token)  # return empty response
@@ -151,9 +145,7 @@ class QueueManagerBackEnd(object):
 
     async def init_event_for_token(self, token) -> None:
         self.tokens_change_event[token] = QRMEvent()
-        self.tokens_done_event[token] = QRMEvent()
         self.tokens_change_event[token].set()
-        self.tokens_done_event[token].clear()
 
     async def reorder_names_request(self, old_token: str, resources_by_name: List[ResourcesByName],
                                     all_resources_dict: Dict[str, Resource]) -> None:
