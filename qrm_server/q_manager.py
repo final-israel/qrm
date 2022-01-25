@@ -77,8 +77,8 @@ class QueueManagerBackEnd(object):
         for resource_name in resources_list_request.names:
             resource = await self.redis.get_resource_by_name(resource_name)
             active_job = await self.redis.get_active_job(resource)
-            logging.info(f'active job for resource: {resource_name} is: {active_job.get("id")}')
-            if active_job.get('id') == token and remaining_resources > 0:
+            logging.info(f'active job for resource: {resource_name} is: {active_job.get("token")}')
+            if active_job.get('token') == token and remaining_resources > 0:
                 await self.redis.set_token_for_resource(token, resource)
                 await self.redis.partial_fill_request(token, resource)
                 matched_resources.append(resource_name)
@@ -106,13 +106,13 @@ class QueueManagerBackEnd(object):
         if active_token is None:
             return
 
-        affected_resources = await self.redis.remove_job(job_id=active_token)
+        affected_resources = await self.redis.remove_job(token=active_token)
         for resource in affected_resources:
             ret = await self.redis.get_active_job(resource)
-            if "id" not in ret:
+            if "token" not in ret:
                 continue
 
-            token = ret["id"]
+            token = ret["token"]
             # release coros
             self.tokens_change_event[token].set()
 
@@ -205,7 +205,7 @@ class QueueManagerBackEnd(object):
         return resources_request_resp
 
     async def generate_job(self, resource, token):
-        await self.redis.add_job_to_resource(resource, {'id': token})
+        await self.redis.add_job_to_resource(resource, {'token': token})
 
     @staticmethod
     def is_token_valid(token: str, resources_dict: Dict[str, Resource],

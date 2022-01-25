@@ -62,17 +62,17 @@ async def test_set_and_get_server_status(redis_db_object, resource_foo):
 
 
 def test_build_resource_jobs_as_dicts():
-    jobs_list = ['{"id": 1, "user": "bar"}', '{}']
-    expected_ret = [{'id': 1, 'user': 'bar'}, {}]
+    jobs_list = ['{"token": 1, "user": "bar"}', '{}']
+    expected_ret = [{'token': 1, 'user': 'bar'}, {}]
     assert expected_ret == RedisDB.build_resource_jobs_as_dicts(jobs_list=jobs_list)
 
 
 @pytest.mark.asyncio
 async def test_add_job_to_resource(redis_db_object, resource_foo):
     await redis_db_object.add_resource(resource_foo)
-    await redis_db_object.add_job_to_resource(resource_foo, job={'id': 1, 'user': 'bar'})
+    await redis_db_object.add_job_to_resource(resource_foo, job={'token': 1, 'user': 'bar'})
     jobs = await redis_db_object.get_resource_jobs(resource_foo)
-    assert jobs == [{'id': 1, 'user': 'bar'}, {}]
+    assert jobs == [{'token': 1, 'user': 'bar'}, {}]
 
 
 @pytest.mark.asyncio
@@ -99,13 +99,13 @@ async def test_set_qrm_status_not_allowed_status(redis_db_object):
 @pytest.mark.asyncio
 async def test_get_resource_matched_job_by_id(redis_db_object, resource_foo):
     await redis_db_object.add_resource(resource_foo)
-    job1 = {'id': '1', 'user': 'bar'}
-    job2 = {'id': '2', 'user': 'xxx'}
+    job1 = {'token': '1', 'user': 'bar'}
+    job2 = {'token': '2', 'user': 'xxx'}
     await redis_db_object.add_job_to_resource(resource_foo, job=job1)
     await redis_db_object.add_job_to_resource(resource_foo, job=job2)
     assert job1 and job2 in await redis_db_object.get_resource_jobs(resource_foo)
-    ret_job_1 = await redis_db_object.get_job_for_resource_by_id(resource_foo, job_id=job1['id'])
-    ret_job_2 = await redis_db_object.get_job_for_resource_by_id(resource_foo, job_id=job2['id'])
+    ret_job_1 = await redis_db_object.get_job_for_resource_by_id(resource_foo, token=job1['token'])
+    ret_job_2 = await redis_db_object.get_job_for_resource_by_id(resource_foo, token=job2['token'])
     assert json.loads(ret_job_1) == job1
     assert json.loads(ret_job_2) == job2
 
@@ -113,10 +113,10 @@ async def test_get_resource_matched_job_by_id(redis_db_object, resource_foo):
 @pytest.mark.asyncio
 async def test_remove_job_from_one_resource(redis_db_object, resource_foo):
     await redis_db_object.add_resource(resource_foo)
-    job1 = {'id': '1', 'user': 'bar'}
+    job1 = {'token': '1', 'user': 'bar'}
     await redis_db_object.add_job_to_resource(resource_foo, job=job1)
     assert job1 in await redis_db_object.get_resource_jobs(resource_foo)
-    await redis_db_object.remove_job(job_id='1', resources_list=[resource_foo])
+    await redis_db_object.remove_job(token='1', resources_list=[resource_foo])
     assert job1 not in await redis_db_object.get_resource_jobs(resource_foo)
 
 
@@ -126,14 +126,14 @@ async def test_remove_job_from_multiple_resources(redis_db_object, resource_foo,
     await redis_db_object.add_resource(resource_bar)
     resource_aaa = Resource(name='aaa', type='server')
     await redis_db_object.add_resource(resource_aaa)
-    job1 = {'id': '1', 'user': 'bar'}
+    job1 = {'token': '1', 'user': 'bar'}
     await redis_db_object.add_job_to_resource(resource_foo, job=job1)
     await redis_db_object.add_job_to_resource(resource_bar, job=job1)
     await redis_db_object.add_job_to_resource(resource_aaa, job=job1)
     assert job1 in await redis_db_object.get_resource_jobs(resource_foo)
     assert job1 in await redis_db_object.get_resource_jobs(resource_bar)
     assert job1 in await redis_db_object.get_resource_jobs(resource_aaa)
-    await redis_db_object.remove_job(job_id='1', resources_list=[resource_foo, resource_bar])
+    await redis_db_object.remove_job(token='1', resources_list=[resource_foo, resource_bar])
     assert job1 not in await redis_db_object.get_resource_jobs(resource_foo)
     assert job1 not in await redis_db_object.get_resource_jobs(resource_bar)
     assert job1 in await redis_db_object.get_resource_jobs(resource_aaa)
@@ -143,18 +143,18 @@ async def test_remove_job_from_multiple_resources(redis_db_object, resource_foo,
 async def test_remove_job_from_all_resources_in_db(redis_db_object, resource_foo, resource_bar):
     await redis_db_object.add_resource(resource_foo)
     await redis_db_object.add_resource(resource_bar)
-    job1 = {'id': '1', 'user': 'bar'}
-    job2 = {'id': '2'}
+    job1 = {'token': '1', 'user': 'bar'}
+    job2 = {'token': '2'}
     await redis_db_object.add_job_to_resource(resource_foo, job=job1)
     await redis_db_object.add_job_to_resource(resource_foo, job=job2)
     await redis_db_object.add_job_to_resource(resource_bar, job=job1)
     assert job1 in await redis_db_object.get_resource_jobs(resource_foo)
     assert job1 in await redis_db_object.get_resource_jobs(resource_bar)
     # in this case the job should be removed from all resources queue:
-    await redis_db_object.remove_job(job_id='1')
+    await redis_db_object.remove_job(token='1')
     assert job1 not in await redis_db_object.get_resource_jobs(resource_foo)
     assert job1 not in await redis_db_object.get_resource_jobs(resource_bar)
-    await redis_db_object.remove_job(job_id='2')
+    await redis_db_object.remove_job(token='2')
     assert job2 not in await redis_db_object.get_resource_jobs(resource_foo)
 
 
@@ -346,12 +346,12 @@ async def test_get_resource_by_name_resource_not_exist(redis_db_object, resource
 @pytest.mark.asyncio
 async def test_get_active_job(redis_db_object, resource_foo):
     await redis_db_object.add_resource(resource_foo)
-    job1 = {'id': '1', 'user': 'bar'}
-    job2 = {'id': '2', 'user': 'bar'}
+    job1 = {'token': '1', 'user': 'bar'}
+    job2 = {'token': '2', 'user': 'bar'}
     await redis_db_object.add_job_to_resource(resource_foo, job=job1)
     await redis_db_object.add_job_to_resource(resource_foo, job=job2)
     assert job1 == await redis_db_object.get_active_job(resource_foo)
-    await redis_db_object.remove_job(job1['id'], [resource_foo])
+    await redis_db_object.remove_job(job1['token'], [resource_foo])
     assert job2 == await redis_db_object.get_active_job(resource_foo)
 
 
@@ -359,18 +359,18 @@ async def test_get_active_job(redis_db_object, resource_foo):
 async def test_get_active_job_multiple_resources(redis_db_object, resource_foo, resource_bar):
     await redis_db_object.add_resource(resource_foo)
     await redis_db_object.add_resource(resource_bar)
-    job1 = {'id': '1', 'user': 'bar'}
-    job2 = {'id': '2', 'user': 'bar'}
+    job1 = {'token': '1', 'user': 'bar'}
+    job2 = {'token': '2', 'user': 'bar'}
     await redis_db_object.add_job_to_resource(resource_foo, job1)
     await redis_db_object.add_job_to_resource(resource_foo, job2)
     await redis_db_object.add_job_to_resource(resource_bar, job2)
     await redis_db_object.add_job_to_resource(resource_bar, job1)
     assert job1 == await redis_db_object.get_active_job(resource_foo)
     assert job2 == await redis_db_object.get_active_job(resource_bar)
-    await redis_db_object.remove_job(job1['id'])
+    await redis_db_object.remove_job(job1['token'])
     assert job2 == await redis_db_object.get_active_job(resource_bar)
     assert job2 == await redis_db_object.get_active_job(resource_foo)
-    await redis_db_object.remove_job(job2['id'])
+    await redis_db_object.remove_job(job2['token'])
     assert {} == await redis_db_object.get_active_job(resource_bar)
     assert {} == await redis_db_object.get_active_job(resource_foo)
 

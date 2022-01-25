@@ -24,14 +24,14 @@ curl --header "Content-Type: application/json" --request POST --data '{"resource
 Add job to resource:
 
 ```bash
-curl --header "Content-Type: application/json" --request POST --data '{"resource_name": "resource_1", "job": {"id": 1, "job_name": "foo"}}'  http://localhost:8080/add_job_to_resource
+curl --header "Content-Type: application/json" --request POST --data '{"resource_name": "resource_1", "job": {"token": 1, "job_name": "foo"}}'  http://localhost:8080/add_job_to_resource
 
 ````
 
 Remove job from resources:
 
 ```bash
-curl --header "Content-Type: application/json" --request POST --data '{"id": 1, "resources": ["resource_1"]}'  http://localhost:8080/remove_job
+curl --header "Content-Type: application/json" --request POST --data '{"token": 1, "resources": ["resource_1"]}'  http://localhost:8080/remove_job
 ```
 
 

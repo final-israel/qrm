@@ -130,10 +130,10 @@ class RedisDB(QrmBaseDB):
     async def is_resource_exists(self, resource: Resource) -> bool:
         return resource in await self.get_all_resources()
 
-    async def remove_job(self, job_id: str, resources_list: List[Resource] = None) -> List[Resource]:
+    async def remove_job(self, token: str, resources_list: List[Resource] = None) -> List[Resource]:
         """
         this method remove job by it's id from list of resources or from all the resources in the DB
-        :param job_id: the unique job id
+        :param token: the unique job id
         :param resources_list: list of all resources names to remove the job from.
         if this param is None, the job will be removed from all resources in the DB
         :return: True if
@@ -143,7 +143,7 @@ class RedisDB(QrmBaseDB):
         if not resources_list:  # in this case remove the job from all the resources
             resources_list = await self.get_all_resources()
         for resource in resources_list:
-            job = await self.get_job_for_resource_by_id(resource, job_id)
+            job = await self.get_job_for_resource_by_id(resource, token)
             if not job:
                 continue
             else:
@@ -152,10 +152,10 @@ class RedisDB(QrmBaseDB):
 
         return affected_resources
 
-    async def get_job_for_resource_by_id(self, resource: Resource, job_id: str) -> str:
+    async def get_job_for_resource_by_id(self, resource: Resource, token: str) -> str:
         resource_jobs = await self.get_resource_jobs(resource)
         for job in resource_jobs:
-            if job.get('id') == job_id:
+            if job.get('token') == token:
                 return json.dumps(job)
         return ''
 
