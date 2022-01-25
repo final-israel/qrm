@@ -1,16 +1,25 @@
+import json
 import logging
 from aiohttp import web
 from http import HTTPStatus
 import asyncio
-
+from qrm_server.q_manager import QueueManagerBackEnd
 # from qrm_server.resource_definition import Resource, resource_from_json
 
 URL_POST_NEW_REQUEST = '/new_request'
 URL_GET_TOKEN_STATUS = '/get_token_status'
 URL_POST_CANCEL_TOKEN = '/cancel_token'
+global qrm_back_end
+
+
+def init_qrm_back_end(qrm_back_end_obj: QueueManagerBackEnd):
+    global qrm_back_end
+    qrm_back_end = qrm_back_end_obj()
 
 
 async def new_request(request):
+    global qrm_back_end  # type: QueueManagerBackEnd
+    qrm_back_end.new_request()
     return web.Response(status=HTTPStatus.OK,
                         text=f'your token is: foobar {str(request)}\n')
 
@@ -22,7 +31,13 @@ async def get_token_status(request):
 
 # noinspection PyUnusedLocal
 async def cancel_token(request):
-    raise NotImplemented
+    global qrm_back_end  # type: QueueManagerBackEnd
+    req_dict = await request.json()
+    req_dict = json.loads(req_dict)
+    token = req_dict.get('token')
+    await qrm_back_end.cancel_request(user_token=token)
+    return web.Response(status=HTTPStatus.OK,
+                        text=f'canceled token {token}')
 
 
 def main():
