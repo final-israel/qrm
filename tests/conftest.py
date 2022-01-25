@@ -4,6 +4,7 @@ from aiohttp import web
 from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
+from qrm_server import qrm_http_server
 from qrm_server.resource_definition import Resource
 from qrm_server.q_manager import QueueManagerBackEnd
 
@@ -70,6 +71,15 @@ def post_to_mgmt_server(loop, aiohttp_client):
     app.router.add_post(management_server.SET_RESOURCE_STATUS, management_server.set_resource_status)
     app.router.add_post(management_server.ADD_JOB_TO_RESOURCE, management_server.add_job_to_resource)
     app.router.add_post(management_server.REMOVE_JOB, management_server.remove_job)
+    yield loop.run_until_complete(aiohttp_client(app))
+
+
+@pytest.fixture(scope='function')
+def post_to_http_server(loop, aiohttp_client):
+    app = web.Application(loop=loop)
+    app.router.add_post(qrm_http_server.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
+    app.router.add_post(qrm_http_server.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
+    app.router.add_post(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
     yield loop.run_until_complete(aiohttp_client(app))
 
 
