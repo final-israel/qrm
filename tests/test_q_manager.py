@@ -161,8 +161,10 @@ async def test_request_by_names(redis_db_object, qrm_backend_with_db):
     user_request = ResourcesRequest()  # job1
     user_request.add_request_by_token(job1['id'])
     user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    
     asyncio.ensure_future(remove_job_and_set_event_after_timeout(0.1, token, qrm_backend_with_db, redis_db_object,
                                                                  job_id='other_token'))
+    # resources queues: {res_1: [job1, job2], res_2: [job1]}, so currently job2 is active in res_1
     result = await qrm_backend_with_db.new_request(user_request)
     assert res_1.name in result.names
     assert res_2.name in result.names
