@@ -156,11 +156,10 @@ async def test_request_by_names(redis_db_object, qrm_backend_with_db):
     res_2 = Resource(name='res2', type='type1')
     await redis_db_object.add_resource(res_1)
     await redis_db_object.add_resource(res_2)
-    # resources queues: {res_1: [job1, job2], res_2: [job1]}, so currently job2 is active in res_1
     await redis_db_object.add_job_to_resource(res_1, job=job2)
     # we want both res_1 and res_2:
-    user_request = ResourcesRequest()
-    user_request.add_request_by_token(token)
+    user_request = ResourcesRequest()  # job1
+    user_request.add_request_by_token(job1['id'])
     user_request.add_request_by_names([res_1.name, res_2.name], count=2)
     asyncio.ensure_future(remove_job_and_set_event_after_timeout(0.1, token, qrm_backend_with_db, redis_db_object,
                                                                  job_id='other_token'))
