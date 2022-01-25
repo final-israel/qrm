@@ -121,27 +121,30 @@ class QueueManagerBackEnd(object):
             return await self.handle_token_request_for_valid_token(requested_token, resources_token_list)
 
         # TODO: generate the new token here and init relevant token events
+        active_token = generate_token_from_seed(requested_token)
         await self.redis.set_active_token_for_user_token(
-            requested_token, requested_token
+            requested_token, active_token
         )
 
-        await self.init_event_for_token(requested_token)
+        await self.init_event_for_token(active_token)
         if resources_request.names:
-            result = await self.handle_names_request(all_resources_dict, resources_request, requested_token)
+            result = await self.handle_names_request(all_resources_dict, resources_request, requested_token,
+                                                     active_token)
             return result
 
         return ResourcesRequestResponse(token=requested_token)  # return empty response
 
     async def handle_names_request(self, all_resources_dict: Dict[str, Resource], resources_request: ResourcesRequest,
-                                   requested_token: str):
+                                   requested_token: str, active_token: str):
         # TODO: generate new token for this job, since this token expired. but don't override the old token since
         #  it's used to give priority to resources with the old token
         await self.reorder_names_request(requested_token, resources_request.names, all_resources_dict)
+        resources_request.token = active_token
         await self.redis.add_resources_request(resources_request)
         # TODO: replace all this chunk to new token:
-        await self.generate_jobs_from_names_request(requested_token)
+        await self.generate_jobs_from_names_request(active_token)
         # return await self.names_worker(requested_token)
-        return await self.names_worker(requested_token)
+        return await self.names_worker(active_token)
 
     async def init_event_for_token(self, token) -> None:
         self.tokens_change_event[token] = QRMEvent()

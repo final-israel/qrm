@@ -219,11 +219,12 @@ async def test_cancel_request(redis_db_object, qrm_backend_with_db):
     assert len(result.names) == 2
 
 
-async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd, redis,
-                                                 token_job_2: str):
+async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
+                                                 redis, token_job_2: str):
     await asyncio.sleep(timeout_sec)
     await redis.remove_job(token=token_job_2)
-    qrm_be.tokens_change_event[token_job_1].set()
+    new_token_job_1 = await redis.get_active_token_from_user_token(token_job_1)
+    qrm_be.tokens_change_event[new_token_job_1].set()
 
 
 async def tcp_echo_client(message: dict):
