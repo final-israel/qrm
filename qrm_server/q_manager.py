@@ -5,7 +5,7 @@ from redis_adapter import RedisDB
 from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
     generate_token_from_seed
 from typing import List, Dict
-
+from abc import ABC, abstractmethod
 CANCELED = "canceled"
 
 REDIS_PORT = 6379
@@ -22,7 +22,23 @@ class QRMEvent(asyncio.Event):
         asyncio.Event.set(self)
 
 
-class QueueManagerBackEnd(object):
+class QrmIfc(ABC):
+    # this class is the interface between the QueueManagerBackEnd and the qrm_http_server
+    # the qrm_http_server will only call methods from the interface
+    @abstractmethod
+    async def cancel_request(self):
+        pass
+
+    @abstractmethod
+    async def new_request(self):
+        pass
+
+    # @abstractmethod
+    # async def request_filled(self) -> bool:
+    #     pass
+
+
+class QueueManagerBackEnd(QrmIfc):
     def __init__(self, redis_port: int = REDIS_PORT):
         if redis_port:
             self.redis = RedisDB(redis_port)
