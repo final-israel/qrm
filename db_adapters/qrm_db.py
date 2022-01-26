@@ -57,7 +57,7 @@ class QrmBaseDB(ABC):
         pass
 
     @abstractmethod
-    async def remove_job(self, job_id: int, resources_list: List[Resource] = None) -> None:
+    async def remove_job(self, token: int, resources_list: List[Resource] = None) -> None:
         pass
 
     @abstractmethod
@@ -65,7 +65,7 @@ class QrmBaseDB(ABC):
         pass
 
     @abstractmethod
-    async def get_job_for_resource_by_id(self, resource: Resource, job_id: str) -> str:
+    async def get_job_for_resource_by_id(self, resource: Resource, token: str) -> str:
         pass
 
     @abstractmethod

@@ -45,16 +45,12 @@ class QueueManagerBackEnd(QrmIfc):
         else:
             self.redis = RedisDB(REDIS_PORT)
         self.tokens_change_event = {}  # type: Dict[str, QRMEvent]
-        self.tokens_done_event = {}  # type: Dict[str, QRMEvent]
 
     # Recovery from DB
     async def init_tokens_events(self) -> None:
         open_requests = await self.redis.get_open_requests()
         for token, in open_requests.keys():
-            self.tokens_done_event[token] = QRMEvent()
-            self.tokens_change_event[token] = QRMEvent()
             self.tokens_change_event[token].set()
-            self.tokens_done_event[token].clear()
 
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
         user_req = await self.redis.get_open_request_by_token(token)
@@ -78,7 +74,6 @@ class QueueManagerBackEnd(QrmIfc):
         response = await self.redis.get_partial_fill(token)
         resources_list = await self.redis.get_resources_by_names(response.names)
         await self.redis.generate_token(token, resources_list)
-        self.tokens_done_event[token].set()
         return response
 
     async def worker_wait_for_continue_event(self, token: str) -> str:
@@ -93,8 +88,8 @@ class QueueManagerBackEnd(QrmIfc):
         for resource_name in resources_list_request.names:
             resource = await self.redis.get_resource_by_name(resource_name)
             active_job = await self.redis.get_active_job(resource)
-            logging.info(f'active job for resource: {resource_name} is: {active_job.get("id")}')
-            if active_job.get('id') == token and remaining_resources > 0:
+            logging.info(f'active job for resource: {resource_name} is: {active_job.get("token")}')
+            if active_job.get('token') == token and remaining_resources > 0:
                 await self.redis.set_token_for_resource(token, resource)
                 await self.redis.partial_fill_request(token, resource)
                 matched_resources.append(resource_name)
@@ -122,13 +117,13 @@ class QueueManagerBackEnd(QrmIfc):
         if active_token is None:
             return
 
-        affected_resources = await self.redis.remove_job(job_id=active_token)
+        affected_resources = await self.redis.remove_job(token=active_token)
         for resource in affected_resources:
             ret = await self.redis.get_active_job(resource)
-            if "id" not in ret:
+            if "token" not in ret:
                 continue
 
-            token = ret["id"]
+            token = ret["token"]
             # release coros
             self.tokens_change_event[token].set()
 
@@ -142,34 +137,34 @@ class QueueManagerBackEnd(QrmIfc):
             return await self.handle_token_request_for_valid_token(requested_token, resources_token_list)
 
         # TODO: generate the new token here and init relevant token events
+        active_token = generate_token_from_seed(requested_token)
         await self.redis.set_active_token_for_user_token(
-            requested_token, requested_token
+            requested_token, active_token
         )
 
-        await self.init_event_for_token(requested_token)
+        await self.init_event_for_token(active_token)
         if resources_request.names:
-            result = await self.handle_names_request(all_resources_dict, resources_request, requested_token)
-            # await self.tokens_done_event[requested_token].wait()
+            result = await self.handle_names_request(all_resources_dict, resources_request, requested_token,
+                                                     active_token)
             return result
 
         return ResourcesRequestResponse(token=requested_token)  # return empty response
 
     async def handle_names_request(self, all_resources_dict: Dict[str, Resource], resources_request: ResourcesRequest,
-                                   requested_token: str):
+                                   requested_token: str, active_token: str):
         # TODO: generate new token for this job, since this token expired. but don't override the old token since
         #  it's used to give priority to resources with the old token
         await self.reorder_names_request(requested_token, resources_request.names, all_resources_dict)
+        resources_request.token = active_token
         await self.redis.add_resources_request(resources_request)
         # TODO: replace all this chunk to new token:
-        await self.generate_jobs_from_names_request(requested_token)
+        await self.generate_jobs_from_names_request(active_token)
         # return await self.names_worker(requested_token)
-        return await self.names_worker(requested_token)
+        return await self.names_worker(active_token)
 
     async def init_event_for_token(self, token) -> None:
         self.tokens_change_event[token] = QRMEvent()
-        self.tokens_done_event[token] = QRMEvent()
         self.tokens_change_event[token].set()
-        self.tokens_done_event[token].clear()
 
     async def reorder_names_request(self, old_token: str, resources_by_name: List[ResourcesByName],
                                     all_resources_dict: Dict[str, Resource]) -> None:
@@ -221,7 +216,7 @@ class QueueManagerBackEnd(QrmIfc):
         return resources_request_resp
 
     async def generate_job(self, resource, token):
-        await self.redis.add_job_to_resource(resource, {'id': token})
+        await self.redis.add_job_to_resource(resource, {'token': token})
 
     @staticmethod
     def is_token_valid(token: str, resources_dict: Dict[str, Resource],
