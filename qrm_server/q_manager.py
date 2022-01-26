@@ -46,7 +46,7 @@ class QrmIfc(ABC):
         pass
 
 
-class QueueManagerBackEnd(object):
+class QueueManagerBackEnd(QrmIfc):
     def __init__(self, redis_port: int = REDIS_PORT):
         if redis_port:
             self.redis = RedisDB(redis_port)
@@ -122,8 +122,8 @@ class QueueManagerBackEnd(object):
 
     async def cancel_request(self, user_token: str):
         active_token = await self.redis.get_active_token_from_user_token(user_token)
-        if active_token is None:
-            return
+        if active_token is None:  # allow the user to cancel with both original token or the new token
+            active_token = user_token
 
         affected_resources = await self.redis.remove_job(token=active_token)
         for resource in affected_resources:
@@ -142,9 +142,11 @@ class QueueManagerBackEnd(object):
         all_resources_dict = await self.redis.get_all_resources_dict()
         resources_token_list = await self.redis.get_token_resources(requested_token)
         if self.is_token_valid(requested_token, all_resources_dict, resources_token_list):
+            await self.redis.set_active_token_for_user_token(
+                requested_token, requested_token
+            )
             return await self.handle_token_request_for_valid_token(requested_token, resources_token_list)
 
-        # TODO: generate the new token here and init relevant token events
         active_token = generate_token_from_seed(requested_token)
         await self.redis.set_active_token_for_user_token(
             requested_token, active_token
@@ -160,14 +162,10 @@ class QueueManagerBackEnd(object):
 
     async def handle_names_request(self, all_resources_dict: Dict[str, Resource], resources_request: ResourcesRequest,
                                    requested_token: str, active_token: str):
-        # TODO: generate new token for this job, since this token expired. but don't override the old token since
-        #  it's used to give priority to resources with the old token
         await self.reorder_names_request(requested_token, resources_request.names, all_resources_dict)
         resources_request.token = active_token
         await self.redis.add_resources_request(resources_request)
-        # TODO: replace all this chunk to new token:
         await self.generate_jobs_from_names_request(active_token)
-        # return await self.names_worker(requested_token)
         return await self.names_worker(active_token)
 
     async def init_event_for_token(self, token) -> None:
@@ -225,6 +223,24 @@ class QueueManagerBackEnd(object):
 
     async def generate_job(self, resource, token):
         await self.redis.add_job_to_resource(resource, {'token': token})
+
+    async def is_request_active(self, token: str) -> bool:
+        # request is active if it's not filled, or it already cancelled:
+        is_filled = await self.redis.is_request_filled(token)
+        is_cancelled = self.tokens_change_event[token].reason == CANCELED
+        return not (is_filled or is_cancelled)
+
+    async def get_new_token(self, token: str) -> str:
+        new_token = await self.redis.get_active_token_from_user_token(token)
+        while not new_token:
+            await asyncio.sleep(0.1)
+            new_token = await self.redis.get_active_token_from_user_token(token)
+        return new_token
+
+    async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
+        # if the request is not totally filled, you will get the current partial fill.
+        # in case you want only totally filled, first check is_request_active method
+        return await self.redis.get_partial_fill(token)
 
     @staticmethod
     def is_token_valid(token: str, resources_dict: Dict[str, Resource],
