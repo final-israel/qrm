@@ -26,16 +26,24 @@ class QrmIfc(ABC):
     # this class is the interface between the QueueManagerBackEnd and the qrm_http_server
     # the qrm_http_server will only call methods from the interface
     @abstractmethod
-    async def cancel_request(self):
+    async def cancel_request(self, user_token: str) -> None:
         pass
 
     @abstractmethod
-    async def new_request(self):
+    async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
         pass
 
-    # @abstractmethod
-    # async def request_filled(self) -> bool:
-    #     pass
+    @abstractmethod
+    async def is_request_active(self, token: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def get_new_token(self, token: str) -> str:
+        pass
+
+    @abstractmethod
+    async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
+        pass
 
 
 class QueueManagerBackEnd(QrmIfc):
