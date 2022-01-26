@@ -1,9 +1,6 @@
-import copy
 import json
-import pytest
 from qrm_server import qrm_http_server
-from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, \
-    resource_request_response_from_json
+from qrm_server.resource_definition import Resource, ResourcesRequest, resource_request_response_from_json
 
 
 async def test_http_server_cancel_token(post_to_http_server):
@@ -18,6 +15,7 @@ async def test_http_server_cancel_token(post_to_http_server):
     assert resp_as_text == f'canceled token {token}'
 
 
+# noinspection DuplicatedCode
 async def test_http_server_new_request_new_token(post_to_http_server):
     token = 'token1'
     res_1 = Resource(name='res1', type='type1')
@@ -34,6 +32,7 @@ async def test_http_server_new_request_new_token(post_to_http_server):
     assert resp_dict.get('token') == expected_token
 
 
+# noinspection DuplicatedCode,PyTypeChecker
 async def test_http_server_get_token_status_is_active(post_to_http_server, qrm_backend_mock_cls):
     token = 'token1'
     res_1 = Resource(name='res1', type='type1')
@@ -48,4 +47,4 @@ async def test_http_server_get_token_status_is_active(post_to_http_server, qrm_b
     resp_json = await resp.json()
     rrr_obj = resource_request_response_from_json(resp_json)
     assert resp.status == 200
-    assert rrr_obj.request_complete == False
+    assert rrr_obj.request_complete is False
