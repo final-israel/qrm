@@ -46,7 +46,7 @@ class QrmIfc(ABC):
         pass
 
 
-class QueueManagerBackEnd(QrmIfc):
+class QueueManagerBackEnd(object):
     def __init__(self, redis_port: int = REDIS_PORT):
         if redis_port:
             self.redis = RedisDB(redis_port)

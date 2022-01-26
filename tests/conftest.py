@@ -18,7 +18,7 @@ redis_my = factories.redisdb('redis_my_proc')
 
 
 # noinspection PyMethodMayBeStatic
-class QueueManagerBackEndMock(QrmIfc):
+class QueueManagerBackEndMock():
     async def cancel_request(self, user_token: str) -> None:
         print('#######  using cancel_request in QueueManagerBackEndMock ####### ')
         return
