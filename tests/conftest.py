@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import pytest
 from aiohttp import web
@@ -9,7 +10,6 @@ from qrm_server.resource_definition import Resource
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
 
-
 REDIS_PORT = 6379
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
@@ -18,16 +18,24 @@ redis_my = factories.redisdb('redis_my_proc')
 
 
 # noinspection PyMethodMayBeStatic
-class QueueManagerBackEndMock():
+class QueueManagerBackEndMock(QrmIfc):
     async def cancel_request(self, user_token: str) -> None:
         print('#######  using cancel_request in QueueManagerBackEndMock ####### ')
         return
 
     async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
-        return None
+        resources_request_res = ResourcesRequestResponse
+        resources_request_res.token = resources_request.token
+        return resources_request_res
 
-    async def request_filled(self) -> bool:
-        return True
+    async def is_request_active(self, token: str) -> bool:
+        pass
+
+    async def get_new_token(self, token: str) -> str:
+        return f'{token}_new'
+
+    async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
+        pass
 
 
 @pytest.fixture(scope='session')
@@ -106,4 +114,3 @@ def post_to_http_server(loop, aiohttp_client):
 @pytest.fixture(scope='function')
 def qrm_backend_with_db(redis_db_object) -> QueueManagerBackEnd:
     return QueueManagerBackEnd(redis_port=REDIS_PORT)
-

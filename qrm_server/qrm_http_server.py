@@ -4,7 +4,7 @@ from aiohttp import web
 from http import HTTPStatus
 import asyncio
 from qrm_server.q_manager import QueueManagerBackEnd
-# from qrm_server.resource_definition import Resource, resource_from_json
+from qrm_server.resource_definition import Resource, resource_from_json, resource_request_from_json
 
 URL_POST_NEW_REQUEST = '/new_request'
 URL_GET_TOKEN_STATUS = '/get_token_status'
@@ -19,9 +19,13 @@ def init_qrm_back_end(qrm_back_end_obj: QueueManagerBackEnd):
 
 async def new_request(request):
     global qrm_back_end  # type: QueueManagerBackEnd
-    qrm_back_end.new_request()
-    return web.Response(status=HTTPStatus.OK,
-                        text=f'your token is: foobar {str(request)}\n')
+    request_json = await request.json()
+    logging.info(f'new request {request_json}')
+    resource_request = resource_request_from_json(request_json)
+    asyncio.ensure_future(qrm_back_end.new_request(resources_request=resource_request))
+    active_token = await qrm_back_end.get_new_token(resource_request.token)
+    resp_json = json.dumps({'token': active_token})
+    return web.json_response(resp_json, status=HTTPStatus.OK)
 
 
 # noinspection PyUnusedLocal

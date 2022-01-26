@@ -38,7 +38,7 @@ def is_token_format(token: str) -> bool:
         return False
 
 
-def resource_request_from_json(resource_req_as_json: json):
+def resource_request_from_json(resource_req_as_json: json) -> ResourcesRequest:
     res_req = ResourcesRequest()
     res_dict = json.loads(resource_req_as_json)
     res_req.add_request_by_token(res_dict.get('token'))
