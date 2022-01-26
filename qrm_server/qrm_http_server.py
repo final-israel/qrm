@@ -40,14 +40,10 @@ async def get_token_status(request) -> web.json_response:
         rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
         return web.json_response(rrr_json, status=HTTPStatus.OK)
     else:
-        filled_request = await qrm_back_end.get_filled_request(token=token)
-        resp_json = json.dumps({'token': active_token})
-        return web.json_response(resp_json, status=HTTPStatus.OK)
-
-
-
-    return web.Response(status=HTTPStatus.OK)
-    #return web.json_response(resp_json, status=HTTPStatus.OK)
+        rrr_obj = await qrm_back_end.get_filled_request(token=token)
+        rrr_obj.request_complete = True
+        rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+        return web.json_response(rrr_json, status=HTTPStatus.OK)
 
 
 # noinspection PyUnusedLocal

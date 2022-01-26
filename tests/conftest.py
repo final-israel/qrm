@@ -20,6 +20,7 @@ redis_my = factories.redisdb('redis_my_proc')
 # noinspection PyMethodMayBeStatic
 class QueueManagerBackEndMock(QrmIfc):
     for_test_is_request_active: bool = False
+    get_filled_request_obj: ResourcesRequestResponse
 
     async def cancel_request(self, user_token: str) -> None:
         print('#######  using cancel_request in QueueManagerBackEndMock ####### ')
@@ -37,7 +38,7 @@ class QueueManagerBackEndMock(QrmIfc):
         return f'{token}_new'
 
     async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
-        pass
+        return self.get_filled_request_obj
 
 
 @pytest.fixture(scope='session')
@@ -48,6 +49,7 @@ def qrm_backend_mock() -> QueueManagerBackEndMock:
 @pytest.fixture(scope='function')
 def qrm_backend_mock_cls() -> QueueManagerBackEndMock:
     return QueueManagerBackEndMock
+
 
 @pytest.fixture(scope='session')
 def resource_dict_1() -> dict:
