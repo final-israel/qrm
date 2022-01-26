@@ -2,7 +2,8 @@ import copy
 import json
 import pytest
 from qrm_server import qrm_http_server
-from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
+from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, \
+    resource_request_response_from_json
 
 
 async def test_http_server_cancel_token(post_to_http_server):
@@ -17,7 +18,7 @@ async def test_http_server_cancel_token(post_to_http_server):
     assert resp_as_text == f'canceled token {token}'
 
 
-async def test_http_server_new_request_same_token(post_to_http_server):
+async def test_http_server_new_request_new_token(post_to_http_server):
     token = 'token1'
     res_1 = Resource(name='res1', type='type1')
     res_2 = Resource(name='res2', type='type1')
@@ -32,3 +33,19 @@ async def test_http_server_new_request_same_token(post_to_http_server):
     assert resp.status == 200
     assert resp_dict.get('token') == expected_token
 
+
+async def test_http_server_get_token_status_is_active(post_to_http_server, qrm_backend_mock_cls):
+    token = 'token1'
+    res_1 = Resource(name='res1', type='type1')
+    res_2 = Resource(name='res2', type='type1')
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(token)
+    user_request.add_request_by_names([res_1.name, res_2.name], count=1)
+    queue_manager_back_end_mock = qrm_backend_mock_cls
+    queue_manager_back_end_mock.for_test_is_request_active = True
+    qrm_http_server.init_qrm_back_end(queue_manager_back_end_mock)
+    resp = await post_to_http_server.get(qrm_http_server.URL_GET_TOKEN_STATUS, params={'token': token})
+    resp_json = await resp.json()
+    rrr_obj = resource_request_response_from_json(resp_json)
+    assert resp.status == 200
+    assert rrr_obj.request_complete == False

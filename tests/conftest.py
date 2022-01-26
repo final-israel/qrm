@@ -19,6 +19,8 @@ redis_my = factories.redisdb('redis_my_proc')
 
 # noinspection PyMethodMayBeStatic
 class QueueManagerBackEndMock(QrmIfc):
+    for_test_is_request_active: bool = False
+
     async def cancel_request(self, user_token: str) -> None:
         print('#######  using cancel_request in QueueManagerBackEndMock ####### ')
         return
@@ -29,7 +31,7 @@ class QueueManagerBackEndMock(QrmIfc):
         return resources_request_res
 
     async def is_request_active(self, token: str) -> bool:
-        pass
+        return self.for_test_is_request_active
 
     async def get_new_token(self, token: str) -> str:
         return f'{token}_new'
@@ -42,6 +44,10 @@ class QueueManagerBackEndMock(QrmIfc):
 def qrm_backend_mock() -> QueueManagerBackEndMock:
     return QueueManagerBackEndMock()
 
+
+@pytest.fixture(scope='function')
+def qrm_backend_mock_cls() -> QueueManagerBackEndMock:
+    return QueueManagerBackEndMock
 
 @pytest.fixture(scope='session')
 def resource_dict_1() -> dict:
@@ -107,9 +113,18 @@ def post_to_http_server(loop, aiohttp_client):
     qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock)
     app.router.add_post(qrm_http_server.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
     app.router.add_post(qrm_http_server.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
-    app.router.add_post(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
+    app.router.add_get(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
     yield loop.run_until_complete(aiohttp_client(app))
 
+
+@pytest.fixture(scope='function')
+def post_to_http_server_mock(loop, aiohttp_client):
+    app = web.Application(loop=loop)
+    qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock)
+    app.router.add_post(qrm_http_server.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
+    app.router.add_post(qrm_http_server.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
+    app.router.add_get(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
+    yield loop.run_until_complete(aiohttp_client(app))
 
 @pytest.fixture(scope='function')
 def qrm_backend_with_db(redis_db_object) -> QueueManagerBackEnd:
