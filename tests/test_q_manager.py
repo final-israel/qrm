@@ -219,11 +219,102 @@ async def test_cancel_request(redis_db_object, qrm_backend_with_db):
     assert len(result.names) == 2
 
 
+@pytest.mark.asyncio
+async def test_is_request_active(redis_db_object, qrm_backend_with_db):
+    token = 'token1'
+    job1 = {'token': token}
+    job2 = {'token': 'other_token'}
+    res_1 = Resource(name='res1', type='type1')
+    res_2 = Resource(name='res2', type='type1')
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_job_to_resource(res_1, job=job2)
+    # we want both res_1 and res_2:
+    user_request = ResourcesRequest()  # job1
+    user_request.add_request_by_token(job1['token'])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+
+    asyncio.ensure_future(remove_job_and_set_event_after_timeout(0.1, token, qrm_backend_with_db, redis_db_object,
+                                                                 'other_token'))
+    # resources queues: {res_1: [job1, job2], res_2: [job1]}, so currently job2 is active in res_1
+    result = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    new_active_token = await qrm_backend_with_db.get_new_token(token)
+    # request should be active at this point:
+    assert await qrm_backend_with_db.is_request_active(new_active_token)
+    result = await result
+    # after result received, the request is no longer active:
+    assert not await qrm_backend_with_db.is_request_active(new_active_token)
+    assert res_1.name in result.names
+    assert res_2.name in result.names
+    assert len(result.names) == 2
+
+
+@pytest.mark.asyncio
+async def test_is_request_active_after_cancel(redis_db_object, qrm_backend_with_db):
+    token = 'token1'
+    job1 = {'token': token}
+    job2 = {'token': 'other_token'}
+    res_1 = Resource(name='res1', type='type1')
+    res_2 = Resource(name='res2', type='type1')
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    # we want both res_1 and res_2:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job2["token"])
+    user_request.add_request_by_names([res_1.name], count=1)
+    await qrm_backend_with_db.new_request(user_request)
+
+    user_request = ResourcesRequest()  # job1
+    user_request.add_request_by_token(job1['token'])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    # at this point the new request is running in BG and still active
+
+    new_active_token = await qrm_backend_with_db.get_new_token(token)
+    assert await qrm_backend_with_db.is_request_active(new_active_token)
+    await qrm_backend_with_db.cancel_request(new_active_token)
+    assert not await qrm_backend_with_db.is_request_active(new_active_token)
+
+
+@pytest.mark.asyncio
+async def test_get_filled_request(redis_db_object, qrm_backend_with_db):
+    token = 'token1'
+    job1 = {'token': token}
+    job2 = {'token': 'other_token'}
+    res_1 = Resource(name='res1', type='type1')
+    res_2 = Resource(name='res2', type='type1')
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    # we want both res_1 and res_2:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job2["token"])
+    user_request.add_request_by_names([res_1.name], count=1)
+    await qrm_backend_with_db.new_request(user_request)
+
+    user_request = ResourcesRequest()  # job1
+    user_request.add_request_by_token(job1['token'])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    # resources queues: {res_1: [job1, job2], res_2: [job1]}, so currently job2 is active in res_1
+    asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+
+    await qrm_backend_with_db.cancel_request(job2['token'])
+    new_active_token = await qrm_backend_with_db.get_new_token(job1['token'])
+    while await qrm_backend_with_db.is_request_active(new_active_token):
+        await asyncio.sleep(0.1)
+    result = await qrm_backend_with_db.get_filled_request(new_active_token)
+    assert res_1.name in result.names
+    assert res_2.name in result.names
+    assert len(result.names) == 2
+
+
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
                                                  redis, token_job_2: str):
     await asyncio.sleep(timeout_sec)
     await redis.remove_job(token=token_job_2)
-    new_token_job_1 = await redis.get_active_token_from_user_token(token_job_1)
+    # new_token_job_1 = await redis.get_active_token_from_user_token(token_job_1)
+    new_token_job_1 = await qrm_be.get_new_token(token_job_1)
     qrm_be.tokens_change_event[new_token_job_1].set()
 
 
