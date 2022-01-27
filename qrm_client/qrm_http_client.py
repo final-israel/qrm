@@ -35,5 +35,21 @@ class QrmClient(object):
         rr.token = self.token
         full_url = self.full_url(URL_POST_CANCEL_TOKEN)
         logging.info(f'send to url {full_url}')
-        resp = requests.post(full_url, json=rr.as_dict())
+        json_as_dict = rr.as_dict()
+        resp = requests.post(full_url, json=json_as_dict)
         return resp
+
+    def get_root_url(self) -> requests.Response:
+        full_url = self.full_url('/')
+        logging.info(f'send to url {full_url}')
+        resp = requests.get(full_url)
+        print(resp.text)
+        print(resp)
+
+
+if __name__ == '__main__':
+    qrm_client = QrmClient(server_ip='127.0.0.1',
+                           server_port=5555,
+                           user_name='ronsh',
+                           token='1234')
+    qrm_client.get_root_url()

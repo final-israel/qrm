@@ -11,7 +11,8 @@ URL_POST_NEW_REQUEST = '/new_request'
 URL_GET_TOKEN_STATUS = '/get_token_status'
 URL_POST_CANCEL_TOKEN = '/cancel_token'
 global qrm_back_end
-
+global global_number
+global_number = 0
 
 def init_qrm_back_end(qrm_back_end_obj: QueueManagerBackEnd) -> None:
     global qrm_back_end
@@ -60,12 +61,20 @@ async def cancel_token(request) -> web.Response:
                         text=f'canceled token {token}')
 
 
+async def root_url(request) -> web.Response:
+    global global_number
+    global_number += 1
+    return web.Response(status=HTTPStatus.OK,
+                        text=f'server up {global_number}')
+
+
 def main():
     app = web.Application()
     app.add_routes([web.post(f'{URL_POST_NEW_REQUEST}', new_request),
                     web.post(f'{URL_POST_CANCEL_TOKEN}', get_token_status),
-                    web.get(f'{URL_GET_TOKEN_STATUS}', cancel_token)])
-    web.run_app(app)
+                    web.get(f'{URL_GET_TOKEN_STATUS}', cancel_token),
+                    web.get(f'/', root_url)])
+    web.run_app(app, port=5555)
 
 
 if __name__ == "__main__":
