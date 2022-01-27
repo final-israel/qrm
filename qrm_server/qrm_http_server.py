@@ -49,9 +49,12 @@ async def get_token_status(request) -> web.json_response:
 # noinspection PyUnusedLocal
 async def cancel_token(request) -> web.Response:
     global qrm_back_end  # type: QueueManagerBackEnd
+    logging.info('in cancel_token')
+    logging.info(request)
     req_dict = await request.json()
     req_dict = json.loads(req_dict)
     token = req_dict.get('token')
+
     await qrm_back_end.cancel_request(user_token=token)
     return web.Response(status=HTTPStatus.OK,
                         text=f'canceled token {token}')

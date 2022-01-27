@@ -1,0 +1,6 @@
+pytest
+pytest-redis
+pytest-asyncio
+pytest-aiohttp
+aiohttp
+aioredis
