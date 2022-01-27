@@ -4,7 +4,7 @@ import logging
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
-from qrm_server.resource_definition import Resource, load_from_json
+from qrm_server.resource_definition import Resource, resource_from_json
 
 
 REMOVE_JOB = '/remove_job'
@@ -133,18 +133,18 @@ async def remove_job(request):
     global redis
     req_dict = await request.json()
     try:
-        job_id = req_dict['id']
+        token = req_dict['token']
         resources_list = req_dict.get('resources')
         all_resources_dict = await redis.get_all_resources_dict()
         resources_list_obj = []
         for resource_name in resources_list:
             resource = all_resources_dict.get(resource_name)
-            resources_list_obj.append(load_from_json(resource))
-        await redis.remove_job(job_id, resources_list_obj)
+            resources_list_obj.append(resource)
+        await redis.remove_job(token, resources_list_obj)
         return web.Response(status=HTTPStatus.OK, text=f'removed job: {req_dict}\n')
     except KeyError as e:
         return web.Response(status=HTTPStatus.BAD_REQUEST,
-                            text=f'Error: "id" is a mandatory key: {req_dict}\n')
+                            text=f'Error: "token" is a mandatory key: {req_dict}\n')
 
 
 async def set_resource_status(request):
@@ -161,7 +161,7 @@ async def set_resource_status(request):
         if not resource:
             return web.Response(status=HTTPStatus.BAD_REQUEST,
                                 text=f'Error: resource {resource_name} does not exist or status is not allowed\n')
-        if await redis.set_resource_status(resource=load_from_json(resource), status=req_status):
+        if await redis.set_resource_status(resource=resource, status=req_status):
             return web.Response(status=HTTPStatus.OK,
                                 text=f'mew resource status is: {req_status}\n')
         else:
@@ -180,7 +180,7 @@ async def add_job_to_resource(request):
         all_resources_dict = await redis.get_all_resources_dict()
         resource = all_resources_dict.get(resource_name)
         job = req_dict['job']
-        if await redis.add_job_to_resource(resource=load_from_json(resource), job=job):
+        if await redis.add_job_to_resource(resource=resource, job=job):
             return web.Response(status=HTTPStatus.OK, text=f'added job: {job} to resource: {resource_name}\n')
         else:
             return web.Response(status=HTTPStatus.BAD_REQUEST,
