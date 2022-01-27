@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from redis_adapter import RedisDB
 from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
@@ -26,7 +25,7 @@ class QrmIfc(ABC):
     # this class is the interface between the QueueManagerBackEnd and the qrm_http_server
     # the qrm_http_server will only call methods from the interface
     @abstractmethod
-    async def cancel_request(self, user_token: str) -> None:
+    async def cancel_request(self, token: str) -> None:
         pass
 
     @abstractmethod
@@ -120,22 +119,19 @@ class QueueManagerBackEnd(QrmIfc):
                 resource = await self.redis.get_resource_by_name(res_name)
                 await self.generate_job(resource, user_req.token)
 
-    async def cancel_request(self, user_token: str):
-        active_token = await self.redis.get_active_token_from_user_token(user_token)
-        if active_token is None:  # allow the user to cancel with both original token or the new token
-            active_token = user_token
+    async def cancel_request(self, token: str) -> None:
 
-        affected_resources = await self.redis.remove_job(token=active_token)
+        affected_resources = await self.redis.remove_job(token=token)
         for resource in affected_resources:
             ret = await self.redis.get_active_job(resource)
             if "token" not in ret:
                 continue
 
-            token = ret["token"]
+            affected_token = ret["token"]
             # release coros
-            self.tokens_change_event[token].set()
+            self.tokens_change_event[affected_token].set()
 
-        self.tokens_change_event[active_token].set(reason=CANCELED)
+        self.tokens_change_event[token].set(reason=CANCELED)
 
     async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
         requested_token = resources_request.token
@@ -225,9 +221,11 @@ class QueueManagerBackEnd(QrmIfc):
         await self.redis.add_job_to_resource(resource, {'token': token})
 
     async def is_request_active(self, token: str) -> bool:
-        # request is active if it's not filled, or it already cancelled:
+        # request is active if it's not filled, or it's already cancelled:
         is_filled = await self.redis.is_request_filled(token)
         is_cancelled = self.tokens_change_event[token].reason == CANCELED
+        logging.info(f'request for token: {token} cancelled: {is_cancelled}, '
+                     f'filled: {is_filled}')
         return not (is_filled or is_cancelled)
 
     async def get_new_token(self, token: str) -> str:
@@ -287,5 +285,3 @@ class QueueManagerBackEnd(QrmIfc):
                     one_resource = self.find_one_resource(resource, all_resources_list)
                     out_resources_list.append(one_resource)
         return out_resources_list
-
-

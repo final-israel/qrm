@@ -196,7 +196,7 @@ class RedisDB(QrmBaseDB):
         resources_list = []
         token_json = await self.redis.hget(TOKEN_DICT, token)
         if not token_json:
-            logging.error(f'token {token} does not exists in db')
+            logging.warning(f'token {token} does not exists in db')
             return []
         for resource_json in json.loads(token_json):
             resources_list.append(resource_definition.resource_from_json(resource_json))

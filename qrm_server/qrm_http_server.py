@@ -35,7 +35,7 @@ async def cancel_token(request):
     req_dict = await request.json()
     req_dict = json.loads(req_dict)
     token = req_dict.get('token')
-    await qrm_back_end.cancel_request(user_token=token)
+    await qrm_back_end.cancel_request(token=token)
     return web.Response(status=HTTPStatus.OK,
                         text=f'canceled token {token}')
 
