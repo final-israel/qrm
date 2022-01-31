@@ -24,6 +24,8 @@ async def test_http_server_new_request_new_token(post_to_http_server):
     user_request = ResourcesRequest()
     user_request.add_request_by_token(token)
     user_request.add_request_by_names([res_1.name, res_2.name], count=1)
+    print(post_to_http_server.host)
+    print(post_to_http_server.port)
     resp = await post_to_http_server.post(qrm_http_server.URL_POST_NEW_REQUEST,
                                           data=json.dumps(user_request.as_json()))
     resp_json = await resp.json()

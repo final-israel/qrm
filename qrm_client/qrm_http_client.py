@@ -6,6 +6,8 @@ from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN
 import logging
 import json
 import requests
+
+
 class QrmClient(object):
     def __init__(self, server_ip: str,
                  server_port: str,
