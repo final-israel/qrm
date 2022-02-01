@@ -58,6 +58,7 @@ async def cancel_token(request) -> web.Response:
 
 
 def main():
+    init_qrm_back_end()
     app = web.Application()
     app.add_routes([web.post(f'{URL_POST_NEW_REQUEST}', new_request),
                     web.post(f'{URL_POST_CANCEL_TOKEN}', get_token_status),
