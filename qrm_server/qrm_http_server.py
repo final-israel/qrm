@@ -4,15 +4,21 @@ from aiohttp import web
 from http import HTTPStatus
 import asyncio
 from qrm_server.q_manager import QueueManagerBackEnd
-from qrm_server.resource_definition import Resource, resource_from_json, resource_request_from_json, \
-    ResourcesRequestResponse, resource_request_response_to_json
+from qrm_server.resource_definition import resource_request_from_json, ResourcesRequestResponse, \
+    resource_request_response_to_json
 
 URL_POST_NEW_REQUEST = '/new_request'
 URL_GET_TOKEN_STATUS = '/get_token_status'
 URL_POST_CANCEL_TOKEN = '/cancel_token'
+URL_GET_ROOT = '/'
 global qrm_back_end
 global global_number
-global_number = 0
+global_number: int = 0
+
+
+def canceled_token_msg(token):
+    return f'canceled token {token}'
+
 
 def init_qrm_back_end(qrm_back_end_obj: QueueManagerBackEnd) -> None:
     global qrm_back_end
@@ -69,6 +75,7 @@ async def root_url(request) -> web.Response:
 
 
 def main():
+    init_qrm_back_end()
     app = web.Application()
     app.add_routes([web.post(f'{URL_POST_NEW_REQUEST}', new_request),
                     web.post(f'{URL_POST_CANCEL_TOKEN}', get_token_status),
@@ -80,6 +87,6 @@ def main():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
     try:
-        asyncio.run(main(), debug=True)
+        main()
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')

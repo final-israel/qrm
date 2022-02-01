@@ -9,12 +9,16 @@ from qrm_server import qrm_http_server
 from qrm_server.resource_definition import Resource
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
-
+from pytest_httpserver import HTTPServer
+from qrm_client.qrm_http_client import QrmClient
+from werkzeug.wrappers import Request, Response
 REDIS_PORT = 6379
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
+
+TEST_TOKEN = 'token1234'
 
 
 # noinspection PyMethodMayBeStatic
@@ -39,6 +43,55 @@ class QueueManagerBackEndMock(QrmIfc):
 
     async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
         return self.get_filled_request_obj
+
+
+@pytest.fixture(scope='session')
+def default_test_token() -> str:
+    return TEST_TOKEN
+
+
+@pytest.fixture(scope='function')
+def qrm_server_mock_for_client(httpserver: HTTPServer) -> HTTPServer:
+    httpserver.expect_request(f'{qrm_http_server.URL_GET_ROOT}').respond_with_data("1")
+    httpserver.expect_request(
+        f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
+    return httpserver
+
+
+@pytest.fixture(scope='function')
+def qrm_server_mock_for_client_with_error(httpserver: HTTPServer) -> HTTPServer:
+    httpserver.expect_request(f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_response(Response(status=400))
+    return httpserver
+
+
+@pytest.fixture(scope='function')
+def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer) -> HTTPServer:
+    def handler(request: Request):
+        print('#### start debug print ####')
+        print(request)
+        print('#### end debug print ####')
+        res = Response()
+        res.status_code = 200
+        return res
+    httpserver.expect_request(f'{qrm_http_server.URL_GET_ROOT}').respond_with_handler(handler)
+    httpserver.expect_request(f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_handler(handler)
+    return httpserver
+
+
+@pytest.fixture(scope='function')
+def qrm_http_client_with_server_mock(qrm_server_mock_for_client: HTTPServer) -> QrmClient:
+    qrm_client_obj = QrmClient(server_ip=qrm_server_mock_for_client.host,
+                               server_port=qrm_server_mock_for_client.port,
+                               user_name='test_user')
+    return qrm_client_obj
+
+
+@pytest.fixture(scope='function')
+def qrm_http_client_with_server_mock_debug_prints(qrm_server_mock_for_client_for_debug: HTTPServer) -> QrmClient:
+    qrm_client_obj = QrmClient(server_ip=qrm_server_mock_for_client_for_debug.host,
+                               server_port=qrm_server_mock_for_client_for_debug.port,
+                               user_name='test_user')
+    return qrm_client_obj
 
 
 @pytest.fixture(scope='session')
@@ -118,15 +171,6 @@ def post_to_http_server(loop, aiohttp_client):
     app.router.add_get(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
     yield loop.run_until_complete(aiohttp_client(app))
 
-
-@pytest.fixture(scope='function')
-def post_to_http_server_mock(loop, aiohttp_client):
-    app = web.Application(loop=loop)
-    qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock)
-    app.router.add_post(qrm_http_server.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
-    app.router.add_post(qrm_http_server.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
-    app.router.add_get(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
-    yield loop.run_until_complete(aiohttp_client(app))
 
 @pytest.fixture(scope='function')
 def qrm_backend_with_db(redis_db_object) -> QueueManagerBackEnd:
