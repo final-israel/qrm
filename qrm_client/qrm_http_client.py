@@ -1,11 +1,25 @@
-import requests
-
+import qrm_server.qrm_http_server
 from qrm_server.resource_definition import ResourcesRequest
-from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN
+from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN, URL_GET_ROOT, URL_POST_NEW_REQUEST
 #from urllib import request, parse
 import logging
 import json
 import requests
+
+
+def post_to_url(full_url: str, data_json: dict) -> requests.Response or None:
+    logging.info(f'post {data_json} to url {full_url}')
+    try:
+        resp = requests.post(url=full_url, json=data_json)
+    except Exception as e:
+        logging.critical(f'{e}')
+        return
+
+    if resp.status_code == 200:
+        return resp
+    else:
+        logging.critical(f'there is an critical error: {str(resp)}')
+        return
 
 
 def read_url(full_url: str) -> requests.Response or None:
@@ -13,7 +27,7 @@ def read_url(full_url: str) -> requests.Response or None:
     try:
         resp = requests.get(full_url)
     except Exception as e:
-        logging.critical(f'e')
+        logging.critical(f'{e}')
         return
 
     if resp.status_code == 200:
@@ -53,6 +67,7 @@ class QrmClient(object):
         full_url = self.full_url(URL_POST_CANCEL_TOKEN)
         logging.info(f'send cancel ion token = {self.token} to url {full_url}')
         json_as_dict = rr.as_dict()
+        post_to_url(full_url=full_url, data_json=json_as_dict)
         resp = requests.post(full_url, json=json_as_dict)
         return resp
 
@@ -65,8 +80,21 @@ class QrmClient(object):
             return False
 
     def get_root_url(self) -> requests.Response:
-        full_url = self.full_url('/')
+        full_url = self.full_url(URL_GET_ROOT)
         return read_url(full_url=full_url)
+
+    def _new_request(self, data_json: str) -> requests.Response:
+        full_url = self.full_url(URL_POST_NEW_REQUEST)
+        logging.info(f'send new request with json = {data_json} to url {full_url}')
+        res = post_to_url(full_url=full_url, data_json=data_json)
+        return res
+
+
+    def new_request(self) -> bool:
+        raise NotImplemented
+
+    def get_token_status(self):
+        raise NotImplemented
 
 
 if __name__ == '__main__':

@@ -32,8 +32,11 @@ async def new_request(request) -> web.json_response:
     resource_request = resource_request_from_json(request_json)
     asyncio.ensure_future(qrm_back_end.new_request(resources_request=resource_request))
     active_token = await qrm_back_end.get_new_token(resource_request.token)
-    resp_json = json.dumps({'token': active_token})
-    return web.json_response(resp_json, status=HTTPStatus.OK)
+    rrr_obj = ResourcesRequestResponse()
+    rrr_obj.request_complete = False
+    rrr_obj.token = active_token
+    rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+    return web.json_response(rrr_json, status=HTTPStatus.OK)
 
 
 # noinspection PyUnusedLocal

@@ -6,7 +6,7 @@ from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
 from qrm_server import qrm_http_server
-from qrm_server.resource_definition import Resource
+from qrm_server.resource_definition import Resource, resource_request_response_to_json
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
 from pytest_httpserver import HTTPServer
@@ -51,10 +51,14 @@ def default_test_token() -> str:
 
 
 @pytest.fixture(scope='function')
-def qrm_server_mock_for_client(httpserver: HTTPServer) -> HTTPServer:
+def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) -> HTTPServer:
+    rrr_obj = ResourcesRequestResponse()
+    rrr_obj.token = default_test_token
+    rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
     httpserver.expect_request(f'{qrm_http_server.URL_GET_ROOT}').respond_with_data("1")
     httpserver.expect_request(
         f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
+    httpserver.expect_request(qrm_http_server.URL_POST_NEW_REQUEST).respond_with_json(rrr_json)
     return httpserver
 
 
