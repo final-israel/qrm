@@ -7,8 +7,11 @@ from dataclass_type_validator import dataclass_validate
 from datetime import datetime
 
 
+PENDING_STATUS = 'pending'
+ACTIVE_STATUS = 'active'
+DISABLED_STATUS = 'disabled'
 RESOURCE_NAME_PREFIX = 'resource_name'
-ALLOWED_SERVER_STATUSES = ['active', 'disabled']
+ALLOWED_SERVER_STATUSES = [ACTIVE_STATUS, DISABLED_STATUS, PENDING_STATUS]
 DATE_FMT = '%Y_%m_%d_%H_%M_%S'
 
 
