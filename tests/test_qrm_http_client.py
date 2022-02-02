@@ -2,7 +2,7 @@ import json
 
 from qrm_server import qrm_http_server
 from qrm_client.qrm_http_client import QrmClient
-from qrm_server.resource_definition import ResourcesRequest, ResourcesRequestResponse
+from qrm_server.resource_definition import ResourcesRequest, ResourcesByName
 
 
 def test_qrm_http_client_get_root_url_debug(qrm_http_client_with_server_mock_debug_prints: QrmClient):
@@ -70,7 +70,20 @@ def test_qrm_http_client_get_token_status(qrm_http_client_with_server_mock, defa
     assert resp_data.get('names') is not None
 
 
-def test_qrm_http_client_send_cancel_get_bad_response_400(qrm_server_mock_for_client_with_error, default_test_token):
+def test_qrm_http_client_wait_for_token_ready(qrm_http_client_with_server_mock_debug_prints, default_test_token):
+    qrm_http_client_with_server_mock_debug_prints.token = default_test_token
+    rr = ResourcesRequest()
+    rr.token = default_test_token
+    rbs = ResourcesByName(names=['res1'], count=1)
+    rr.names.append(rbs)
+    resp_data = qrm_http_client_with_server_mock_debug_prints.wait_for_token_ready(default_test_token)
+    assert isinstance(resp_data, dict)
+    assert resp_data.get('token') == default_test_token
+    assert resp_data.get('request_complete')
+    assert 'res1' in resp_data.get('names')
+
+
+def test_qrm_http_client_send_cancel_get_bad_response_400(qrm_server_mock_for_client_with_error):
     qrm_client_obj = QrmClient(server_ip=qrm_server_mock_for_client_with_error.host,
                                server_port=qrm_server_mock_for_client_with_error.port,
                                user_name='test_user')

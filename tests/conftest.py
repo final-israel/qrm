@@ -17,7 +17,7 @@ REDIS_PORT = 6379
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
-
+wait_for_test_call_times = 0
 TEST_TOKEN = 'token1234'
 
 
@@ -65,13 +65,7 @@ def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) 
 
 
 @pytest.fixture(scope='function')
-def qrm_server_mock_for_client_with_error(httpserver: HTTPServer) -> HTTPServer:
-    httpserver.expect_request(f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_response(Response(status=400))
-    return httpserver
-
-
-@pytest.fixture(scope='function')
-def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer) -> HTTPServer:
+def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer, default_test_token) -> HTTPServer:
     def handler(request: Request):
         print('#### start debug print ####')
         print(request)
@@ -79,8 +73,28 @@ def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer) -> HTTPServer:
         res = Response()
         res.status_code = 200
         return res
+
+    def handler_for_wait_for_test(request: Request):
+        print('#########')
+        global wait_for_test_call_times
+        rrr_obj = ResourcesRequestResponse()
+        rrr_obj.token = default_test_token
+        if wait_for_test_call_times > 1:
+            rrr_obj.request_complete = True
+            rrr_obj.names.append('res1')
+        rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+        res = Response(rrr_json, status=200, content_type="application/json")
+        wait_for_test_call_times += 1
+        return res
     httpserver.expect_request(f'{qrm_http_server.URL_GET_ROOT}').respond_with_handler(handler)
     httpserver.expect_request(f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_handler(handler)
+    httpserver.expect_request(qrm_http_server.URL_GET_TOKEN_STATUS).respond_with_handler(handler_for_wait_for_test)
+    yield httpserver
+
+
+@pytest.fixture(scope='function')
+def qrm_server_mock_for_client_with_error(httpserver: HTTPServer) -> HTTPServer:
+    httpserver.expect_request(f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_response(Response(status=400))
     return httpserver
 
 

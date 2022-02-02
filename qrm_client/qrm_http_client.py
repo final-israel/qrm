@@ -3,6 +3,7 @@ from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN, URL_GET_ROOT, URL_
 import logging
 import json
 import requests
+import time
 
 
 def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> requests.Response or None:
@@ -88,6 +89,7 @@ class QrmClient(object):
 
     def get_root_url(self, *args, **kwargs) -> requests.Response:
         full_url = self.full_url(URL_GET_ROOT)
+        logging.info(f'send request to root url {full_url}')
         return get_from_url(full_url=full_url)
 
     def _new_request(self, data_json: str, *args, **kwargs) -> requests.Response:
@@ -110,12 +112,27 @@ class QrmClient(object):
 
     def get_token_status(self, token: str, *args, **kwargs) -> dict:
         resp = self._get_token_status(token)
-        resp_json = resp.json()
-        resp_data = json.loads(resp_json)
+        resp_data = resp.json()
+        if isinstance(resp_data, str):
+            resp_data = json.loads(resp_data)
         return resp_data
 
-    def wait_for_token_ready(self, token: str, *args, **kwargs) -> dict:
-        raise NotImplemented
+    def wait_for_token_ready(self, token: str, timeout: float = float('Inf'),  *args, **kwargs) -> dict:
+        logging.info(f'token ready timeout set to {timeout}')
+        resp_data = self.get_token_status(token=token)
+        return self.polling_api_status(resp_data, timeout, token)
+
+    def polling_api_status(self, resp_data: dict, timeout: float, token: str) -> dict:
+        start_time = time.time()
+        while not resp_data.get('request_complete'):
+            time_d = int(time.time() - start_time)
+            logging.info(f'waiting for token {token} to be ready. wait for {time_d} sec')
+            if time_d > timeout:
+                logging.warning(f'TIMEOUT! waiting from QRM server has timed out! timeout was set to {timeout}')
+                return resp_data
+            time.sleep(5)
+            resp_data = self.get_token_status(token=token)
+        return resp_data
 
 
 if __name__ == '__main__':
