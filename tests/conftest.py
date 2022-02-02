@@ -59,6 +59,8 @@ def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) 
     httpserver.expect_request(
         f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
     httpserver.expect_request(qrm_http_server.URL_POST_NEW_REQUEST).respond_with_json(rrr_json)
+    httpserver.expect_request(qrm_http_server.URL_GET_TOKEN_STATUS).respond_with_json()
+
     return httpserver
 
 
@@ -105,7 +107,7 @@ def qrm_backend_mock() -> QueueManagerBackEndMock:
 
 @pytest.fixture(scope='function')
 def qrm_backend_mock_cls() -> QueueManagerBackEndMock:
-    return QueueManagerBackEndMock
+    return QueueManagerBackEndMock()
 
 
 @pytest.fixture(scope='session')
@@ -169,7 +171,7 @@ def post_to_mgmt_server(loop, aiohttp_client):
 @pytest.fixture(scope='function')
 def post_to_http_server(loop, aiohttp_client):
     app = web.Application(loop=loop)
-    qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock)
+    qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock())
     app.router.add_post(qrm_http_server.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
     app.router.add_post(qrm_http_server.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
     app.router.add_get(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)

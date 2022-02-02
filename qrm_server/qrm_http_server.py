@@ -3,7 +3,7 @@ import logging
 from aiohttp import web
 from http import HTTPStatus
 import asyncio
-from qrm_server.q_manager import QueueManagerBackEnd
+from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
 from qrm_server.resource_definition import resource_request_from_json, ResourcesRequestResponse, \
     resource_request_response_to_json
 import datetime
@@ -14,7 +14,6 @@ URL_POST_CANCEL_TOKEN = '/cancel_token'
 URL_GET_ROOT = '/'
 URL_GET_UPTIME = '/uptime'
 global qrm_back_end
-global global_number
 global_number: int = 0
 
 server_start_time = datetime.datetime.now()
@@ -24,9 +23,9 @@ def canceled_token_msg(token):
     return f'canceled token {token}'
 
 
-def init_qrm_back_end(qrm_back_end_obj: QueueManagerBackEnd) -> None:
+def init_qrm_back_end(qrm_back_end_obj: QrmIfc) -> None:
     global qrm_back_end
-    qrm_back_end = qrm_back_end_obj()
+    qrm_back_end = qrm_back_end_obj
 
 
 async def new_request(request) -> web.json_response:
@@ -103,7 +102,7 @@ async def uptime_url(request) -> web.Response:
 
 
 def main():
-    init_qrm_back_end()
+    init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd())
     app = web.Application()
     app.router.add_post(URL_POST_CANCEL_TOKEN, cancel_token)
     app.router.add_post(URL_POST_NEW_REQUEST, new_request)
