@@ -307,6 +307,18 @@ async def test_get_filled_request(redis_db_object, qrm_backend_with_db):
 
 
 @pytest.mark.asyncio
+async def test_validation_count_larger_than_requested_resources(redis_db_object, qrm_backend_with_db):
+    # count > len(resources)
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS)
+    await redis_db_object.add_resource(res_1)
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    with pytest.raises(Exception):
+        assert not user_request.add_request_by_names([res_1.name], count=2)
+
+
+@pytest.mark.asyncio
 async def test_multiple_jobs_in_queue(redis_db_object, qrm_backend_with_db):
     job1 = {'token': 'job_1_token'}
     job2 = {'token': 'job_2_token'}
@@ -359,6 +371,27 @@ async def test_multiple_jobs_in_queue(redis_db_object, qrm_backend_with_db):
     res_job_1 = await res_job_1
     assert res_1.name and res_2.name in res_job_1.names
     assert not await qrm_backend_with_db.is_request_active(active_token_job_1)
+
+
+@pytest.mark.asyncio
+async def test_multiple_resources_request_same_request(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS)
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS)
+    res_3 = Resource(name='res3', type='type1', status=ACTIVE_STATUS)
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+
+    # add job1 to res_1, res_2 queue and res_3 queue:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    user_request.add_request_by_names([res_3.name], count=1)
+
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name and res_2.name and res_3.name in result.names
 
 
 @pytest.mark.asyncio
@@ -439,7 +472,7 @@ async def test_cancel_job_waiting_in_queue(redis_db_object, qrm_backend_with_db)
 
 @pytest.mark.asyncio
 async def test_recovery_jobs_in_queue(redis_db_object):
-    assert False
+    raise NotImplementedError
 
 
 @pytest.mark.asyncio
@@ -533,6 +566,30 @@ async def test_new_move_to_pending_state(redis_db_object, qrm_backend_with_db):
 @pytest.mark.asyncio
 async def test_job_not_added_to_disabled_resource(redis_db_object, qrm_backend_with_db):
     raise NotImplementedError
+
+
+@pytest.mark.asyncio
+async def test_validate_new_request_resources_disabled(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS)
+    res_2 = Resource(name='res2', type='type1', status=DISABLED_STATUS)
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    # add job1 to res_1 queue and res_2 queue:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+
+    # requested both res_1 and res_2 but res_2 is in disabled status, validation should fail:
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert 'not enough available resources' in result.reason
+
+
+@pytest.mark.asyncio
+async def test_validate_new_request_not_enough_resources(redis_db_object, qrm_backend_with_db):
+    raise NotImplementedError
+
 
 
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,

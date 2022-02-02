@@ -208,6 +208,9 @@ class QueueManagerBackEnd(QrmIfc):
         )
 
         await self.init_event_for_token(active_token)
+        validation_result = await self.validate_enough_resources(resources_request)
+        if validation_result:
+            return ResourcesRequestResponse(reason=validation_result)
         if resources_request.names:
             result = await self.handle_names_request(all_resources_dict, resources_request, requested_token,
                                                      active_token)
@@ -289,8 +292,30 @@ class QueueManagerBackEnd(QrmIfc):
         # in case you want only totally filled, first check is_request_active method
         return await self.redis.get_partial_fill(token)
 
-    async def validate_new_request(self, resources_request: ResourcesRequest) -> bool:
-        raise NotImplementedError
+    async def validate_new_request(self, resources_request: ResourcesRequest) -> str:
+        all_validations = list()
+        return_str = ''
+        all_validations.append(
+            await self.validate_enough_resources(resources_request)
+        )
+        for ret in all_validations:
+            if ret != '':
+                return_str += f'{ret},  '
+        return return_str
+
+    async def validate_enough_resources(self, resources_request) -> str:
+        for names_request in resources_request.names:
+            available_res = 0  # resources from request not in disables state
+            for res_name in names_request.names:
+                resource = await self.redis.get_resource_by_name(res_name)
+                if not resource:  # resource not in DB
+                    continue
+                if resource.status != DISABLED_STATUS:
+                    available_res += 1
+            if available_res < names_request.count:
+                logging.error(f'not enough available resources for {resources_request}')
+                return f'not enough available resources for {resources_request}'
+        return ''
 
     @staticmethod
     def is_token_valid(token: str, resources_dict: Dict[str, Resource],
