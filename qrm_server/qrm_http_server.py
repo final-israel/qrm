@@ -17,6 +17,8 @@ global qrm_back_end
 global global_number
 global_number: int = 0
 
+server_start_time = datetime.datetime.now()
+
 
 def canceled_token_msg(token):
     return f'canceled token {token}'
