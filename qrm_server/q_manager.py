@@ -143,7 +143,8 @@ class QueueManagerBackEnd(QrmIfc):
         for req_by_name in user_req.names:
             for res_name in req_by_name.names:
                 resource = await self.redis.get_resource_by_name(res_name)
-                await self.generate_job(resource, user_req.token)
+                if resource.status != DISABLED_STATUS:
+                    await self.generate_job(resource, user_req.token)
 
     async def cancel_request(self, token: str) -> None:
         if self.use_pending_logic:
@@ -208,9 +209,11 @@ class QueueManagerBackEnd(QrmIfc):
         )
 
         await self.init_event_for_token(active_token)
+
         validation_result = await self.validate_enough_resources(resources_request)
         if validation_result:
             return ResourcesRequestResponse(reason=validation_result)
+
         if resources_request.names:
             result = await self.handle_names_request(all_resources_dict, resources_request, requested_token,
                                                      active_token)

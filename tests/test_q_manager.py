@@ -565,7 +565,35 @@ async def test_new_move_to_pending_state(redis_db_object, qrm_backend_with_db):
 
 @pytest.mark.asyncio
 async def test_job_not_added_to_disabled_resource(redis_db_object, qrm_backend_with_db):
-    raise NotImplementedError
+    job1 = {'token': 'job_1_token'}
+    job2 = {'token': 'job_2_token'}
+    res_1 = Resource(name='res1', type='type1', status=DISABLED_STATUS)
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS)
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    # add job1 to res_1 queue:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=1)
+    result_job_1 = await qrm_backend_with_db.new_request(user_request)
+    new_token_job_1 = await qrm_backend_with_db.get_new_token(job1['token'])
+
+    # add job2 to res_1 queue:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job2["token"])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=1)
+    result_job_2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    new_token_job_2 = await qrm_backend_with_db.get_new_token(job2['token'])
+
+    assert await redis_db_object.get_active_job(res_1) == {}
+    active_job_res_2 = await redis_db_object.get_active_job(res_2)
+    assert new_token_job_1 == active_job_res_2['token']
+
+    # after cancel, job2 should get response since it's waiting only in res_2 queue
+    await qrm_backend_with_db.cancel_request(new_token_job_1)
+    result_job_2 = await result_job_2
+    assert res_2.name in result_job_2.names
 
 
 @pytest.mark.asyncio
@@ -587,9 +615,19 @@ async def test_validate_new_request_resources_disabled(redis_db_object, qrm_back
 
 
 @pytest.mark.asyncio
-async def test_validate_new_request_not_enough_resources(redis_db_object, qrm_backend_with_db):
-    raise NotImplementedError
+async def test_validate_new_request_not_enough_res_in_db(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS)
+    await redis_db_object.add_resource(res_1)
 
+    # add job1 to res_1 queue and res_2 queue:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_names([res_1.name, 'res_2'], count=2)
+
+    # requested both res_1 and res_2 but res_2 not in db, validation should fail:
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert 'not enough available resources' in result.reason
 
 
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
