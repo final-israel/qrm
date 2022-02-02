@@ -59,7 +59,7 @@ def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) 
     httpserver.expect_request(
         f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
     httpserver.expect_request(qrm_http_server.URL_POST_NEW_REQUEST).respond_with_json(rrr_json)
-    httpserver.expect_request(qrm_http_server.URL_GET_TOKEN_STATUS).respond_with_json()
+    httpserver.expect_request(qrm_http_server.URL_GET_TOKEN_STATUS).respond_with_json(rrr_json)
 
     return httpserver
 
