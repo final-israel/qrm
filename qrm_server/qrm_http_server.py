@@ -6,11 +6,13 @@ import asyncio
 from qrm_server.q_manager import QueueManagerBackEnd
 from qrm_server.resource_definition import resource_request_from_json, ResourcesRequestResponse, \
     resource_request_response_to_json
+import datetime
 
 URL_POST_NEW_REQUEST = '/new_request'
 URL_GET_TOKEN_STATUS = '/get_token_status'
 URL_POST_CANCEL_TOKEN = '/cancel_token'
 URL_GET_ROOT = '/'
+URL_GET_UPTIME = '/uptime'
 global qrm_back_end
 global global_number
 global_number: int = 0
@@ -70,6 +72,7 @@ async def cancel_token(request) -> web.Response:
                         text=f'canceled token {token}')
 
 
+# noinspection PyUnusedLocal
 async def root_url(request) -> web.Response:
     global global_number
     global_number += 1
@@ -77,13 +80,34 @@ async def root_url(request) -> web.Response:
                         text=f'server up {global_number}')
 
 
+# noinspection PyUnusedLocal
+async def uptime_url(request) -> web.Response:
+    logging.info('url ask for server uptime')
+
+    # noinspection SpellCheckingInspection
+    def strfdelta(tdelta, fmt):
+        d = {"days": tdelta.days}
+        d["hours"], rem = divmod(tdelta.seconds, 3600)
+        d["minutes"], d["seconds"] = divmod(rem, 60)
+        return fmt.format(**d)
+
+    time_diff_obj = datetime.datetime.now() - server_start_time
+    time_str = strfdelta(time_diff_obj, "http server up for {days} days {hours}:{minutes}:{seconds}")
+    server_start_str = server_start_time.strftime("%m/%d/%Y, %H:%M:%S")
+    full_str = f'server started at {server_start_str}\n{time_str}'
+    logging.info(f'url server uptime {full_str}')
+    return web.Response(status=HTTPStatus.OK,
+                        text=f'server up {full_str}')
+
+
 def main():
     init_qrm_back_end()
     app = web.Application()
-    app.add_routes([web.post(f'{URL_POST_NEW_REQUEST}', new_request),
-                    web.post(f'{URL_POST_CANCEL_TOKEN}', get_token_status),
-                    web.get(f'{URL_GET_TOKEN_STATUS}', cancel_token),
-                    web.get(f'/', root_url)])
+    app.router.add_post(URL_POST_CANCEL_TOKEN, cancel_token)
+    app.router.add_post(URL_POST_NEW_REQUEST, new_request)
+    app.router.add_get(URL_GET_UPTIME, uptime_url)
+    app.router.add_get(URL_GET_ROOT, root_url)
+    app.router.add_get(URL_GET_TOKEN_STATUS, get_token_status)
     web.run_app(app, port=5555)
 
 
