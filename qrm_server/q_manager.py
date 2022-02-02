@@ -102,9 +102,8 @@ class QueueManagerBackEnd(QrmIfc):
         resources_list = await self.redis.get_partial_fill(token)
         for resource_name in resources_list.names:
             resource = await self.redis.get_resource_by_name(resource_name)
-            while resource.status != ACTIVE_STATUS:
-                await asyncio.sleep(2)
-                resource = await self.redis.get_resource_by_name(resource_name)
+            if resource.status != ACTIVE_STATUS:
+                await self.redis.wait_for_resource_active_status(resource)
         return
 
     async def worker_wait_for_continue_event(self, token: str) -> str:

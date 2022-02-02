@@ -564,6 +564,41 @@ async def test_new_move_to_pending_state(redis_db_object, qrm_backend_with_db):
 
 
 @pytest.mark.asyncio
+async def test_wait_for_active_state_on_resource(redis_db_object, qrm_backend_with_db):
+    # use the pending logic:
+    qrm_backend_with_db.use_pending_logic = True
+
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, token='old_token')
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, token=job1['token'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    # add job1 to res_1 queue and res_2 queue:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    new_token_job_1 = await qrm_backend_with_db.get_new_token(job1['token'])
+
+    # since res_1 has different token than the requested token, it should be move to PENDING state:
+    assert await redis_db_object.get_resource_status(res_1) == PENDING_STATUS
+
+    # request is still active
+    await asyncio.sleep(0.1)
+    assert qrm_backend_with_db.is_request_active(new_token_job_1)
+
+    await asyncio.sleep(0.1)
+    # move the resources to ACTIVE state, request should be filled:
+    await redis_db_object.set_resource_status(res_1, ACTIVE_STATUS)
+    await redis_db_object.set_resource_status(res_2, ACTIVE_STATUS)
+
+    result_job_1 = await qrm_backend_with_db.get_filled_request(new_token_job_1)
+    assert res_1.name in result_job_1.names
+    assert res_2.name in result_job_1.names
+
+
+@pytest.mark.asyncio
 async def test_job_not_added_to_disabled_resource(redis_db_object, qrm_backend_with_db):
     job1 = {'token': 'job_1_token'}
     job2 = {'token': 'job_2_token'}

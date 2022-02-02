@@ -21,6 +21,7 @@ class RedisDB(QrmBaseDB):
         self.redis = aioredis.from_url(
             f"redis://localhost:{redis_port}", encoding="utf-8", decode_responses=True
         )
+        self.res_status_change_event = {}  # type: Dict[str, asyncio.Event]
 
     def init_params_blocking(self) -> None:
         asyncio.ensure_future(self.set_qrm_status(status=ACTIVE_STATUS))
@@ -103,9 +104,29 @@ class RedisDB(QrmBaseDB):
             resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
             resource_obj = resource_definition.resource_from_json(resource_json)
             resource_obj.status = status
-            return not await self.redis.hset(ALL_RESOURCES, resource.name, resource_obj.as_json())
+            ret = not await self.redis.hset(ALL_RESOURCES, resource.name, resource_obj.as_json())
+            await self.set_event_for_resource(resource, status)
+            return ret
         else:
             return False
+
+    async def set_event_for_resource(self, resource: Resource, status: str) -> None:
+        try:
+            if status == ACTIVE_STATUS:
+                self.res_status_change_event[resource.name].set()
+            else:
+                self.res_status_change_event[resource.name].clear()
+        except KeyError as e:
+            self.res_status_change_event[resource.name] = asyncio.Event()
+            await self.set_event_for_resource(resource, status)
+
+    async def wait_for_resource_active_status(self, resource):
+        try:
+            await self.res_status_change_event[resource.name].wait()
+        except KeyError as e:
+            self.res_status_change_event[resource.name] = asyncio.Event()
+            self.res_status_change_event[resource.name].clear()
+            await self.res_status_change_event[resource.name].wait()
 
     async def get_resource_status(self, resource: Resource) -> str:
         resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
