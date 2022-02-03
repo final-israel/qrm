@@ -65,7 +65,8 @@ async def cancel_token(request) -> web.Response:
     logging.info('in cancel_token')
     logging.info(request)
     req_dict = await request.json()
-    req_dict = json.loads(req_dict)
+    if isinstance(req_dict, 'str'):
+        req_dict = json.loads(req_dict)
     token = req_dict.get('token')
 
     await qrm_back_end.cancel_request(token=token)
@@ -101,6 +102,13 @@ async def uptime_url(request) -> web.Response:
                         text=f'server up {full_str}')
 
 
+# noinspection PyUnusedLocal
+async def init_qrm_db(request) -> web.Response:
+    logging.info('url ask for server uptime')
+    return web.Response(status=HTTPStatus.OK,
+                        text=f'init db done')
+
+
 def main():
     init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd())
     app = web.Application()
@@ -109,7 +117,7 @@ def main():
     app.router.add_get(URL_GET_UPTIME, uptime_url)
     app.router.add_get(URL_GET_ROOT, root_url)
     app.router.add_get(URL_GET_TOKEN_STATUS, get_token_status)
-    web.run_app(app, port=5555)
+    web.run_app(app, port=5556)
 
 
 if __name__ == "__main__":
