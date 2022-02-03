@@ -113,7 +113,7 @@ async def init_qrm_backend(request) -> web.Response:
                         text=f'init qrm db')
 
 
-def main():
+async def main():
     init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd())
     app = web.Application()
     app.router.add_post(URL_POST_CANCEL_TOKEN, cancel_token)
@@ -122,14 +122,13 @@ def main():
     app.router.add_get(URL_GET_ROOT, root_url)
     app.router.add_get(URL_GET_TOKEN_STATUS, get_token_status)
     app.router.add_get(URL_GET_INIT_QRM_BACKEND, init_qrm_backend)
-    web.run_app(app, port=5555)
-
-
+    app.on_startup.append(init_qrm_backend)
+    return app
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
     try:
-        main()
+        web.run_app(main(), port=5555)
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')
