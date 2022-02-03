@@ -44,6 +44,10 @@ class QrmIfc(ABC):
     async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
         pass
 
+    @abstractmethod
+    async def init_backend(self) -> None:
+        pass
+
 
 class QueueManagerBackEnd(QrmIfc):
     def __init__(self,
@@ -61,12 +65,13 @@ class QueueManagerBackEnd(QrmIfc):
             self.redis = RedisDB(REDIS_PORT)
         self.use_pending_logic = use_pending_logic
         self.tokens_change_event = {}  # type: Dict[str, QRMEvent]
-        asyncio.ensure_future(self.init_tokens_events())  # handle recovery from DB
+        asyncio.ensure_future(self.init_backend())  # handle recovery from DB
 
     # Recovery from DB
-    async def init_tokens_events(self) -> None:
+    async def init_backend(self) -> None:
         open_requests = await self.redis.get_open_requests()
-        for token, in open_requests.keys():
+        for token in open_requests.keys():
+            self.tokens_change_event[token] = QRMEvent()
             self.tokens_change_event[token].set()
 
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
