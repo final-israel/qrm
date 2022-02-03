@@ -44,6 +44,9 @@ class QueueManagerBackEndMock(QrmIfc):
     async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
         return self.get_filled_request_obj
 
+    async def init_backend(self) -> None:
+        pass
+
 
 @pytest.fixture(scope='session')
 def default_test_token() -> str:
