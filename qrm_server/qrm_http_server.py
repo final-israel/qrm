@@ -1,5 +1,7 @@
 import json
 import logging
+import time
+
 from aiohttp import web
 from http import HTTPStatus
 import asyncio
@@ -13,6 +15,7 @@ URL_GET_TOKEN_STATUS = '/get_token_status'
 URL_POST_CANCEL_TOKEN = '/cancel_token'
 URL_GET_ROOT = '/'
 URL_GET_UPTIME = '/uptime'
+URL_GET_INIT_QRM_BACKEND = '/init_qrm_db'
 global qrm_back_end
 global_number: int = 0
 
@@ -65,8 +68,7 @@ async def cancel_token(request) -> web.Response:
     logging.info('in cancel_token')
     logging.info(request)
     req_dict = await request.json()
-    if isinstance(req_dict, 'str'):
-        req_dict = json.loads(req_dict)
+    req_dict = json.loads(req_dict)
     token = req_dict.get('token')
 
     await qrm_back_end.cancel_request(token=token)
@@ -103,13 +105,15 @@ async def uptime_url(request) -> web.Response:
 
 
 # noinspection PyUnusedLocal
-async def init_qrm_db(request) -> web.Response:
-    logging.info('url ask for server uptime')
+async def init_qrm_backend(request) -> web.Response:
+    logging.info('init qrm backend')
+    global qrm_back_end  # type: QueueManagerBackEnd
+    await qrm_back_end.init_backend()
     return web.Response(status=HTTPStatus.OK,
-                        text=f'init db done')
+                        text=f'init qrm db')
 
 
-def main():
+async def main():
     init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd())
     app = web.Application()
     app.router.add_post(URL_POST_CANCEL_TOKEN, cancel_token)
@@ -117,12 +121,14 @@ def main():
     app.router.add_get(URL_GET_UPTIME, uptime_url)
     app.router.add_get(URL_GET_ROOT, root_url)
     app.router.add_get(URL_GET_TOKEN_STATUS, get_token_status)
-    web.run_app(app, port=5556)
+    app.router.add_get(URL_GET_INIT_QRM_BACKEND, init_qrm_backend)
+    app.on_startup.append(init_qrm_backend)
+    return app
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
     try:
-        main()
+        web.run_app(main(), port=5555)
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')
