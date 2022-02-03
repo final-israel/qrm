@@ -120,7 +120,7 @@ class RedisDB(QrmBaseDB):
             self.res_status_change_event[resource.name] = asyncio.Event()
             await self.set_event_for_resource(resource, status)
 
-    async def wait_for_resource_active_status(self, resource):
+    async def wait_for_resource_active_status(self, resource: Resource) -> None:
         try:
             await self.res_status_change_event[resource.name].wait()
         except KeyError as e:
