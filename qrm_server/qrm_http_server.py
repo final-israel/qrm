@@ -1,5 +1,7 @@
 import json
 import logging
+import time
+
 from aiohttp import web
 from http import HTTPStatus
 import asyncio
@@ -13,6 +15,7 @@ URL_GET_TOKEN_STATUS = '/get_token_status'
 URL_POST_CANCEL_TOKEN = '/cancel_token'
 URL_GET_ROOT = '/'
 URL_GET_UPTIME = '/uptime'
+URL_GET_INIT_QRM_BACKEND = '/init_qrm_db'
 global qrm_back_end
 global_number: int = 0
 
@@ -101,6 +104,15 @@ async def uptime_url(request) -> web.Response:
                         text=f'server up {full_str}')
 
 
+# noinspection PyUnusedLocal
+async def init_qrm_backend(request) -> web.Response:
+    logging.info('init qrm backend')
+    global qrm_back_end  # type: QueueManagerBackEnd
+    await qrm_back_end.init_backend()
+    return web.Response(status=HTTPStatus.OK,
+                        text=f'init qrm db')
+
+
 def main():
     init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd())
     app = web.Application()
@@ -109,7 +121,10 @@ def main():
     app.router.add_get(URL_GET_UPTIME, uptime_url)
     app.router.add_get(URL_GET_ROOT, root_url)
     app.router.add_get(URL_GET_TOKEN_STATUS, get_token_status)
+    app.router.add_get(URL_GET_INIT_QRM_BACKEND, init_qrm_backend)
     web.run_app(app, port=5555)
+
+
 
 
 if __name__ == "__main__":
