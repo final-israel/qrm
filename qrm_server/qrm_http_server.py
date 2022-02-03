@@ -13,6 +13,7 @@ URL_GET_TOKEN_STATUS = '/get_token_status'
 URL_POST_CANCEL_TOKEN = '/cancel_token'
 URL_GET_ROOT = '/'
 URL_GET_UPTIME = '/uptime'
+PROTOCOL_VERSION = '/V1'
 global qrm_back_end
 global_number: int = 0
 
@@ -101,14 +102,18 @@ async def uptime_url(request) -> web.Response:
                         text=f'server up {full_str}')
 
 
+def url_builder(base_url: str) -> str:
+    return f'{base_url}{PROTOCOL_VERSION}'
+
+
 def main():
     init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd())
     app = web.Application()
-    app.router.add_post(URL_POST_CANCEL_TOKEN, cancel_token)
-    app.router.add_post(URL_POST_NEW_REQUEST, new_request)
+    app.router.add_post(url_builder(URL_POST_CANCEL_TOKEN), cancel_token)
+    app.router.add_post(url_builder(URL_POST_NEW_REQUEST), new_request)
     app.router.add_get(URL_GET_UPTIME, uptime_url)
     app.router.add_get(URL_GET_ROOT, root_url)
-    app.router.add_get(URL_GET_TOKEN_STATUS, get_token_status)
+    app.router.add_get(url_builder(URL_GET_TOKEN_STATUS), get_token_status)
     web.run_app(app, port=5555)
 
 
