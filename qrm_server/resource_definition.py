@@ -41,7 +41,7 @@ def is_token_format(token: str) -> bool:
         return False
 
 
-def resource_request_from_json(resource_req_as_json: json):
+def resource_request_from_json(resource_req_as_json: json) -> ResourcesRequest:
     res_req = ResourcesRequest()
     res_dict = json.loads(resource_req_as_json)
     res_req.add_request_by_token(res_dict.get('token'))
@@ -50,6 +50,8 @@ def resource_request_from_json(resource_req_as_json: json):
     for tags_req in res_dict['tags']:
         res_req.add_request_by_tags(**tags_req)
     return res_req
+
+
 
 
 @dataclass_validate
@@ -98,6 +100,23 @@ class ResourcesRequestResponse:
     names: List[str] = field(default_factory=list)
     token: str = ''
     reason: str = ''
+    request_complete: bool = False
+
+
+def resource_request_response_from_json(resource_req_res_as_json: json) -> ResourcesRequestResponse:
+    res_req = ResourcesRequestResponse()
+    res_dict = json.loads(resource_req_res_as_json)
+    res_req.token = res_dict.get('token')
+    res_req.names = res_dict.get('names')
+    res_req.request_complete = res_dict.get('request_complete')
+    return res_req
+
+
+def resource_request_response_to_json(resource_req_res_obj: ResourcesRequestResponse) -> str:
+    rrr_dict = {'token': resource_req_res_obj.token,
+                'names': resource_req_res_obj.names,
+                'request_complete': resource_req_res_obj.request_complete}
+    return json.dumps(rrr_dict)
 
 
 @dataclass_validate
