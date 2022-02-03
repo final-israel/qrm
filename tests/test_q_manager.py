@@ -197,7 +197,7 @@ async def test_cancel_request(redis_db_object, qrm_backend_with_db):
     user_request.add_request_by_names([res_1.name, res_2.name], count=2)
     # resources queues: {res_1: [job1, job2], res_2: [job1]}, so currently job2 is active in res_1
 
-    t = 0.5
+    t = 0.1
     active_token_job_2 = await qrm_backend_with_db.get_new_token(job2["token"])
     fut = asyncio.ensure_future(_cancel_request(t, active_token_job_2))
     fut.add_done_callback(cancel_cb)
@@ -299,7 +299,7 @@ async def test_get_filled_request(redis_db_object, qrm_backend_with_db):
     active_token_job_2 = await qrm_backend_with_db.get_new_token(job2['token'])
     await qrm_backend_with_db.cancel_request(active_token_job_2)
     while await qrm_backend_with_db.is_request_active(active_token_job_1):
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.05)
     result = await qrm_backend_with_db.get_filled_request(active_token_job_1)
     assert res_1.name in result.names
     assert res_2.name in result.names
@@ -471,8 +471,33 @@ async def test_cancel_job_waiting_in_queue(redis_db_object, qrm_backend_with_db)
 
 
 @pytest.mark.asyncio
-async def test_recovery_jobs_in_queue(redis_db_object):
-    raise NotImplementedError
+async def test_recovery_jobs_in_queue(redis_db_object, qrm_backend_with_db):
+    # use the pending logic:
+    qrm_backend_with_db.use_pending_logic = True
+
+    job1 = {'token': 'job_1_token'}
+    job2 = {'token': 'job_2_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS)
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS)
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    new_token_job_1 = await qrm_backend_with_db.get_new_token(job1['token'])
+
+    # remove the ole QrmBackend and init a new instance:
+    del qrm_backend_with_db
+    new_qrm = QueueManagerBackEnd()
+
+    # validate that previous request is still in the correct state:
+    assert new_qrm.is_request_active(new_token_job_1)
+    await redis_db_object.set_resource_status(res_1, ACTIVE_STATUS)
+    await redis_db_object.set_resource_status(res_2, ACTIVE_STATUS)
+    result = await new_qrm.get_filled_request(new_token_job_1)
+    assert res_1.name and res_2.name in result.names
 
 
 @pytest.mark.asyncio
@@ -533,6 +558,9 @@ async def test_cancel_not_move_to_pending_status(redis_db_object, qrm_backend_wi
     # the new move the resources to pending, we need to move them back to active state:
     await redis_db_object.set_resource_status(res_1, ACTIVE_STATUS)
     await redis_db_object.set_resource_status(res_2, ACTIVE_STATUS)
+
+    # assert await redis_db_object.get_resource_status(res_1) == ACTIVE_STATUS
+    # assert await redis_db_object.get_resource_status(res_2) == ACTIVE_STATUS
 
     # res_1: [job_1_token],  res_2: [job_1_token]
     # cancel the job, res_1 and res_2 should not be in pending state since there aren't other jobs waiting in queue:

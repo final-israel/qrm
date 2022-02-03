@@ -170,7 +170,7 @@ class QueueManagerBackEnd(QrmIfc):
             if reason_cancel:  # preserve the token in case there aren't any other jobs in queue
                 if await self.is_more_than_one_job_waiting_in_queue(resource):
                     # move all token resources to pending only if there is another job in queue
-                    logging.info(f'since {resource.name} has more than on job in queue, move '
+                    logging.info(f'since {resource.name} has more than one job in queue, move '
                                  f'all token {token} to {PENDING_STATUS} state')
                     await self.move_all_token_resources_to_pending(token)
                 return
