@@ -197,6 +197,7 @@ def main(redis_port: int = REDIS_PORT):
                     web.post(f'{REMOVE_RESOURCES}', remove_resources),
                     web.post(f'{SET_SERVER_STATUS}', set_server_status),
                     web.get(f'{STATUS}', status),
+                    web.get(f'/', status),
                     web.post(f'{REMOVE_JOB}', remove_job),
                     web.post(f'{SET_RESOURCE_STATUS}', set_resource_status),
                     web.post(f'{ADD_JOB_TO_RESOURCE}', add_job_to_resource)])
