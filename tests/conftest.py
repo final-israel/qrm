@@ -26,12 +26,12 @@ class QueueManagerBackEndMock(QrmIfc):
     for_test_is_request_active: bool = False
     get_filled_request_obj: ResourcesRequestResponse
 
-    async def cancel_request(self, user_token: str) -> None:
+    async def cancel_request(self, token: str) -> None:
         print('#######  using cancel_request in QueueManagerBackEndMock ####### ')
         return
 
     async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
-        resources_request_res = ResourcesRequestResponse
+        resources_request_res = ResourcesRequestResponse()
         resources_request_res.token = resources_request.token
         return resources_request_res
 
