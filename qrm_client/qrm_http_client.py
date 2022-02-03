@@ -116,12 +116,12 @@ class QrmClient(object):
             resp_data = json.loads(resp_data)
         return resp_data
 
-    def wait_for_token_ready(self, token: str, timeout: float = float('Inf'),  *args, **kwargs) -> dict:
+    def wait_for_token_ready(self, token: str, timeout: float = float('Inf'), polling_sleep_time: float = 5,  *args, **kwargs) -> dict:
         logging.info(f'token ready timeout set to {timeout}')
         resp_data = self.get_token_status(token=token)
-        return self.polling_api_status(resp_data, timeout, token)
+        return self.polling_api_status(resp_data, timeout, token, polling_sleep_time=polling_sleep_time)
 
-    def polling_api_status(self, resp_data: dict, timeout: float, token: str) -> dict:
+    def polling_api_status(self, resp_data: dict, timeout: float, token: str, polling_sleep_time: float = 5) -> dict:
         start_time = time.time()
         while not resp_data.get('request_complete'):
             time_d = int(time.time() - start_time)
@@ -129,17 +129,17 @@ class QrmClient(object):
             if time_d > timeout:
                 logging.warning(f'TIMEOUT! waiting from QRM server has timed out! timeout was set to {timeout}')
                 return resp_data
-            time.sleep(5)
+            time.sleep(polling_sleep_time)
             resp_data = self.get_token_status(token=token)
         return resp_data
 
 
 if __name__ == '__main__':
     qrm_client = QrmClient(server_ip='127.0.0.1',
-                           server_port='5556',
+                           server_port='5555',
                            user_name='ronsh')
 
-    qrm_client.send_cancel(token='1234_2022_02_03_15_09_36')
+    qrm_client.send_cancel(token='1234_2022_02_03_15_21_42')
     exit(0)
     rr = ResourcesRequest()
     rr.token = '1234'
