@@ -127,3 +127,7 @@ class QrmBaseDB(ABC):
     @abstractmethod
     async def set_active_token_for_user_token(self, user_token: str, active_token: str) -> bool:
         pass
+
+    @abstractmethod
+    async def wait_for_resource_active_status(self, resource: Resource) -> None:
+        pass
