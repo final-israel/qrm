@@ -68,9 +68,9 @@ async def cancel_token(request) -> web.Response:
     logging.info('in cancel_token')
     logging.info(request)
     req_dict = await request.json()
-    req_dict = json.loads(req_dict)
+    if isinstance(req_dict, str):
+        req_dict = json.loads(req_dict)
     token = req_dict.get('token')
-
     await qrm_back_end.cancel_request(token=token)
     return web.Response(status=HTTPStatus.OK,
                         text=f'canceled token {token}')
