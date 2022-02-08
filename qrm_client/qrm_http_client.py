@@ -1,5 +1,6 @@
 from qrm_server.resource_definition import ResourcesRequest, ResourcesByName
-from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN, URL_GET_ROOT, URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS
+from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN, URL_GET_ROOT, URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, \
+    URL_GET_IS_SERVER_UP
 import logging
 import json
 import requests
@@ -133,6 +134,15 @@ class QrmClient(object):
             resp_data = self.get_token_status(token=token)
         return resp_data
 
+    def is_server_up(self) -> dict:
+        full_url = self.full_url(URL_GET_IS_SERVER_UP)
+        logging.info(f'call api is server up {full_url}')
+        resp = get_from_url(full_url)
+        logging.info(f'call api is server up server is: {resp}')
+        resp_data = resp.json()
+        while not resp_data.get('status'):
+            time.sleep(0.1)
+        return resp_data
 
 if __name__ == '__main__':
     qrm_client = QrmClient(server_ip='127.0.0.1',

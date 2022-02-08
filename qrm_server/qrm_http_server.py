@@ -15,7 +15,7 @@ URL_GET_TOKEN_STATUS = '/get_token_status'
 URL_POST_CANCEL_TOKEN = '/cancel_token'
 URL_GET_ROOT = '/'
 URL_GET_UPTIME = '/uptime'
-URL_GET_INIT_QRM_BACKEND = '/init_qrm_db'
+URL_GET_IS_SERVER_UP = '/is_server_up'
 global qrm_back_end
 global_number: int = 0
 
@@ -60,6 +60,14 @@ async def get_token_status(request) -> web.json_response:
         rrr_obj.request_complete = True
         rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
         return web.json_response(rrr_json, status=HTTPStatus.OK)
+
+
+# noinspection PyUnusedLocal
+async def is_server_up(request) -> web.json_response:
+    global qrm_back_end  # type: QueueManagerBackEnd
+    logging.info(f'in url is server up {request.rel_url}')
+    is_server_up = {'status': True}
+    return web.json_response(is_server_up, status=HTTPStatus.OK)
 
 
 # noinspection PyUnusedLocal
@@ -121,14 +129,19 @@ async def main():
     app.router.add_get(URL_GET_UPTIME, uptime_url)
     app.router.add_get(URL_GET_ROOT, root_url)
     app.router.add_get(URL_GET_TOKEN_STATUS, get_token_status)
-    app.router.add_get(URL_GET_INIT_QRM_BACKEND, init_qrm_backend)
+    app.router.add_get(URL_GET_IS_SERVER_UP, is_server_up)
     app.on_startup.append(init_qrm_backend)
     return app
 
 
+def run_server(port=5555) -> None:
+    web.run_app(main(), port=port)
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
+
     try:
-        web.run_app(main(), port=5555)
+        run_server()
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')

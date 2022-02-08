@@ -68,6 +68,12 @@ def test_qrm_http_client_get_token_status(qrm_http_client_with_server_mock, defa
     assert resp_data.get('names') is not None
 
 
+def test_qrm_http_client_get_is_server_up(qrm_http_client_with_server_mock, default_test_token):
+    resp_data = qrm_http_client_with_server_mock.is_server_up()
+    assert isinstance(resp_data, dict)
+    assert resp_data.get('status')
+
+
 def test_qrm_http_client_wait_for_token_ready(qrm_http_client_with_server_mock_debug_prints, default_test_token):
     qrm_http_client_with_server_mock_debug_prints.token = default_test_token
     rr = ResourcesRequest()

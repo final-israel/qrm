@@ -2,6 +2,7 @@ import asyncio
 import logging
 import pytest
 from aiohttp import web
+import qrm_server.qrm_http_server
 from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
@@ -13,12 +14,14 @@ from pytest_httpserver import HTTPServer
 from qrm_client.qrm_http_client import QrmClient
 from werkzeug.wrappers import Request, Response
 REDIS_PORT = 6379
-
+from multiprocessing import Process
+import time
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
 wait_for_test_call_times = 0
 TEST_TOKEN = 'token1234'
+
 
 
 # noinspection PyMethodMayBeStatic
@@ -63,7 +66,7 @@ def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) 
         f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
     httpserver.expect_request(qrm_http_server.URL_POST_NEW_REQUEST).respond_with_json(rrr_json)
     httpserver.expect_request(qrm_http_server.URL_GET_TOKEN_STATUS).respond_with_json(rrr_json)
-
+    httpserver.expect_request(qrm_http_server.URL_GET_IS_SERVER_UP).respond_with_json({'status': True})
     return httpserver
 
 
@@ -193,6 +196,40 @@ def post_to_http_server(loop, aiohttp_client):
     app.router.add_post(qrm_http_server.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
     app.router.add_get(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
     yield loop.run_until_complete(aiohttp_client(app))
+
+
+@pytest.fixture(scope='function')
+def post_to_http_server2(loop, aiohttp_server):
+    app = web.Application(loop=loop)
+    qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock())
+    app.router.add_post(qrm_http_server.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
+    app.router.add_post(qrm_http_server.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
+    app.router.add_get(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
+    app.router.add_get(qrm_http_server.URL_GET_ROOT, qrm_http_server.root_url)
+    yield loop.run_until_complete(aiohttp_server(app))
+
+
+@pytest.fixture(scope='function')
+def qrm_http_server(aiohttp_unused_port):
+    port = aiohttp_unused_port()
+    p = Process(target=qrm_server.qrm_http_server.run_server, args=(port,))
+    p.start()
+    yield {'http_port': port}
+    p.kill()
+
+
+@pytest.fixture(scope='function')
+def full_qrm_servers_ports(aiohttp_unused_port):
+    port = aiohttp_unused_port()
+    port2 = aiohttp_unused_port()
+    p = Process(target=qrm_server.qrm_http_server.run_server, args=(port,))
+    p.start()
+    yield {'http_port': port, 'manger_port': port2}
+    p.kill()
+
+
+
+
 
 
 @pytest.fixture(scope='function')
