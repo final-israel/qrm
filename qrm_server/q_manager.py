@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import logging
 from redis_adapter import RedisDB
 from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
@@ -69,20 +70,25 @@ class QueueManagerBackEnd(QrmIfc):
 
     # Recovery from DB
     async def init_backend(self) -> None:
-        open_requests = await self.redis.get_open_requests()
-        for token in open_requests.keys():
+        for token in await self.redis.get_all_open_tokens():
             self.tokens_change_event[token] = QRMEvent()
             self.tokens_change_event[token].set()
 
+        open_requests = await self.redis.get_open_requests()
+        for token in open_requests.keys():
+            asyncio.ensure_future(self.names_worker(token))
+
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
         user_req = await self.redis.get_open_request_by_token(token)
-        for resources_list_request in user_req.names:
-            remaining_resources = resources_list_request.count
-            while remaining_resources > 0:
-                logging.info(f'remaining resources for token: {token} is: {remaining_resources}')
-                remaining_resources = await self.find_available_resources_by_names(remaining_resources,
-                                                                                   resources_list_request, token)
-                if remaining_resources != 0:
+        updated_req = copy.deepcopy(user_req)
+        for req_index, resources_list_request in enumerate(user_req.names):
+            while resources_list_request.count > 0:
+                logging.info(f'remaining resources for token: {token} is: {resources_list_request.count}')
+                await self.find_available_resources_by_names(resources_list_request, token)
+                updated_req.names[req_index] = resources_list_request
+                logging.info(f'update open request for token: {token} with: {resources_list_request}')
+                await self.redis.update_open_request(token, updated_req)
+                if resources_list_request.count != 0:
                     logging.info(f'waiting for signal on token: {token}')
                     reason = await self.worker_wait_for_continue_event(token)
                     if reason == CANCELED:
@@ -117,7 +123,7 @@ class QueueManagerBackEnd(QrmIfc):
 
         return self.tokens_change_event[token].reason
 
-    async def find_available_resources_by_names(self, remaining_resources: int, resources_list_request: ResourcesByName,
+    async def find_available_resources_by_names(self, resources_list_request: ResourcesByName,
                                                 token: str):
         matched_resources = []
         for resource_name in resources_list_request.names:
@@ -126,21 +132,15 @@ class QueueManagerBackEnd(QrmIfc):
             logging.info(f'active job for resource: {resource_name} is: {active_job.get("token")}')
             if active_job.get('token') == token and \
                     resource.status != DISABLED_STATUS \
-                    and remaining_resources > 0:
+                    and resources_list_request.count > 0:
                 await self.redis.set_token_for_resource(token, resource)
                 await self.redis.partial_fill_request(token, resource)
                 matched_resources.append(resource_name)
-                remaining_resources -= 1
+                resources_list_request.count -= 1
         # TODO: replace this for loop with nicer one:
         for res_name in matched_resources:
             if res_name in resources_list_request.names:
                 resources_list_request.names.remove(res_name)
-        return remaining_resources
-
-    async def remove_matched_resources(self, matched_resources, resources_list_request):
-        for res in matched_resources:
-            if res in resources_list_request.names:
-                resources_list_request.names.remove(res)
 
     async def generate_jobs_from_names_request(self, token: str):
         user_req = await self.redis.get_open_request_by_token(token)
