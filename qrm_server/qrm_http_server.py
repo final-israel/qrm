@@ -8,12 +8,12 @@ import asyncio
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
 from qrm_server.resource_definition import resource_request_from_json, ResourcesRequestResponse
 import datetime
-
-URL_POST_NEW_REQUEST = '/new_request'
-URL_GET_TOKEN_STATUS = '/get_token_status'
-URL_POST_CANCEL_TOKEN = '/cancel_token'
+URL_API_VERSION = '/v1'
+URL_POST_NEW_REQUEST = f'/new_request{URL_API_VERSION}'
+URL_GET_TOKEN_STATUS = f'/get_token_status{URL_API_VERSION}'
+URL_POST_CANCEL_TOKEN = f'/cancel_token{URL_API_VERSION}'
 URL_GET_ROOT = '/'
-URL_GET_UPTIME = '/uptime'
+URL_GET_UPTIME = f'/uptime'
 URL_GET_IS_SERVER_UP = '/is_server_up'
 global qrm_back_end
 global_number: int = 0
