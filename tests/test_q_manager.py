@@ -488,7 +488,7 @@ async def test_recovery_jobs_in_queue(redis_db_object, qrm_backend_with_db):
     asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
     new_token_job_1 = await qrm_backend_with_db.get_new_token(job1['token'])
 
-    # remove the ole QrmBackend and init a new instance:
+    # remove the old QrmBackend and init a new instance:
     del qrm_backend_with_db
     new_qrm = QueueManagerBackEnd()
 
