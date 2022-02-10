@@ -288,15 +288,12 @@ class RedisDB(QrmBaseDB):
         tokens_list = list()
 
         token_res_map = await self.redis.hgetall(TOKEN_RESOURCES_MAP)
-        for token in token_res_map.keys():
-            tokens_list.append(token)
+        tokens_list.extend(token_res_map.keys())
 
         open_req = await self.redis.hgetall(OPEN_REQUESTS)
-        for token in open_req.keys():
-            tokens_list.append(token)
+        tokens_list.extend(open_req.keys())
 
         return list(set(tokens_list))
-
 
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:
