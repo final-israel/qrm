@@ -141,7 +141,9 @@ class QrmClient(object):
         while try_again:
             try:
                 resp = get_from_url(full_url)
-                try_again = False
+                if resp is not None:
+                    break
+                time.sleep(0.1)
             except Exception as e:
                 logging.error(f'there is a problem! {e}')
                 time.sleep(0.1)

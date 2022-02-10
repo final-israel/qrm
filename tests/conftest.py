@@ -7,7 +7,7 @@ from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
 from qrm_server import qrm_http_server
-from qrm_server.resource_definition import Resource, resource_request_response_to_json
+from qrm_server.resource_definition import Resource
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
 from pytest_httpserver import HTTPServer
@@ -15,7 +15,6 @@ from qrm_client.qrm_http_client import QrmClient
 from werkzeug.wrappers import Request, Response
 REDIS_PORT = 6379
 from multiprocessing import Process
-import time
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
@@ -60,7 +59,7 @@ def default_test_token() -> str:
 def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) -> HTTPServer:
     rrr_obj = ResourcesRequestResponse()
     rrr_obj.token = default_test_token
-    rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+    rrr_json = rrr_obj.as_json()
     httpserver.expect_request(f'{qrm_http_server.URL_GET_ROOT}').respond_with_data("1")
     httpserver.expect_request(
         f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
@@ -88,7 +87,7 @@ def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer, default_test_to
         if wait_for_test_call_times > 1:
             rrr_obj.request_complete = True
             rrr_obj.names.append('res1')
-        rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+        rrr_json = rrr_obj.as_json()
         res = Response(rrr_json, status=200, content_type="application/json")
         wait_for_test_call_times += 1
         return res
@@ -210,7 +209,7 @@ def post_to_http_server2(loop, aiohttp_server):
 
 
 @pytest.fixture(scope='function')
-def qrm_http_server(aiohttp_unused_port) -> dict:
+def qrm_http_server_for_system(aiohttp_unused_port, redis_db_object) -> dict:
     port = aiohttp_unused_port()
     p = Process(target=qrm_server.qrm_http_server.run_server, args=(port,))
     p.start()
@@ -219,7 +218,7 @@ def qrm_http_server(aiohttp_unused_port) -> dict:
 
 
 @pytest.fixture(scope='function')
-def qrm_management_server(aiohttp_unused_port) -> dict:
+def qrm_management_server(aiohttp_unused_port, redis_db_object) -> dict:
     port = aiohttp_unused_port()
     p = Process(target=qrm_server.management_server.main, kwargs={'port': port})
     p.start()
@@ -228,10 +227,18 @@ def qrm_management_server(aiohttp_unused_port) -> dict:
 
 
 @pytest.fixture(scope='function')
-def full_qrm_servers_ports(aiohttp_unused_port, qrm_http_server, qrm_management_server) -> dict:
+def full_qrm_servers_ports(aiohttp_unused_port, qrm_http_server_for_system, qrm_management_server, redis_db_object) -> dict:
     ports_dict = {}
+
+    r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server')))
+    r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server')))
+    r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server')))
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(r1)
+    loop.run_until_complete(r2)
+    loop.run_until_complete(r3)
     ports_dict.update(qrm_management_server)
-    ports_dict.update(qrm_http_server)
+    ports_dict.update(qrm_http_server_for_system)
     return ports_dict
 
 

@@ -52,8 +52,6 @@ def resource_request_from_json(resource_req_as_json: json) -> ResourcesRequest:
     return res_req
 
 
-
-
 @dataclass_validate
 @dataclass
 class Resource:
@@ -101,6 +99,14 @@ class ResourcesRequestResponse:
     token: str = ''
     reason: str = ''
     request_complete: bool = False
+    request_valid: bool = True
+    message: str = ''
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+    def as_json(self) -> str:
+        return json.dumps(self.as_dict())
 
 
 def resource_request_response_from_json(resource_req_res_as_json: json) -> ResourcesRequestResponse:
@@ -110,13 +116,6 @@ def resource_request_response_from_json(resource_req_res_as_json: json) -> Resou
     res_req.names = res_dict.get('names')
     res_req.request_complete = res_dict.get('request_complete')
     return res_req
-
-
-def resource_request_response_to_json(resource_req_res_obj: ResourcesRequestResponse) -> str:
-    rrr_dict = {'token': resource_req_res_obj.token,
-                'names': resource_req_res_obj.names,
-                'request_complete': resource_req_res_obj.request_complete}
-    return json.dumps(rrr_dict)
 
 
 @dataclass_validate

@@ -6,8 +6,7 @@ from aiohttp import web
 from http import HTTPStatus
 import asyncio
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
-from qrm_server.resource_definition import resource_request_from_json, ResourcesRequestResponse, \
-    resource_request_response_to_json
+from qrm_server.resource_definition import resource_request_from_json, ResourcesRequestResponse
 import datetime
 
 URL_POST_NEW_REQUEST = '/new_request'
@@ -41,7 +40,7 @@ async def new_request(request) -> web.json_response:
     rrr_obj = ResourcesRequestResponse()
     rrr_obj.request_complete = False
     rrr_obj.token = active_token
-    rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+    rrr_json = rrr_obj.as_json()
     return web.json_response(rrr_json, status=HTTPStatus.OK)
 
 
@@ -53,12 +52,12 @@ async def get_token_status(request) -> web.json_response:
     if await qrm_back_end.is_request_active(token=token):
         rrr_obj = ResourcesRequestResponse()
         rrr_obj.request_complete = False
-        rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+        rrr_json = rrr_obj.as_json()
         return web.json_response(rrr_json, status=HTTPStatus.OK)
     else:
         rrr_obj = await qrm_back_end.get_filled_request(token=token)
         rrr_obj.request_complete = True
-        rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+        rrr_json = rrr_obj.as_json()
         return web.json_response(rrr_json, status=HTTPStatus.OK)
 
 
