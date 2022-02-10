@@ -99,7 +99,7 @@ class ResourcesRequestResponse:
     token: str = ''
     reason: str = ''
     request_complete: bool = False
-    request_valid: bool = True
+    is_valid: bool = True
     message: str = ''
 
     def as_dict(self) -> dict:

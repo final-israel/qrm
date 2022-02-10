@@ -1,5 +1,5 @@
 from qrm_server.resource_definition import ResourcesRequest, ResourcesByName
-from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN, URL_GET_ROOT, URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, \
+from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN, URL_GET_ROOT, URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS,\
     URL_GET_IS_SERVER_UP
 import logging
 import json
