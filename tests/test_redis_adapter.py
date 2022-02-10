@@ -442,3 +442,15 @@ async def test_user_token_active_token_nonexisting_mapping(redis_db_object):
     res = await redis_db_object.get_active_token_from_user_token(user_token)
 
     assert res is None
+
+
+@pytest.mark.asyncio
+async def test_res_status_change_event_after_recovery(resource_foo, redis_db_object):
+    redis_obj = RedisDB()
+    await redis_obj.add_resource(resource_foo)
+    assert redis_obj.res_status_change_event[resource_foo.name]
+    del redis_obj
+    new_redis_obj = RedisDB()
+    all_res = await new_redis_obj.get_all_resources()
+    await new_redis_obj.init_default_params()
+    assert new_redis_obj.res_status_change_event[resource_foo.name]

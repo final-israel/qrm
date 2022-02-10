@@ -12,7 +12,7 @@ OPEN_REQUESTS = 'open_requests'
 ALL_RESOURCES = 'all_resources'
 SERVER_STATUS_IN_DB = 'qrm_status'
 ACTIVE_STATUS = 'active'
-TOKEN_DICT = 'token_dict'
+TOKEN_RESOURCES_MAP = 'token_dict'
 ACTIVE_TOKEN_DICT = 'active_token_dict'
 
 
@@ -28,8 +28,17 @@ class RedisDB(QrmBaseDB):
         return
 
     async def init_default_params(self) -> None:
-        # TODO: validate if redis db already exists on server before init parameters
         await self.set_qrm_status(status=ACTIVE_STATUS)
+        await self.init_events_for_resources()
+
+    async def init_events_for_resources(self) -> None:
+        all_resources = await self.redis.hgetall(ALL_RESOURCES)
+        for res_name in all_resources.keys():
+            self.init_event_for_resource(res_name)
+
+    def init_event_for_resource(self, resource_name: str) -> None:
+        self.res_status_change_event[resource_name] = asyncio.Event()
+        self.res_status_change_event[resource_name].set()
 
     async def wait_for_db_status(self, status: str) -> None:
         while await self.get_qrm_status() != status:
@@ -74,6 +83,7 @@ class RedisDB(QrmBaseDB):
                 return False
         await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
         await self.redis.rpush(resource.db_name(), json.dumps({}))
+        self.init_event_for_resource(resource.name)
         return True
 
     async def get_resource_by_name(self, resource_name: str) -> Resource or None:
@@ -205,17 +215,17 @@ class RedisDB(QrmBaseDB):
         '''
             This function will add token and its resources to Redis
         '''
-        if await self.redis.hget(TOKEN_DICT, token):
+        if await self.redis.hget(TOKEN_RESOURCES_MAP, token):
             logging.error(f'token {token} already exists in DB, can\'t generate it again')
             return False
         resources_list = []
         for resource in resources:
             resources_list.append(resource.as_json())
-        return await self.redis.hset(TOKEN_DICT, token, json.dumps(resources_list))
+        return await self.redis.hset(TOKEN_RESOURCES_MAP, token, json.dumps(resources_list))
 
     async def get_token_resources(self, token: str) -> List[Resource]:
         resources_list = []
-        token_json = await self.redis.hget(TOKEN_DICT, token)
+        token_json = await self.redis.hget(TOKEN_RESOURCES_MAP, token)
         if not token_json:
             logging.warning(f'token {token} does not exists in db')
             return []
@@ -277,9 +287,23 @@ class RedisDB(QrmBaseDB):
         await self.redis.hdel(PARTIAL_FILL_REQUESTS, token)
 
     async def is_request_filled(self, token: str) -> bool:
-        if await self.redis.hget(TOKEN_DICT, token) and not await self.redis.hget(OPEN_REQUESTS, token):
+        if await self.redis.hget(TOKEN_RESOURCES_MAP, token) and not await self.redis.hget(OPEN_REQUESTS, token):
             return True
         return False
+
+    async def get_all_open_tokens(self) -> List[str]:
+        # these are the tokens used for recovery.
+        # it contains both active requests waiting in queues and
+        # the totally filled requests
+        tokens_list = list()
+
+        token_res_map = await self.redis.hgetall(TOKEN_RESOURCES_MAP)
+        tokens_list.extend(token_res_map.keys())
+
+        open_req = await self.redis.hgetall(OPEN_REQUESTS)
+        tokens_list.extend(open_req.keys())
+
+        return list(set(tokens_list))
 
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:
