@@ -190,7 +190,7 @@ async def add_job_to_resource(request):
                             text=f'Error: must specify both job and resource_name in your request: {req_dict}\n')
 
 
-def main(redis_port: int = REDIS_PORT):
+def main(redis_port: int = REDIS_PORT, port: int = 8080):
     init_redis(redis_port)
     app = web.Application()
     app.add_routes([web.post(f'{ADD_RESOURCES}', add_resources),
@@ -201,7 +201,7 @@ def main(redis_port: int = REDIS_PORT):
                     web.post(f'{REMOVE_JOB}', remove_job),
                     web.post(f'{SET_RESOURCE_STATUS}', set_resource_status),
                     web.post(f'{ADD_JOB_TO_RESOURCE}', add_job_to_resource)])
-    web.run_app(app)
+    web.run_app(app, port=port)
 
 
 def init_redis(redis_port: int = REDIS_PORT):

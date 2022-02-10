@@ -69,7 +69,7 @@ def test_qrm_http_client_get_token_status(qrm_http_client_with_server_mock, defa
 
 
 def test_qrm_http_client_get_is_server_up(qrm_http_client_with_server_mock, default_test_token):
-    resp_data = qrm_http_client_with_server_mock.is_server_up()
+    resp_data = qrm_http_client_with_server_mock.wait_for_server_up()
     assert isinstance(resp_data, dict)
     assert resp_data.get('status')
 

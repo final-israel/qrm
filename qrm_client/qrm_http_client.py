@@ -134,10 +134,17 @@ class QrmClient(object):
             resp_data = self.get_token_status(token=token)
         return resp_data
 
-    def is_server_up(self) -> dict:
+    def wait_for_server_up(self) -> dict:
         full_url = self.full_url(URL_GET_IS_SERVER_UP)
         logging.info(f'call api is server up {full_url}')
-        resp = get_from_url(full_url)
+        try_again = True
+        while try_again:
+            try:
+                resp = get_from_url(full_url)
+                try_again = False
+            except Exception as e:
+                logging.error(f'there is a problem! {e}')
+                time.sleep(0.1)
         logging.info(f'call api is server up server is: {resp}')
         resp_data = resp.json()
         while not resp_data.get('status'):

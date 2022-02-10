@@ -210,7 +210,7 @@ def post_to_http_server2(loop, aiohttp_server):
 
 
 @pytest.fixture(scope='function')
-def qrm_http_server(aiohttp_unused_port):
+def qrm_http_server(aiohttp_unused_port) -> dict:
     port = aiohttp_unused_port()
     p = Process(target=qrm_server.qrm_http_server.run_server, args=(port,))
     p.start()
@@ -219,17 +219,20 @@ def qrm_http_server(aiohttp_unused_port):
 
 
 @pytest.fixture(scope='function')
-def full_qrm_servers_ports(aiohttp_unused_port):
+def qrm_management_server(aiohttp_unused_port) -> dict:
     port = aiohttp_unused_port()
-    port2 = aiohttp_unused_port()
-    p = Process(target=qrm_server.qrm_http_server.run_server, args=(port,))
+    p = Process(target=qrm_server.management_server.main, kwargs={'port': port})
     p.start()
-    yield {'http_port': port, 'manger_port': port2}
+    yield {'management_port': port}
     p.kill()
 
 
-
-
+@pytest.fixture(scope='function')
+def full_qrm_servers_ports(aiohttp_unused_port, qrm_http_server, qrm_management_server) -> dict:
+    ports_dict = {}
+    ports_dict.update(qrm_management_server)
+    ports_dict.update(qrm_http_server)
+    return ports_dict
 
 
 @pytest.fixture(scope='function')

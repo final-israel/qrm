@@ -140,7 +140,6 @@ def run_server(port=5555) -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
-
     try:
         run_server()
     except KeyboardInterrupt as e:
