@@ -5,6 +5,7 @@ import logging
 import json
 import requests
 import time
+from abc import ABC, abstractmethod
 
 
 def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> requests.Response or None:
@@ -98,10 +99,29 @@ class QrmClient(object):
         resp = post_to_url(full_url=full_url, data_json=data_json)
         return resp
 
+    @staticmethod
+    def valid_new_request(resp_data: dict) -> None:
+        mandatory_keys =['token', 'is_valid']
+        for mand_key in mandatory_keys:
+            if resp_data.get(mand_key) is None:
+                logging.error(f'the mandatory key {mand_key} is not in the response {resp_data}')
+
     def new_request(self, data_json: str, *args, **kwargs) -> dict:
+        """
+
+        :param data_json:
+        :param args:
+        :param kwargs:
+        :return: read valid
+        {'token': str
+        is_valid: bool
+        more...
+        }
+        """
         resp = self._new_request(data_json=data_json)
         resp_json = resp.json()
         resp_data = json.loads(resp_json)
+        self.valid_new_request(resp_data)
         return resp_data
 
     def _get_token_status(self, token: str, *args, **kwargs) -> requests.Response:
