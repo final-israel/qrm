@@ -24,7 +24,7 @@ def test_client_new_request(full_qrm_servers_ports, default_test_token):
     rbs = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbs)
     resp = qrm_client_obj.new_request(rr.as_json())
-    assert default_test_token in resp
+    assert default_test_token in resp.get('token')
 
 
 def test_client_new_request_server_does_not_exist(full_qrm_servers_ports, default_test_token):
@@ -38,7 +38,7 @@ def test_client_new_request_server_does_not_exist(full_qrm_servers_ports, defaul
     rbs = ResourcesByName(names=['no_server'], count=1)
     rr.names.append(rbs)
     resp = qrm_client_obj.new_request(rr.as_json())
-    assert default_test_token in resp
+    assert default_test_token in resp.get('token')
 
 
 def test_http_server_and_client_new_request_token_not_valid_and_no_servers(full_qrm_servers_ports, default_test_token):
@@ -50,7 +50,7 @@ def test_http_server_and_client_new_request_token_not_valid_and_no_servers(full_
     rr = ResourcesRequest()
     rr.token = default_test_token
     resp = qrm_client_obj.new_request(rr.as_json())
-    assert default_test_token in resp
+    assert default_test_token in resp.get('token')
 
 
 def test_http_server_and_client_new_wait(full_qrm_servers_ports, default_test_token):
@@ -62,4 +62,4 @@ def test_http_server_and_client_new_wait(full_qrm_servers_ports, default_test_to
     rr = ResourcesRequest()
     rr.token = default_test_token
     resp = qrm_client_obj.new_request(rr.as_json())
-    assert default_test_token in resp
+    assert default_test_token in resp.get('token')

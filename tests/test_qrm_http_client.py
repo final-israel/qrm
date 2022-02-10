@@ -43,7 +43,7 @@ def test_qrm_http_client_new_request(qrm_http_client_with_server_mock, default_t
     rr = ResourcesRequest()
     rr.token = default_test_token
     result = qrm_http_client_with_server_mock.new_request(data_json=rr.as_json())
-    assert result == default_test_token
+    assert result.get('token') == default_test_token
 
 
 def test_qrm_http_client__get_token_status(qrm_http_client_with_server_mock, default_test_token):

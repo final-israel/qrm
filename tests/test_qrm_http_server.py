@@ -1,7 +1,6 @@
 import json
 from qrm_server import qrm_http_server
-from qrm_server.resource_definition import Resource, ResourcesRequest, resource_request_response_from_json, \
-    ResourcesRequestResponse
+from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
 
 
 async def test_http_server_cancel_token(post_to_http_server):
@@ -48,7 +47,7 @@ async def test_http_server_get_token_status_is_active(post_to_http_server, qrm_b
     qrm_http_server.init_qrm_back_end(queue_manager_back_end_mock)
     resp = await post_to_http_server.get(qrm_http_server.URL_GET_TOKEN_STATUS, params={'token': token})
     resp_json = await resp.json()
-    rrr_obj = resource_request_response_from_json(resp_json)
+    rrr_obj = ResourcesRequestResponse.from_json(resp_json)
     assert resp.status == 200
     assert rrr_obj.request_complete is False
 
@@ -73,7 +72,7 @@ async def test_http_server_get_token_status_is_done(post_to_http_server, qrm_bac
     # test start
     resp = await post_to_http_server.get(qrm_http_server.URL_GET_TOKEN_STATUS, params={'token': token})
     resp_json = await resp.json()
-    rrr_obj = resource_request_response_from_json(resp_json)
+    rrr_obj = ResourcesRequestResponse.from_json(resp_json)
     assert resp.status == 200
     assert rrr_obj.request_complete
     assert rrr_obj.token == token

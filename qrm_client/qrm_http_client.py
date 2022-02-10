@@ -98,11 +98,11 @@ class QrmClient(object):
         resp = post_to_url(full_url=full_url, data_json=data_json)
         return resp
 
-    def new_request(self, data_json: str, *args, **kwargs) -> str:
+    def new_request(self, data_json: str, *args, **kwargs) -> dict:
         resp = self._new_request(data_json=data_json)
         resp_json = resp.json()
         resp_data = json.loads(resp_json)
-        return resp_data.get('token')
+        return resp_data
 
     def _get_token_status(self, token: str, *args, **kwargs) -> requests.Response:
         full_url = self.full_url(URL_GET_TOKEN_STATUS)
