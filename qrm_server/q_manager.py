@@ -66,10 +66,10 @@ class QueueManagerBackEnd(QrmIfc):
             self.redis = RedisDB(REDIS_PORT)
         self.use_pending_logic = use_pending_logic
         self.tokens_change_event = {}  # type: Dict[str, QRMEvent]
-        asyncio.ensure_future(self.init_backend())  # handle recovery from DB
 
     # Recovery from DB
     async def init_backend(self) -> None:
+        await self.redis.init_default_params()
         for token in await self.redis.get_all_open_tokens():
             self.tokens_change_event[token] = QRMEvent()
             self.tokens_change_event[token].set()

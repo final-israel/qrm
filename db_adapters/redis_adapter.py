@@ -28,8 +28,17 @@ class RedisDB(QrmBaseDB):
         return
 
     async def init_default_params(self) -> None:
-        # TODO: validate if redis db already exists on server before init parameters
         await self.set_qrm_status(status=ACTIVE_STATUS)
+        await self.init_events_for_resources()
+
+    async def init_events_for_resources(self) -> None:
+        all_resources = await self.redis.hgetall(ALL_RESOURCES)
+        for res_name in all_resources.keys():
+            self.init_event_for_resource(res_name)
+
+    def init_event_for_resource(self, resource_name: str) -> None:
+        self.res_status_change_event[resource_name] = asyncio.Event()
+        self.res_status_change_event[resource_name].set()
 
     async def wait_for_db_status(self, status: str) -> None:
         while await self.get_qrm_status() != status:
@@ -74,6 +83,7 @@ class RedisDB(QrmBaseDB):
                 return False
         await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
         await self.redis.rpush(resource.db_name(), json.dumps({}))
+        self.init_event_for_resource(resource.name)
         return True
 
     async def get_resource_by_name(self, resource_name: str) -> Resource or None:
