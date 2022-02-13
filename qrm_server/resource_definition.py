@@ -52,8 +52,6 @@ def resource_request_from_json(resource_req_as_json: json) -> ResourcesRequest:
     return res_req
 
 
-
-
 @dataclass_validate
 @dataclass
 class Resource:

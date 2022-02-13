@@ -221,7 +221,9 @@ class RedisDB(QrmBaseDB):
         resources_list = []
         for resource in resources:
             resources_list.append(resource.as_json())
-        return await self.redis.hset(TOKEN_RESOURCES_MAP, token, json.dumps(resources_list))
+        resources_list_json = json.dumps(resources_list)
+        logging.info(f'going to generate token: {token} with the resources: {resources_list_json}')
+        return await self.redis.hset(TOKEN_RESOURCES_MAP, token, resources_list_json)
 
     async def get_token_resources(self, token: str) -> List[Resource]:
         resources_list = []
