@@ -1,6 +1,8 @@
 import json
 import time
 
+import pytest
+
 from qrm_server.resource_definition import Resource, ResourcesRequestResponse, ResourcesRequest, ResourcesByName
 from qrm_client.qrm_http_client import QrmClient
 
@@ -31,7 +33,7 @@ def test_client_new_request(full_qrm_servers_ports, default_test_token):
     assert resp.get('is_valid')
 
 
-def test_client_new_request_server_does_not_exist(full_qrm_servers_ports, default_test_token):
+def test_client_new_requested_resource_does_not_exist(full_qrm_servers_ports, default_test_token):
     ports_dict = full_qrm_servers_ports
     qrm_client_obj = QrmClient(server_ip='127.0.0.1',
                                server_port=ports_dict['http_port'],
@@ -39,11 +41,12 @@ def test_client_new_request_server_does_not_exist(full_qrm_servers_ports, defaul
     qrm_client_obj.wait_for_server_up()
     rr = ResourcesRequest()
     rr.token = default_test_token
-    rbs = ResourcesByName(names=['no_server'], count=1)
-    rr.names.append(rbs)
+    # no_resource does not exist in DB:
+    rbn = ResourcesByName(names=['no_resource'], count=1)
+    rr.names.append(rbn)
     resp = qrm_client_obj.new_request(rr.as_json())
     assert default_test_token in resp.get('token')
-    assert 'no resources named no_server' == resp.get('message') or resp.get('message') != ''
+    assert 'no resources named no_resource' == resp.get('message') or resp.get('message') != ''
     assert resp.get('is_valid') is False
 
 
