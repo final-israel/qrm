@@ -1,4 +1,5 @@
 import json
+import time
 
 from qrm_server.resource_definition import Resource, ResourcesRequestResponse, ResourcesRequest, ResourcesByName
 from qrm_client.qrm_http_client import QrmClient
@@ -60,13 +61,27 @@ def test_http_server_and_client_new_request_token_not_valid_and_no_servers(full_
     assert resp.get('is_valid') is False
 
 
-# def test_http_server_and_client_new_wait(full_qrm_servers_ports, default_test_token):
-#     ports_dict = full_qrm_servers_ports
-#     qrm_client_obj = QrmClient(server_ip='127.0.0.1',
-#                                server_port=ports_dict['http_port'],
-#                                user_name='test_user')
-#     qrm_client_obj.wait_for_server_up()
-#     rr = ResourcesRequest()
-#     rr.token = default_test_token
-#     resp = qrm_client_obj.new_request(rr.as_json())
-#     assert default_test_token in resp.get('token')
+def test_http_server_and_client_status_done(full_qrm_servers_ports, default_test_token):
+    ports_dict = full_qrm_servers_ports
+    qrm_client_obj = QrmClient(server_ip='127.0.0.1',
+                               server_port=ports_dict['http_port'],
+                               user_name='test_user')
+    qrm_client_obj.wait_for_server_up()
+    rr = ResourcesRequest()
+    rr.token = default_test_token
+    rbs = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbs)
+    qrm_client_obj.wait_for_server_up()
+    resp = qrm_client_obj.new_request(rr.as_json())
+    resp_2 = qrm_client_obj.get_token_status(resp.get('token'))
+    n_try = 0
+    while not resp_2.get('request_complete'):
+        time.sleep(0.1)
+        n_try += 1
+        resp_2 = qrm_client_obj.get_token_status(resp.get('token'))
+        print(f"debug ###### {n_try}")
+        print(resp_2)
+        if n_try>=5:
+            break
+    assert default_test_token in resp.get('token')
+    assert resp_2.get('request_complete')
