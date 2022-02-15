@@ -97,7 +97,6 @@ class ResourcesByTags:
 class ResourcesRequestResponse:
     names: List[str] = field(default_factory=list)
     token: str = ''
-    reason: str = ''
     request_complete: bool = False
     is_valid: bool = True
     message: str = ''

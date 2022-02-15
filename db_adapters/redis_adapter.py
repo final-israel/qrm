@@ -14,6 +14,7 @@ SERVER_STATUS_IN_DB = 'qrm_status'
 ACTIVE_STATUS = 'active'
 TOKEN_RESOURCES_MAP = 'token_dict'
 ACTIVE_TOKEN_DICT = 'active_token_dict'
+LAST_REQ_RESP = 'last_req_resp'
 
 
 class RedisDB(QrmBaseDB):
@@ -39,11 +40,6 @@ class RedisDB(QrmBaseDB):
     def init_event_for_resource(self, resource_name: str) -> None:
         self.res_status_change_event[resource_name] = asyncio.Event()
         self.res_status_change_event[resource_name].set()
-
-    async def wait_for_db_status(self, status: str) -> None:
-        while await self.get_qrm_status() != status:
-            await asyncio.sleep(1)
-        return
 
     async def get_all_keys_by_pattern(self, pattern: str = None) -> List[Resource]:
         result = []
@@ -212,9 +208,9 @@ class RedisDB(QrmBaseDB):
             logging.error(f'resource {resource.name} is not in DB, so can\'t add token to it')
 
     async def generate_token(self, token: str, resources: List[Resource]) -> bool:
-        '''
-            This function will add token and its resources to Redis
-        '''
+        """
+        This function will add token and its resources to Redis
+        """
         if await self.redis.hget(TOKEN_RESOURCES_MAP, token):
             logging.error(f'token {token} already exists in DB, can\'t generate it again')
             return False
@@ -273,6 +269,11 @@ class RedisDB(QrmBaseDB):
                 return
             partial_fill_list.append(resource.name)
             await self.redis.hset(PARTIAL_FILL_REQUESTS, token, json.dumps(partial_fill_list))
+            rrr = ResourcesRequestResponse(
+                token=token,
+                names=partial_fill_list
+            )
+            await self.set_req_resp(rrr)
         else:
             await self.redis.hset(PARTIAL_FILL_REQUESTS, token, json.dumps([resource.name]))
 
@@ -290,6 +291,16 @@ class RedisDB(QrmBaseDB):
         if await self.redis.hget(TOKEN_RESOURCES_MAP, token) and not await self.redis.hget(OPEN_REQUESTS, token):
             return True
         return False
+
+    async def get_req_resp_for_token(self, token: str) -> ResourcesRequestResponse:
+        rrr = await self.redis.hget(LAST_REQ_RESP, token)
+        if not rrr:  # no response for token, return response with relevant msg
+            return ResourcesRequestResponse(token=token, message='no response for token')
+        resp = ResourcesRequestResponse.from_json(rrr)
+        return resp
+
+    async def set_req_resp(self, rrr: ResourcesRequestResponse) -> None:
+        await self.redis.hset(LAST_REQ_RESP, rrr.token, rrr.as_json())
 
     async def get_all_open_tokens(self) -> List[str]:
         # these are the tokens used for recovery.

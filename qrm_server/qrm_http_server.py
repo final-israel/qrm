@@ -55,7 +55,7 @@ async def get_token_status(request) -> web.json_response:
         rrr_json = rrr_obj.as_json()
         return web.json_response(rrr_json, status=HTTPStatus.OK)
     else:
-        rrr_obj = await qrm_back_end.get_filled_request(token=token)
+        rrr_obj = await qrm_back_end.get_resource_req_resp(token=token)
         rrr_obj.request_complete = True
         rrr_json = rrr_obj.as_json()
         return web.json_response(rrr_json, status=HTTPStatus.OK)

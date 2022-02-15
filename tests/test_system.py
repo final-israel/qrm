@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 
 import pytest
@@ -45,12 +46,19 @@ def test_client_new_requested_resource_does_not_exist(full_qrm_servers_ports, de
     rbn = ResourcesByName(names=['no_resource'], count=1)
     rr.names.append(rbn)
     resp = qrm_client_obj.new_request(rr.as_json())
+    new_token = resp['token']
+    qrm_client_obj.wait_for_token_ready(new_token, timeout=2)
+    resp = qrm_client_obj.get_token_status(new_token)
+
     assert default_test_token in resp.get('token')
+    assert resp.get('message')
     assert 'no resources named no_resource' == resp.get('message') or resp.get('message') != ''
     assert resp.get('is_valid') is False
 
 
 def test_http_server_and_client_new_request_token_not_valid_and_no_servers(full_qrm_servers_ports, default_test_token):
+    # request has only token and no resources, token is not valid.
+    # server should return relevant meesage and is_valid = False
     ports_dict = full_qrm_servers_ports
     qrm_client_obj = QrmClient(server_ip='127.0.0.1',
                                server_port=ports_dict['http_port'],
@@ -59,8 +67,10 @@ def test_http_server_and_client_new_request_token_not_valid_and_no_servers(full_
     rr = ResourcesRequest()
     rr.token = default_test_token
     resp = qrm_client_obj.new_request(rr.as_json())
-    assert default_test_token in resp.get('token')
-    assert 'token not valid and new resources in request ' == resp.get('message') or resp.get('message') != ''
+    new_token = resp['token']
+    qrm_client_obj.wait_for_token_ready(new_token, timeout=2)
+    resp = qrm_client_obj.get_token_status(new_token)
+    assert 'contains names ' in resp.get('message')
     assert resp.get('is_valid') is False
 
 
@@ -84,7 +94,7 @@ def test_http_server_and_client_status_done(full_qrm_servers_ports, default_test
         resp_2 = qrm_client_obj.get_token_status(resp.get('token'))
         print(f"debug ###### {n_try}")
         print(resp_2)
-        if n_try>=5:
+        if n_try >= 5:
             break
     assert default_test_token in resp.get('token')
     assert resp_2.get('request_complete')

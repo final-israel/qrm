@@ -6,6 +6,8 @@ from qrm_server.resource_definition import Resource, ResourcesRequest, Resources
     generate_token_from_seed, ACTIVE_STATUS, DISABLED_STATUS, PENDING_STATUS
 from typing import List, Dict
 from abc import ABC, abstractmethod
+
+NOT_VALID = 'not_valid'
 CANCELED = "canceled"
 
 REDIS_PORT = 6379
@@ -42,7 +44,7 @@ class QrmIfc(ABC):
         pass
 
     @abstractmethod
-    async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
+    async def get_resource_req_resp(self, token: str) -> ResourcesRequestResponse:
         pass
 
     @abstractmethod
@@ -93,6 +95,8 @@ class QueueManagerBackEnd(QrmIfc):
                     reason = await self.worker_wait_for_continue_event(token)
                     if reason == CANCELED:
                         return ResourcesRequestResponse()
+                    if reason == NOT_VALID:
+                        pass
 
         logging.info(f'done handling token: {token}')
         if self.use_pending_logic:
@@ -208,15 +212,15 @@ class QueueManagerBackEnd(QrmIfc):
             return await self.handle_token_request_for_valid_token(requested_token, resources_token_list)
 
         active_token = generate_token_from_seed(requested_token)
+        resources_request.token = active_token
         await self.redis.set_active_token_for_user_token(
             requested_token, active_token
         )
 
         await self.init_event_for_token(active_token)
 
-        validation_result = await self.validate_enough_resources(resources_request)
-        if validation_result:
-            return ResourcesRequestResponse(reason=validation_result)
+        if not await self.validate_new_request(resources_request):
+            return ResourcesRequestResponse()
 
         if resources_request.names:
             result = await self.handle_names_request(all_resources_dict, resources_request, requested_token,
@@ -283,9 +287,10 @@ class QueueManagerBackEnd(QrmIfc):
         # request is active if it's not filled, or it's already cancelled:
         is_filled = await self.redis.is_request_filled(token)
         is_cancelled = self.tokens_change_event[token].reason == CANCELED
+        is_not_valid = self.tokens_change_event[token].reason == NOT_VALID
         logging.info(f'request for token: {token} cancelled: {is_cancelled}, '
-                     f'filled: {is_filled}')
-        return not (is_filled or is_cancelled)
+                     f'filled: {is_filled}, not_valid: {is_not_valid}')
+        return not (is_filled or is_cancelled or is_not_valid)
 
     async def get_new_token(self, token: str) -> str:
         new_token = await self.redis.get_active_token_from_user_token(token)
@@ -294,34 +299,55 @@ class QueueManagerBackEnd(QrmIfc):
             new_token = await self.redis.get_active_token_from_user_token(token)
         return new_token
 
-    async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
+    async def get_resource_req_resp(self, token: str) -> ResourcesRequestResponse:
         # if the request is not totally filled, you will get the current partial fill.
         # in case you want only totally filled, first check is_request_active method
-        return await self.redis.get_partial_fill(token)
+        return await self.redis.get_req_resp_for_token(token)
 
-    async def validate_new_request(self, resources_request: ResourcesRequest) -> str:
+    async def validate_new_request(self, resources_request: ResourcesRequest) -> bool:
         all_validations = list()
-        return_str = ''
-        all_validations.append(
+        msg = ''
+        all_validations.extend([
             await self.validate_enough_resources(resources_request)
-        )
+        ])
         for ret in all_validations:
             if ret != '':
-                return_str += f'{ret},  '
-        return return_str
+                msg += f'{ret},  '
+        if msg:
+            rrr = ResourcesRequestResponse(
+                token=resources_request.token,
+                message=msg,
+                is_valid=False
+            )
+            await self.redis.set_req_resp(rrr)
+            self.tokens_change_event[resources_request.token].set()
+            self.tokens_change_event[resources_request.token].reason = NOT_VALID
+            return False
+        return True
 
     async def validate_enough_resources(self, resources_request) -> str:
+        ret_str = ''
+        req_not_empty = QueueManagerBackEnd.validate_request_not_empty(resources_request)
+        if req_not_empty:
+            ret_str += f'{req_not_empty}, '
         for names_request in resources_request.names:
             available_res = 0  # resources from request not in disables state
             for res_name in names_request.names:
                 resource = await self.redis.get_resource_by_name(res_name)
                 if not resource:  # resource not in DB
+                    ret_str += f'WARN: resource {res_name} does not exist in DB, '
                     continue
                 if resource.status != DISABLED_STATUS:
                     available_res += 1
             if available_res < names_request.count:
                 logging.error(f'not enough available resources for {resources_request}')
-                return f'not enough available resources for {resources_request}'
+                ret_str += f'not enough available resources for {resources_request}, '
+        return ret_str
+
+    @staticmethod
+    def validate_request_not_empty(resource_request: ResourcesRequest) -> str:
+        if not resource_request.names and not resource_request.tags:
+            return 'request doesn\'t contains names and tags'''
         return ''
 
     @staticmethod

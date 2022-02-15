@@ -43,7 +43,7 @@ class QueueManagerBackEndMock(QrmIfc):
     async def get_new_token(self, token: str) -> str:
         return f'{token}_new'
 
-    async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
+    async def get_resource_req_resp(self, token: str) -> ResourcesRequestResponse:
         return self.get_filled_request_obj
 
     async def init_backend(self) -> None:
