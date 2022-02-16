@@ -2,3 +2,4 @@ aiohttp
 aioredis
 dataclass-type-validator
 requests
+aiohttp-jinja2

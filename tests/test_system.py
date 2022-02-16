@@ -10,7 +10,7 @@ def test_http_server_and_client_get_root_url(full_qrm_servers_ports, redis_db_ob
                                user_name='test_user')
     qrm_client_obj.wait_for_server_up()
     out = qrm_client_obj.get_root_url()
-    assert 'server up 1' == out.text
+    assert 'server up 1' in out.text
 
 
 def test_client_new_request(full_qrm_servers_ports, default_test_token):

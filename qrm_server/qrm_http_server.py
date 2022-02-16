@@ -17,7 +17,10 @@ URL_GET_UPTIME = f'/uptime'
 URL_GET_IS_SERVER_UP = '/is_server_up'
 global qrm_back_end
 global_number: int = 0
-
+import aiohttp_jinja2
+import jinja2
+from pathlib import Path
+here = Path(__file__).resolve().parent
 server_start_time = datetime.datetime.now()
 
 
@@ -88,12 +91,11 @@ async def cancel_token(request) -> web.Response:
 
 
 # noinspection PyUnusedLocal
+@aiohttp_jinja2.template('base.html')
 async def root_url(request) -> web.Response:
     global global_number
     global_number += 1
-    return web.Response(status=HTTPStatus.OK,
-                        text=f'server up {global_number}')
-
+    return {'global_number': global_number}
 
 # noinspection PyUnusedLocal
 async def uptime_url(request) -> web.Response:
@@ -127,6 +129,7 @@ async def init_qrm_backend(request) -> web.Response:
 async def main():
     init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd())
     app = web.Application()
+    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(f'{here}/templates'))
     app.router.add_post(URL_POST_CANCEL_TOKEN, cancel_token)
     app.router.add_post(URL_POST_NEW_REQUEST, new_request)
     app.router.add_get(URL_GET_UPTIME, uptime_url)
