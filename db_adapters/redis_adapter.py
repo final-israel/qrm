@@ -217,6 +217,7 @@ class RedisDB(QrmBaseDB):
         resources_list = []
         for resource in resources:
             resources_list.append(resource.as_json())
+        logging.info(f'generate token {token} with {resources_list}')
         return await self.redis.hset(TOKEN_RESOURCES_MAP, token, json.dumps(resources_list))
 
     async def get_token_resources(self, token: str) -> List[Resource]:
@@ -276,6 +277,11 @@ class RedisDB(QrmBaseDB):
             await self.set_req_resp(rrr)
         else:
             await self.redis.hset(PARTIAL_FILL_REQUESTS, token, json.dumps([resource.name]))
+            rrr = ResourcesRequestResponse(
+                token=token,
+                names=[resource.name]
+            )
+            await self.set_req_resp(rrr)
 
     async def get_partial_fill(self, token: str) -> ResourcesRequestResponse:
         partial_fill_req = await self.redis.hget(PARTIAL_FILL_REQUESTS, token)
@@ -288,7 +294,12 @@ class RedisDB(QrmBaseDB):
         await self.redis.hdel(PARTIAL_FILL_REQUESTS, token)
 
     async def is_request_filled(self, token: str) -> bool:
-        if await self.redis.hget(TOKEN_RESOURCES_MAP, token) and not await self.redis.hget(OPEN_REQUESTS, token):
+        token_in_map = await self.redis.hget(TOKEN_RESOURCES_MAP, token)
+        token_in_open_req = await self.redis.hget(OPEN_REQUESTS, token)
+        all_tokens = await self.redis.hgetall(TOKEN_RESOURCES_MAP)
+        logging.info(f'all tokens are: {all_tokens}')
+        logging.info(f'token_in_map: {token_in_map}, token_in_open_req: {token_in_open_req}')
+        if token_in_map and not token_in_open_req:
             return True
         return False
 

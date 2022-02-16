@@ -109,8 +109,12 @@ class QueueManagerBackEnd(QrmIfc):
     async def finalize_filled_request(self, token: str):
         # request filled, now wait for resources active state
         # and make some other procedures
+        logging.info(f'remove open request for token {token}')
         await self.redis.remove_open_request(token)
         response = await self.redis.get_partial_fill(token)
+        logging.info(f'fill for token {token} is {response}')
+        resp_for_token = await self.redis.get_req_resp_for_token(token)
+        logging.info(f'resp for token {token} is {resp_for_token}')
         resources_list = await self.redis.get_resources_by_names(response.names)
         await self.wait_for_active_state_on_all_resources(token)
         await self.redis.generate_token(token, resources_list)
@@ -121,7 +125,9 @@ class QueueManagerBackEnd(QrmIfc):
         for resource_name in resources_list.names:
             resource = await self.redis.get_resource_by_name(resource_name)
             if resource.status != ACTIVE_STATUS:
+                logging.info(f'waiting for active state on resource {resource.name}')
                 await self.redis.wait_for_resource_active_status(resource)
+                logging.info(f'done waiting for active state on resource {resource.name}')
         return
 
     async def worker_wait_for_continue_event(self, token: str) -> str:
