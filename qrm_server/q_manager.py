@@ -99,8 +99,6 @@ class QueueManagerBackEnd(QrmIfc):
                         rrr = ResourcesRequestResponse(token=token, message='request not valid')
                         await self.redis.set_req_resp(rrr)
                         return rrr
-
-
         logging.info(f'done handling token: {token}')
         if self.use_pending_logic:
             await self.move_resources_to_pending(token=token, reason_cancel=False)

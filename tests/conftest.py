@@ -231,8 +231,8 @@ def full_qrm_servers_ports(aiohttp_unused_port, qrm_http_server_for_system, qrm_
     ports_dict = {}
 
     r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server', status=ACTIVE_STATUS)))
-    r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server')))
-    r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server')))
+    r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server', status=ACTIVE_STATUS)))
+    r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server', status=ACTIVE_STATUS)))
     loop = asyncio.get_event_loop()
     loop.run_until_complete(r1)
     loop.run_until_complete(r2)

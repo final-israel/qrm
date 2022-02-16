@@ -33,13 +33,16 @@ class RedisDB(QrmBaseDB):
         await self.init_events_for_resources()
 
     async def init_events_for_resources(self) -> None:
-        all_resources = await self.redis.hgetall(ALL_RESOURCES)
-        for res_name in all_resources.keys():
-            self.init_event_for_resource(res_name)
+        all_resources = await self.get_all_resources()
+        for resource in all_resources:
+            await self.init_event_for_resource(resource)
 
-    def init_event_for_resource(self, resource_name: str) -> None:
-        self.res_status_change_event[resource_name] = asyncio.Event()
-        self.res_status_change_event[resource_name].set()
+    async def init_event_for_resource(self, resource: Resource) -> None:
+        self.res_status_change_event[resource.name] = asyncio.Event()
+        if resource.status == ACTIVE_STATUS:
+            self.res_status_change_event[resource.name].set()
+        else:
+            self.res_status_change_event[resource.name].clear()
 
     async def get_all_keys_by_pattern(self, pattern: str = None) -> List[Resource]:
         result = []
@@ -79,7 +82,7 @@ class RedisDB(QrmBaseDB):
                 return False
         await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
         await self.redis.rpush(resource.db_name(), json.dumps({}))
-        self.init_event_for_resource(resource.name)
+        await self.init_event_for_resource(resource)
         return True
 
     async def get_resource_by_name(self, resource_name: str) -> Resource or None:

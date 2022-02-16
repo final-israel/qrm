@@ -137,7 +137,8 @@ class QrmClient(object):
             resp_data = json.loads(resp_data)
         return resp_data
 
-    def wait_for_token_ready(self, token: str, timeout: float = float('Inf'), polling_sleep_time: float = 5,  *args, **kwargs) -> dict:
+    def wait_for_token_ready(self, token: str, timeout: float = float('Inf'), polling_sleep_time: float = 5,
+                             *args, **kwargs) -> dict:
         logging.info(f'token ready timeout set to {timeout}')
         resp_data = self.get_token_status(token=token)
         return self.polling_api_status(resp_data, timeout, token, polling_sleep_time=polling_sleep_time)
