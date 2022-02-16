@@ -7,7 +7,7 @@ from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
 from qrm_server import qrm_http_server
-from qrm_server.resource_definition import Resource
+from qrm_server.resource_definition import Resource, ACTIVE_STATUS
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
 from pytest_httpserver import HTTPServer
@@ -230,7 +230,7 @@ def qrm_management_server(aiohttp_unused_port, redis_db_object) -> dict:
 def full_qrm_servers_ports(aiohttp_unused_port, qrm_http_server_for_system, qrm_management_server, redis_db_object) -> dict:
     ports_dict = {}
 
-    r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server')))
+    r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server', status=ACTIVE_STATUS)))
     r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server')))
     r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server')))
     loop = asyncio.get_event_loop()

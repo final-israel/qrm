@@ -146,12 +146,15 @@ class QrmClient(object):
         start_time = time.time()
         while not resp_data.get('request_complete'):
             time_d = int(time.time() - start_time)
-            logging.info(f'waiting for token {token} to be ready. wait for {time_d} sec')
+            logging.info(f'waiting for token {token} to be ready. wait for {time_d} sec, {resp_data}')
             if time_d > timeout:
                 logging.warning(f'TIMEOUT! waiting from QRM server has timed out! timeout was set to {timeout}')
+                resp_data = self.get_token_status(token=token)
+                logging.info(f' #### return 2  , {resp_data}')
                 return resp_data
             time.sleep(polling_sleep_time)
             resp_data = self.get_token_status(token=token)
+        logging.info(f'### return 3  , {resp_data}')
         return resp_data
 
     def wait_for_server_up(self) -> dict:

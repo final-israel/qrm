@@ -96,7 +96,10 @@ class QueueManagerBackEnd(QrmIfc):
                     if reason == CANCELED:
                         return ResourcesRequestResponse()
                     if reason == NOT_VALID:
-                        pass
+                        rrr = ResourcesRequestResponse(token=token, message='request not valid')
+                        await self.redis.set_req_resp(rrr)
+                        return rrr
+
 
         logging.info(f'done handling token: {token}')
         if self.use_pending_logic:
