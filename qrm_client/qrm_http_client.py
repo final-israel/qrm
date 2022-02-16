@@ -40,7 +40,7 @@ def return_response(res: requests.Response, *args, **kwargs) -> bool:
     # noinspection PyBroadException
     try:
         if res.status_code == 200:
-            return True
+            return res
         else:
             logging.critical(res)
             return False

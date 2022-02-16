@@ -10,9 +10,10 @@ async def test_http_server_cancel_token(post_to_http_server):
     resp = await post_to_http_server.post(qrm_http_server.URL_POST_CANCEL_TOKEN,
                                           data=json.dumps(user_request.as_json()))
 
-    resp_as_text = await resp.text()
+    resp_json = await resp.json()
+    resp_dict = json.loads(resp_json)
     assert resp.status == 200
-    assert resp_as_text == f'canceled token {token}'
+    assert resp_dict.get('message') == f'canceled token {token}'
 
 
 # noinspection DuplicatedCode

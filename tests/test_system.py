@@ -214,3 +214,63 @@ def test_full_req_cancel_after_partial_fill(full_qrm_servers_ports, default_test
     resp_token_3 = qrm_client_obj.get_token_status(token_3)
     assert resp_token_3.get('request_complete')
     assert resp_token_3.get('names') == ['r2']
+
+def test_http_server_and_client_status_done_for_resources_r1_and_r2_resources(full_qrm_servers_ports, default_test_token):
+    ports_dict = full_qrm_servers_ports
+    qrm_client_obj = QrmClient(server_ip='127.0.0.1',
+                               server_port=ports_dict['http_port'],
+                               user_name='test_user')
+    qrm_client_obj.wait_for_server_up()
+    rr = ResourcesRequest()
+    rr.token = default_test_token
+    rbs = ResourcesByName(names=['r1', ' r2'], count=2)
+    rr.names.append(rbs)
+    resp = qrm_client_obj.new_request(rr.as_json())
+    new_token = resp.get('token')
+    qrm_client_obj.wait_for_token_ready(new_token, timeout=120)
+    resp_2 = qrm_client_obj.get_token_status(new_token)
+    print(f'#####   debug print{resp_2}')
+    assert default_test_token in new_token
+    assert resp_2.get('request_complete')
+    assert 'r1' in resp_2.get('names')
+    assert 'r2' in resp_2.get('names')
+
+def test_http_server_and_client_status_done_for_resources_r1_or_r2_resources(full_qrm_servers_ports, default_test_token):
+    ports_dict = full_qrm_servers_ports
+    qrm_client_obj = QrmClient(server_ip='127.0.0.1',
+                               server_port=ports_dict['http_port'],
+                               user_name='test_user')
+    qrm_client_obj.wait_for_server_up()
+    rr = ResourcesRequest()
+    rr.token = default_test_token
+    rbs = ResourcesByName(names=['r1', ' r2'], count=1)
+    rr.names.append(rbs)
+    resp = qrm_client_obj.new_request(rr.as_json())
+    new_token = resp.get('token')
+    qrm_client_obj.wait_for_token_ready(new_token, timeout=120)
+    resp_2 = qrm_client_obj.get_token_status(new_token)
+    print(f'#####   debug print{resp_2}')
+    assert default_test_token in new_token
+    assert resp_2.get('request_complete')
+    assert 'r1' in resp_2.get('names') or 'r2' in resp_2.get('names')
+
+
+def test_http_server_and_client_cancel(full_qrm_servers_ports, default_test_token):
+    ports_dict = full_qrm_servers_ports
+    qrm_client_obj = QrmClient(server_ip='127.0.0.1',
+                               server_port=ports_dict['http_port'],
+                               user_name='test_user')
+    qrm_client_obj.wait_for_server_up()
+    rr = ResourcesRequest()
+    rr.token = default_test_token
+    rbs = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbs)
+    resp = qrm_client_obj.new_request(rr.as_json())
+    new_token = resp.get('token')
+    qrm_client_obj.wait_for_token_ready(new_token, timeout=120)
+    resp_2 = qrm_client_obj.get_token_status(new_token)
+    resp = qrm_client_obj.send_cancel(new_token)
+    print(f'#####   debug print{resp_2}')
+    assert default_test_token in new_token
+    assert resp_2.get('request_complete')
+    assert 'r1' in resp_2.get('names')

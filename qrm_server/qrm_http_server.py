@@ -79,8 +79,12 @@ async def cancel_token(request) -> web.Response:
         req_dict = json.loads(req_dict)
     token = req_dict.get('token')
     await qrm_back_end.cancel_request(token=token)
-    return web.Response(status=HTTPStatus.OK,
-                        text=f'canceled token {token}')
+    rrr_obj = ResourcesRequestResponse()
+    rrr_obj.request_complete = False
+    rrr_obj.token = token
+    rrr_obj.message = f'canceled token {rrr_obj.token}'
+    rrr_json = rrr_obj.as_json()
+    return web.json_response(rrr_json, status=HTTPStatus.OK)
 
 
 # noinspection PyUnusedLocal
