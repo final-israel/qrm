@@ -84,7 +84,6 @@ def test_http_server_and_client_status_done(full_qrm_servers_ports, default_test
     rr.token = default_test_token
     rbs = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbs)
-    qrm_client_obj.wait_for_server_up()
     resp = qrm_client_obj.new_request(rr.as_json())
     resp_2 = qrm_client_obj.get_token_status(resp.get('token'))
     n_try = 0
@@ -96,5 +95,7 @@ def test_http_server_and_client_status_done(full_qrm_servers_ports, default_test
         print(resp_2)
         if n_try >= 5:
             break
+    qrm_client_obj.wait_for_token_ready(resp.get('token'), timeout=10)
     assert default_test_token in resp.get('token')
     assert resp_2.get('request_complete')
+    assert 'r1' in resp_2.names
