@@ -115,7 +115,7 @@ class RedisDB(QrmBaseDB):
             resource_obj.status = status
             ret = await self.redis.hset(ALL_RESOURCES, resource.name, resource_obj.as_json())
             await self.set_event_for_resource(resource, status)
-            return ret
+            return not ret
         else:
             return False
 
