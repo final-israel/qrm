@@ -121,6 +121,7 @@ async def test_set_server_status_missing_key_status(post_to_mgmt_server, redis_d
 
 
 async def test_set_server_status_and_validate_status_output(post_to_mgmt_server, redis_db_object):
+    #TODO this test is flaky
     resp = await post_to_mgmt_server.post(management_server.SET_SERVER_STATUS, data=json.dumps({'status': 'disabled'}))
     assert resp.status == 200
     resp = await post_to_mgmt_server.get(management_server.MGMT_STATUS_API)

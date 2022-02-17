@@ -25,9 +25,13 @@ def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> reque
 def get_from_url(full_url: str, params: dict = None, *args, **kwargs) -> requests.Response or None:
     if params is None:
         params = {}
-    logging.info(f'send to url {full_url}')
+        logging.info(f'send to url {full_url}')
+    else:
+        logging.info(f'send to url {full_url}, params={params}')
+
     try:
         resp = requests.get(full_url, params=params)
+        logging.info(f'full url by requests {resp.url}')
     except Exception as e:
         logging.critical(f'{e}')
         return
@@ -45,7 +49,8 @@ def return_response(res: requests.Response, *args, **kwargs) -> requests.Respons
         else:
             logging.critical(res)
             return res
-    except Exception:
+    except Exception as e:
+        logging.critical(e)
         return res
 
 
@@ -76,11 +81,11 @@ class QrmClient(object):
                 """)
 
     def _send_cancel(self, token: str, *args, **kwargs) -> requests.Response:
-        rr = ResourcesRequest()
-        rr.token = token
+        res_req = ResourcesRequest()
+        res_req.token = token
         full_url = self.full_url(URL_POST_CANCEL_TOKEN)
         logging.info(f'send cancel on token = {self.token} to url {full_url}')
-        json_as_dict = rr.as_dict()
+        json_as_dict = res_req.as_dict()
         post_to_url(full_url=full_url, data_json=json_as_dict)
         resp = requests.post(full_url, json=json_as_dict)
         return resp
