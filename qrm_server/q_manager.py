@@ -1,7 +1,7 @@
 import asyncio
 import copy
 import logging
-from redis_adapter import RedisDB
+from db_adapters.redis_adapter import RedisDB
 from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
     generate_token_from_seed, ACTIVE_STATUS, DISABLED_STATUS, PENDING_STATUS
 from typing import List, Dict

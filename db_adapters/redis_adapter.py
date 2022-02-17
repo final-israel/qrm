@@ -4,7 +4,7 @@ import json
 import logging
 from qrm_server import resource_definition
 from qrm_server.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest, ResourcesRequestResponse
-from qrm_db import QrmBaseDB
+from db_adapters.qrm_db import QrmBaseDB
 from typing import Dict, List
 
 PARTIAL_FILL_REQUESTS = 'fill_requests'

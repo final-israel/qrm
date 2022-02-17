@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+here = Path(__file__).resolve().parent.parent
+sys.path.append(f'{here}')
 import asyncio
 import logging
 import pytest
