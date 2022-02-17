@@ -131,3 +131,15 @@ class QrmBaseDB(ABC):
     @abstractmethod
     async def wait_for_resource_active_status(self, resource: Resource) -> None:
         pass
+
+    @abstractmethod
+    async def get_req_resp_for_token(self, token: str) -> ResourcesRequestResponse:
+        pass
+
+    @abstractmethod
+    async def set_req_resp(self, rrr: ResourcesRequestResponse) -> None:
+        pass
+
+    @abstractmethod
+    async def get_all_open_tokens(self) -> List[str]:
+        pass

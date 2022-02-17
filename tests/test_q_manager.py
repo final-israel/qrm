@@ -40,10 +40,14 @@ async def test_request_by_token_not_valid(redis_db_object, qrm_backend_with_db):
     await redis_db_object.add_resource(res_2)
     await redis_db_object.generate_token(req_token, [res_1, res_2])
     user_request = ResourcesRequest()
-    user_request.add_request_by_token('123456')
-    response = await qrm_backend_with_db.new_request(resources_request=user_request)
-    # in this case the token is not active in qrm, so the response is only with the requested token:
-    assert response == ResourcesRequestResponse(token='123456', names=[])
+    req_token = '123456'
+    user_request.add_request_by_token(req_token)
+    await qrm_backend_with_db.new_request(resources_request=user_request)
+    new_token = await qrm_backend_with_db.get_new_token(req_token)
+    response = await qrm_backend_with_db.get_resource_req_resp(new_token)
+
+    assert new_token in response.token
+    assert 'contains names and tags' in response.message
 
 
 @pytest.mark.asyncio
@@ -155,7 +159,9 @@ async def test_request_by_names(redis_db_object, qrm_backend_with_db):
     asyncio.ensure_future(remove_job_and_set_event_after_timeout(0.1, token, qrm_backend_with_db, redis_db_object,
                                                                  'other_token'))
     # resources queues: {res_1: [job1, job2], res_2: [job1]}, so currently job2 is active in res_1
-    result = await qrm_backend_with_db.new_request(user_request)
+    await qrm_backend_with_db.new_request(user_request)
+    new_token = await qrm_backend_with_db.get_new_token(token)
+    result = await qrm_backend_with_db.get_resource_req_resp(new_token)
     assert res_1.name in result.names
     assert res_2.name in result.names
     assert len(result.names) == 2
@@ -300,7 +306,7 @@ async def test_get_filled_request(redis_db_object, qrm_backend_with_db):
     await qrm_backend_with_db.cancel_request(active_token_job_2)
     while await qrm_backend_with_db.is_request_active(active_token_job_1):
         await asyncio.sleep(0.05)
-    result = await qrm_backend_with_db.get_filled_request(active_token_job_1)
+    result = await qrm_backend_with_db.get_resource_req_resp(active_token_job_1)
     assert res_1.name in result.names
     assert res_2.name in result.names
     assert len(result.names) == 2
@@ -496,7 +502,7 @@ async def test_recovery_jobs_in_queue(redis_db_object, qrm_backend_with_db):
     assert new_qrm.is_request_active(new_token_job_1)
     await redis_db_object.set_resource_status(res_1, ACTIVE_STATUS)
     await redis_db_object.set_resource_status(res_2, ACTIVE_STATUS)
-    result = await new_qrm.get_filled_request(new_token_job_1)
+    result = await new_qrm.get_resource_req_resp(new_token_job_1)
     assert res_1.name and res_2.name in result.names
 
 
@@ -621,7 +627,7 @@ async def test_wait_for_active_state_on_resource(redis_db_object, qrm_backend_wi
     await redis_db_object.set_resource_status(res_1, ACTIVE_STATUS)
     await redis_db_object.set_resource_status(res_2, ACTIVE_STATUS)
 
-    result_job_1 = await qrm_backend_with_db.get_filled_request(new_token_job_1)
+    result_job_1 = await qrm_backend_with_db.get_resource_req_resp(new_token_job_1)
     assert res_1.name in result_job_1.names
     assert res_2.name in result_job_1.names
 
@@ -673,8 +679,10 @@ async def test_validate_new_request_resources_disabled(redis_db_object, qrm_back
     user_request.add_request_by_names([res_1.name, res_2.name], count=2)
 
     # requested both res_1 and res_2 but res_2 is in disabled status, validation should fail:
-    result = await qrm_backend_with_db.new_request(user_request)
-    assert 'not enough available resources' in result.reason
+    await qrm_backend_with_db.new_request(user_request)
+    new_token = await qrm_backend_with_db.get_new_token(job1["token"])
+    result = await qrm_backend_with_db.get_resource_req_resp(new_token)
+    assert 'not enough available resources' in result.message
 
 
 @pytest.mark.asyncio
@@ -689,8 +697,10 @@ async def test_validate_new_request_not_enough_res_in_db(redis_db_object, qrm_ba
     user_request.add_request_by_names([res_1.name, 'res_2'], count=2)
 
     # requested both res_1 and res_2 but res_2 not in db, validation should fail:
-    result = await qrm_backend_with_db.new_request(user_request)
-    assert 'not enough available resources' in result.reason
+    await qrm_backend_with_db.new_request(user_request)
+    new_token = await qrm_backend_with_db.get_new_token(job1["token"])
+    result = await qrm_backend_with_db.get_resource_req_resp(new_token)
+    assert 'not enough available resources' in result.message
 
 
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,

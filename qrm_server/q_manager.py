@@ -1,11 +1,13 @@
 import asyncio
 import copy
 import logging
-from redis_adapter import RedisDB
+from db_adapters.redis_adapter import RedisDB
 from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
     generate_token_from_seed, ACTIVE_STATUS, DISABLED_STATUS, PENDING_STATUS
 from typing import List, Dict
 from abc import ABC, abstractmethod
+
+NOT_VALID = 'not_valid'
 CANCELED = "canceled"
 
 REDIS_PORT = 6379
@@ -42,7 +44,7 @@ class QrmIfc(ABC):
         pass
 
     @abstractmethod
-    async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
+    async def get_resource_req_resp(self, token: str) -> ResourcesRequestResponse:
         pass
 
     @abstractmethod
@@ -67,53 +69,25 @@ class QueueManagerBackEnd(QrmIfc):
         self.use_pending_logic = use_pending_logic
         self.tokens_change_event = {}  # type: Dict[str, QRMEvent]
 
+    # Recovery from DB
     async def init_backend(self) -> None:
-        """
-        this method handles recovery from DB, it handles db initialization
-        and then init all backend data structures during DB recovery
-        :return: None
-        """
         await self.redis.init_default_params()
-        await self.init_open_tokens_events()
-        await self.init_workers_with_open_requests()
-
-    async def init_open_tokens_events(self) -> None:
-        """
-        init all tokens_change_events data structure for open requests
-        :return: None
-        """
         for token in await self.redis.get_all_open_tokens():
             self.tokens_change_event[token] = QRMEvent()
             self.tokens_change_event[token].set()
 
-    async def init_workers_with_open_requests(self) -> None:
-        """
-        for every open request, init it's worker
-        :return: None
-        """
         open_requests = await self.redis.get_open_requests()
         for token in open_requests.keys():
             asyncio.ensure_future(self.names_worker(token))
 
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
-        """
-        this is the "main" function of resources request by names.
-        it handles the request end to end by reading the open request from DB,
-        call other methods to find the relevant available resources and wait
-        for signals until the request complete.
-        :param token: request token
-        :return: returns the resources response
-        """
-
         user_req = await self.redis.get_open_request_by_token(token)
         updated_req = copy.deepcopy(user_req)
-
         for req_index, resources_list_request in enumerate(user_req.names):
-
             while resources_list_request.count > 0:
                 logging.info(f'remaining resources for token: {token} is: {resources_list_request.count}')
                 await self.find_available_resources_by_names(resources_list_request, token)
-                updated_req.names[req_index] = resources_list_request  # this DS is changed by reference
+                updated_req.names[req_index] = resources_list_request
                 logging.info(f'update open request for token: {token} with: {resources_list_request}')
                 await self.redis.update_open_request(token, updated_req)
                 if resources_list_request.count != 0:
@@ -121,122 +95,77 @@ class QueueManagerBackEnd(QrmIfc):
                     reason = await self.worker_wait_for_continue_event(token)
                     if reason == CANCELED:
                         return ResourcesRequestResponse()
-
+                    if reason == NOT_VALID:
+                        rrr = ResourcesRequestResponse(token=token, message='request not valid')
+                        await self.redis.set_req_resp(rrr)
+                        return rrr
         logging.info(f'done handling token: {token}')
-
         if self.use_pending_logic:
             await self.move_resources_to_pending(token=token, reason_cancel=False)
-
         return await self.finalize_filled_request(token)
 
-    async def finalize_filled_request(self, token: str) -> ResourcesRequestResponse:
-        """
-        request filled, now wait for resources active state,
-        remove the open request and generate the filled token in DB
-        :param token: request token
-        :return: ResourcesRequestResponse
-        """
-
-        await self.redis.remove_open_request(token)
+    async def finalize_filled_request(self, token: str):
+        # request filled, now wait for resources active state
+        # and make some other procedures
+        logging.info(f'remove open request for token {token}')
         response = await self.redis.get_partial_fill(token)
+        logging.info(f'fill for token {token} is {response}')
+        resp_for_token = await self.redis.get_req_resp_for_token(token)
+        logging.info(f'resp for token {token} is {resp_for_token}')
         resources_list = await self.redis.get_resources_by_names(response.names)
-        logging.info(f'response for token: {token} is: {response},'
-                     f'wait for all resources to become active before return')
         await self.wait_for_active_state_on_all_resources(token)
+        await self.redis.remove_open_request(token)
         await self.redis.generate_token(token, resources_list)
         return response
 
     async def wait_for_active_state_on_all_resources(self, token: str) -> None:
-        """
-        this method is blocking until all resources for the token becomes active
-        :param token: request token
-        :return: None
-        """
         resources_list = await self.redis.get_partial_fill(token)
         for resource_name in resources_list.names:
             resource = await self.redis.get_resource_by_name(resource_name)
             if resource.status != ACTIVE_STATUS:
-                logging.info(f'wait for resource {resource.name} to become active for token {token}')
+                logging.info(f'waiting for active state on resource {resource.name}')
                 await self.redis.wait_for_resource_active_status(resource)
-        logging.info(f'done waiting for resources active state for token: {token}')
+                logging.info(f'done waiting for active state on resource {resource.name}')
         return
 
     async def worker_wait_for_continue_event(self, token: str) -> str:
-        """
-        wait for continue event which signal some change on the relevant token.
-        once the event is set it means that one of the resources related to this
-        token had some change in it's queue
-        :param token: request token
-        :return: None
-        """
         self.tokens_change_event[token].clear()
         await self.tokens_change_event[token].wait()
 
         return self.tokens_change_event[token].reason
 
     async def find_available_resources_by_names(self, resources_list_request: ResourcesByName,
-                                                token: str) -> None:
-        """
-        for each resource in the request, check if the active job is the
-        one with the requested token and if the resource is not disabled.
-        :param resources_list_request: ResourceByName, this is actually
-        the one of the items in the list of requests of ResourcesRequest.names
-        :param token: request token
-        :return: None, changes by reference the resources_list_request
-        """
-
+                                                token: str):
         matched_resources = []
         for resource_name in resources_list_request.names:
-
             resource = await self.redis.get_resource_by_name(resource_name)
             active_job = await self.redis.get_active_job(resource)
-            logging.info(f'active job for resource {resource_name} is: {active_job.get("token")}')
-
+            logging.info(f'active job for resource: {resource_name} is: {active_job.get("token")}')
             if active_job.get('token') == token and \
                     resource.status != DISABLED_STATUS \
                     and resources_list_request.count > 0:
-
-                logging.info(f'found available resource {resource.name} '
-                             f'for request: {resources_list_request}')
                 await self.redis.set_token_for_resource(token, resource)
                 await self.redis.partial_fill_request(token, resource)
                 matched_resources.append(resource_name)
                 resources_list_request.count -= 1
+        # TODO: replace this for loop with nicer one:
+        for res_name in matched_resources:
+            if res_name in resources_list_request.names:
+                resources_list_request.names.remove(res_name)
 
-        resources_list_request.names = \
-            [res for res in resources_list_request.names
-             if res not in matched_resources]
-
-    async def generate_jobs_from_names_request(self, token: str) -> None:
-        """
-        just creates jobs and add them to all the resources in the open request
-        :param token: request token
-        :return: None
-        """
-
+    async def generate_jobs_from_names_request(self, token: str):
         user_req = await self.redis.get_open_request_by_token(token)
-
         for req_by_name in user_req.names:
             for res_name in req_by_name.names:
                 resource = await self.redis.get_resource_by_name(res_name)
                 if resource.status != DISABLED_STATUS:
                     await self.generate_job(resource, user_req.token)
-                else:
-                    logging.info(f'doesn\'t add job {token} for resource {resource.name}')
 
     async def cancel_request(self, token: str) -> None:
-        """
-        cancel active request by it's token
-        :param token: request token
-        :return: None, just remove the request and handle resources cleanup (pending)
-        """
-
         if self.use_pending_logic:
             await self.move_resources_to_pending(token, reason_cancel=True)
 
         affected_resources = await self.redis.remove_job(token=token)
-        logging.info(f'resources {affected_resources} were affected by cancel on token {token}')
-
         for resource in affected_resources:
             ret = await self.redis.get_active_job(resource)
             if "token" not in ret:
@@ -249,19 +178,11 @@ class QueueManagerBackEnd(QrmIfc):
         self.tokens_change_event[token].set(reason=CANCELED)
 
     async def move_resources_to_pending(self, token: str, reason_cancel: bool) -> None:
-        """
-        if the all queues are empty, doesn't move the resources to pending,
-        else, move all token active resources to pending.
-        :param token: request token
-        :param reason_cancel: set True, if the resources should move to pending due to cancel
-        :return: None
-        """
-
+        # if the all queues are empty, don't move the resources to pending,
+        # else, move all token active resources to pending.
         resources_for_token = await self.redis.get_partial_fill(token)
-
         for resource_name in resources_for_token.names:
             resource = await self.redis.get_resource_by_name(resource_name)
-
             if reason_cancel:  # preserve the token in case there aren't any other jobs in queue
                 if await self.is_more_than_one_job_waiting_in_queue(resource):
                     # move all token resources to pending only if there is another job in queue
@@ -273,31 +194,18 @@ class QueueManagerBackEnd(QrmIfc):
                 await self.move_all_token_resources_to_pending(token)
 
     async def move_all_token_resources_to_pending(self, token: str) -> None:
-        """
-        move all resources with this active token to PENDING
-        :param token: request token
-        :return: None
-        """
-
+        # move all resources with this active token to PENDING
         resources_for_token = await self.redis.get_partial_fill(token)
-        logging.info(f'will move resources: {resources_for_token} to PENDING state')
-
         for resource_name in resources_for_token.names:
             resource = await self.redis.get_resource_by_name(resource_name)
             resource_active_job = await self.redis.get_active_job(resource)
-
             if resource_active_job.get('token') == token:
                 await self.redis.set_resource_status(resource, PENDING_STATUS)
                 await self.redis.set_token_for_resource(token='', resource=resource)
 
-    async def is_more_than_one_job_waiting_in_queue(self, resource) -> bool:
-        """
-        the queue always has empty job due to redis implementation,
-        so we must check if the queue depth larger than two
-        :param resource: Resource object
-        :return: True if there is more than one job in queue, else False
-        """
-
+    async def is_more_than_one_job_waiting_in_queue(self, resource):
+        # the queue always has empty job due to redis implementation,
+        # so we must check if the queue depth larger than two
         return len(await self.redis.get_resource_jobs(resource)) > 2
 
     async def new_request(self, resources_request: ResourcesRequest) -> ResourcesRequestResponse:
@@ -311,15 +219,15 @@ class QueueManagerBackEnd(QrmIfc):
             return await self.handle_token_request_for_valid_token(requested_token, resources_token_list)
 
         active_token = generate_token_from_seed(requested_token)
+        resources_request.token = active_token
         await self.redis.set_active_token_for_user_token(
             requested_token, active_token
         )
 
         await self.init_event_for_token(active_token)
 
-        validation_result = await self.validate_enough_resources(resources_request)
-        if validation_result:
-            return ResourcesRequestResponse(reason=validation_result)
+        if not await self.validate_new_request(resources_request):
+            return ResourcesRequestResponse()
 
         if resources_request.names:
             result = await self.handle_names_request(all_resources_dict, resources_request, requested_token,
@@ -380,16 +288,16 @@ class QueueManagerBackEnd(QrmIfc):
         return resources_request_resp
 
     async def generate_job(self, resource, token):
-        logging.info(f'add job {token} for resource {resource}')
         await self.redis.add_job_to_resource(resource, {'token': token})
 
     async def is_request_active(self, token: str) -> bool:
         # request is active if it's not filled, or it's already cancelled:
         is_filled = await self.redis.is_request_filled(token)
         is_cancelled = self.tokens_change_event[token].reason == CANCELED
+        is_not_valid = self.tokens_change_event[token].reason == NOT_VALID
         logging.info(f'request for token: {token} cancelled: {is_cancelled}, '
-                     f'filled: {is_filled}')
-        return not (is_filled or is_cancelled)
+                     f'filled: {is_filled}, not_valid: {is_not_valid}')
+        return not (is_filled or is_cancelled or is_not_valid)
 
     async def get_new_token(self, token: str) -> str:
         new_token = await self.redis.get_active_token_from_user_token(token)
@@ -398,34 +306,55 @@ class QueueManagerBackEnd(QrmIfc):
             new_token = await self.redis.get_active_token_from_user_token(token)
         return new_token
 
-    async def get_filled_request(self, token: str) -> ResourcesRequestResponse:
+    async def get_resource_req_resp(self, token: str) -> ResourcesRequestResponse:
         # if the request is not totally filled, you will get the current partial fill.
         # in case you want only totally filled, first check is_request_active method
-        return await self.redis.get_partial_fill(token)
+        return await self.redis.get_req_resp_for_token(token)
 
-    async def validate_new_request(self, resources_request: ResourcesRequest) -> str:
+    async def validate_new_request(self, resources_request: ResourcesRequest) -> bool:
         all_validations = list()
-        return_str = ''
-        all_validations.append(
+        msg = ''
+        all_validations.extend([
             await self.validate_enough_resources(resources_request)
-        )
+        ])
         for ret in all_validations:
             if ret != '':
-                return_str += f'{ret},  '
-        return return_str
+                msg += f'{ret},  '
+        if msg:
+            rrr = ResourcesRequestResponse(
+                token=resources_request.token,
+                message=msg,
+                is_valid=False
+            )
+            await self.redis.set_req_resp(rrr)
+            self.tokens_change_event[resources_request.token].set()
+            self.tokens_change_event[resources_request.token].reason = NOT_VALID
+            return False
+        return True
 
     async def validate_enough_resources(self, resources_request) -> str:
+        ret_str = ''
+        req_not_empty = QueueManagerBackEnd.validate_request_not_empty(resources_request)
+        if req_not_empty:
+            ret_str += f'{req_not_empty}, '
         for names_request in resources_request.names:
             available_res = 0  # resources from request not in disables state
             for res_name in names_request.names:
                 resource = await self.redis.get_resource_by_name(res_name)
                 if not resource:  # resource not in DB
+                    ret_str += f'WARN: resource {res_name} does not exist in DB, '
                     continue
                 if resource.status != DISABLED_STATUS:
                     available_res += 1
             if available_res < names_request.count:
                 logging.error(f'not enough available resources for {resources_request}')
-                return f'not enough available resources for {resources_request}'
+                ret_str += f'not enough available resources for {resources_request}, '
+        return ret_str
+
+    @staticmethod
+    def validate_request_not_empty(resource_request: ResourcesRequest) -> str:
+        if not resource_request.names and not resource_request.tags:
+            return 'request doesn\'t contains names and tags'''
         return ''
 
     @staticmethod

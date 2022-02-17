@@ -6,13 +6,13 @@ from typing import List
 from dataclass_type_validator import dataclass_validate
 from datetime import datetime
 
-
 PENDING_STATUS = 'pending'
 ACTIVE_STATUS = 'active'
 DISABLED_STATUS = 'disabled'
 RESOURCE_NAME_PREFIX = 'resource_name'
 ALLOWED_SERVER_STATUSES = [ACTIVE_STATUS, DISABLED_STATUS, PENDING_STATUS]
 DATE_FMT = '%Y_%m_%d_%H_%M_%S'
+RESOURCES_REQUEST_RESPONSE_VERSION = 1
 
 
 def resource_from_json(resource_as_json: json):
@@ -97,24 +97,21 @@ class ResourcesByTags:
 class ResourcesRequestResponse:
     names: List[str] = field(default_factory=list)
     token: str = ''
-    reason: str = ''
     request_complete: bool = False
+    is_valid: bool = True
+    message: str = ''
+    version: int = RESOURCES_REQUEST_RESPONSE_VERSION
 
+    def as_dict(self) -> dict:
+        return asdict(self)
 
-def resource_request_response_from_json(resource_req_res_as_json: json) -> ResourcesRequestResponse:
-    res_req = ResourcesRequestResponse()
-    res_dict = json.loads(resource_req_res_as_json)
-    res_req.token = res_dict.get('token')
-    res_req.names = res_dict.get('names')
-    res_req.request_complete = res_dict.get('request_complete')
-    return res_req
+    def as_json(self) -> str:
+        return json.dumps(self.as_dict())
 
-
-def resource_request_response_to_json(resource_req_res_obj: ResourcesRequestResponse) -> str:
-    rrr_dict = {'token': resource_req_res_obj.token,
-                'names': resource_req_res_obj.names,
-                'request_complete': resource_req_res_obj.request_complete}
-    return json.dumps(rrr_dict)
+    @classmethod
+    def from_json(cls, json_str: str) -> ResourcesRequestResponse:
+        json_as_dict = json.loads(json_str)
+        return ResourcesRequestResponse(**json_as_dict)
 
 
 @dataclass_validate
@@ -156,3 +153,19 @@ class ResourcesRequest:
 
     def as_json(self) -> str:
         return json.dumps(self.as_dict())
+
+
+@dataclass_validate
+@dataclass
+class ResourceStatus:
+    resource_name: str = ''
+    status: str = ''
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+    def as_json(self) -> str:
+        return json.dumps(self.as_dict())
+
+
+
