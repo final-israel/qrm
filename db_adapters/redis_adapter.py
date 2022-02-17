@@ -113,7 +113,7 @@ class RedisDB(QrmBaseDB):
             resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
             resource_obj = resource_definition.resource_from_json(resource_json)
             resource_obj.status = status
-            ret = not await self.redis.hset(ALL_RESOURCES, resource.name, resource_obj.as_json())
+            ret = await self.redis.hset(ALL_RESOURCES, resource.name, resource_obj.as_json())
             await self.set_event_for_resource(resource, status)
             return ret
         else:
@@ -132,6 +132,7 @@ class RedisDB(QrmBaseDB):
     async def wait_for_resource_active_status(self, resource: Resource) -> None:
         try:
             await self.res_status_change_event[resource.name].wait()
+            logging.info(f'done waiting for resource {resource.name} {ACTIVE_STATUS} status')
         except KeyError as e:
             self.res_status_change_event[resource.name] = asyncio.Event()
             self.res_status_change_event[resource.name].clear()

@@ -153,3 +153,19 @@ class ResourcesRequest:
 
     def as_json(self) -> str:
         return json.dumps(self.as_dict())
+
+
+@dataclass_validate
+@dataclass
+class ResourceStatus:
+    resource_name: str = ''
+    status: str = ''
+
+    def as_dict(self) -> dict:
+        return asdict(self)
+
+    def as_json(self) -> str:
+        return json.dumps(self.as_dict())
+
+
+

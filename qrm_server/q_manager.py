@@ -108,13 +108,13 @@ class QueueManagerBackEnd(QrmIfc):
         # request filled, now wait for resources active state
         # and make some other procedures
         logging.info(f'remove open request for token {token}')
-        await self.redis.remove_open_request(token)
         response = await self.redis.get_partial_fill(token)
         logging.info(f'fill for token {token} is {response}')
         resp_for_token = await self.redis.get_req_resp_for_token(token)
         logging.info(f'resp for token {token} is {resp_for_token}')
         resources_list = await self.redis.get_resources_by_names(response.names)
         await self.wait_for_active_state_on_all_resources(token)
+        await self.redis.remove_open_request(token)
         await self.redis.generate_token(token, resources_list)
         return response
 

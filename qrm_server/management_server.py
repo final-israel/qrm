@@ -8,7 +8,7 @@ from qrm_server.resource_definition import Resource, resource_from_json
 
 
 REMOVE_JOB = '/remove_job'
-STATUS = '/status'
+MGMT_STATUS_API = '/status'
 SET_SERVER_STATUS = '/set_server_status'
 REMOVE_RESOURCES = '/remove_resources'
 ADD_RESOURCES = '/add_resources'
@@ -196,7 +196,7 @@ def main(redis_port: int = REDIS_PORT, port: int = 8080):
     app.add_routes([web.post(f'{ADD_RESOURCES}', add_resources),
                     web.post(f'{REMOVE_RESOURCES}', remove_resources),
                     web.post(f'{SET_SERVER_STATUS}', set_server_status),
-                    web.get(f'{STATUS}', status),
+                    web.get(f'{MGMT_STATUS_API}', status),
                     web.get(f'/', status),
                     web.post(f'{REMOVE_JOB}', remove_job),
                     web.post(f'{SET_RESOURCE_STATUS}', set_resource_status),

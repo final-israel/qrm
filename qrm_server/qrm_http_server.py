@@ -126,8 +126,8 @@ async def init_qrm_backend(request) -> web.Response:
                         text=f'init qrm db')
 
 
-async def main():
-    init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd())
+async def main(use_pending_logic: bool = False):
+    init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd(use_pending_logic=use_pending_logic))
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(f'{here}/templates'))
     app.router.add_post(URL_POST_CANCEL_TOKEN, cancel_token)
@@ -140,8 +140,8 @@ async def main():
     return app
 
 
-def run_server(port=5555) -> None:
-    web.run_app(main(), port=port)
+def run_server(port: int = 5555, use_pending_logic: bool = False) -> None:
+    web.run_app(main(use_pending_logic), port=port)
 
 
 if __name__ == "__main__":

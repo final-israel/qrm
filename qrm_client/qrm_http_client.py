@@ -1,6 +1,7 @@
-from qrm_server.resource_definition import ResourcesRequest, ResourcesByName
+from qrm_server.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus
 from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN, URL_GET_ROOT, URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS,\
     URL_GET_IS_SERVER_UP
+from qrm_server.management_server import MGMT_STATUS_API, SET_RESOURCE_STATUS
 import logging
 import json
 import requests
@@ -36,16 +37,16 @@ def get_from_url(full_url: str, params: dict = None, *args, **kwargs) -> request
     return resp
 
 
-def return_response(res: requests.Response, *args, **kwargs) -> bool:
+def return_response(res: requests.Response, *args, **kwargs) -> requests.Response:
     # noinspection PyBroadException
     try:
         if res.status_code == 200:
             return res
         else:
             logging.critical(res)
-            return False
+            return res
     except Exception:
-        return False
+        return res
 
 
 class QrmClient(object):
@@ -78,13 +79,13 @@ class QrmClient(object):
         rr = ResourcesRequest()
         rr.token = token
         full_url = self.full_url(URL_POST_CANCEL_TOKEN)
-        logging.info(f'send cancel ion token = {self.token} to url {full_url}')
+        logging.info(f'send cancel on token = {self.token} to url {full_url}')
         json_as_dict = rr.as_dict()
         post_to_url(full_url=full_url, data_json=json_as_dict)
         resp = requests.post(full_url, json=json_as_dict)
         return resp
 
-    def send_cancel(self, token: str, *args, **kwargs) -> bool:
+    def send_cancel(self, token: str, *args, **kwargs) -> requests.Response:
         res = self._send_cancel(token)
         return return_response(res)
 
@@ -149,8 +150,10 @@ class QrmClient(object):
             time_d = int(time.time() - start_time)
             logging.info(f'waiting for token {token} to be ready. wait for {time_d} sec, {resp_data}')
             if time_d > timeout:
-                logging.warning(f'TIMEOUT! waiting from QRM server has timed out! timeout was set to {timeout}')
-                resp_data = self.get_token_status(token=token)
+                logging.warning(f'TIMEOUT! waiting from QRM server has timed out! timeout was set to {timeout}, '
+                                f'canceling the token {token}')
+                resp = self.send_cancel(token)  # on timeout cancel the token
+                resp_data = json.loads(resp.json())
                 return resp_data
             time.sleep(polling_sleep_time)
             resp_data = self.get_token_status(token=token)
@@ -175,6 +178,48 @@ class QrmClient(object):
             time.sleep(0.1)
         return resp_data
 
+
+class ManagementClient(object):
+    def __init__(self, server_ip: str,
+                 server_port: str,
+                 user_name: str,
+                 user_password: str = '',
+                 *args,
+                 **kwargs):
+        self.server_ip: str = server_ip
+        self.server_port: str = server_port
+        self.user_name: str = user_name
+        self.user_password: str = user_password
+        self.init_log_massage()
+
+    def init_log_massage(self) -> None:
+        logging.info(f"""init new qrm management client with params:
+                mgmt server ip: {self.server_ip}
+                mgmt server port: {self.server_port}
+                user name: {self.user_name}
+                """)
+
+    def get_resource_status(self, resource_name: str) -> str:
+        full_url = f'http://{self.server_ip}:{self.server_port}{MGMT_STATUS_API}'
+        resp = get_from_url(full_url=full_url)
+        status_dict = resp.json()
+        res_status = status_dict.get('resources_status').get(resource_name).get('status')
+        if not res_status:
+            logging.error(f'can\'t find status for resource {resource_name}')
+            return ''
+        logging.info(f'resource {resource_name} is in status {res_status}')
+        return res_status
+
+    def set_resource_status(self, resource_name: str, resource_status: str) -> requests.Response:
+        full_url = f'http://{self.server_ip}:{self.server_port}{SET_RESOURCE_STATUS}'
+        res_status = ResourceStatus(
+            resource_name,
+            resource_status
+        )
+        resp = post_to_url(full_url, data_json=res_status.as_dict())
+        return return_response(resp)
+
+
 if __name__ == '__main__':
     qrm_client = QrmClient(server_ip='127.0.0.1',
                            server_port='5555',
@@ -186,8 +231,8 @@ if __name__ == '__main__':
     rr.token = '1234'
     rbs = ResourcesByName(names=['a1'], count=1)
     rr.names.append(rbs)
-    token = qrm_client.new_request(rr.as_json())
-    print(token)
-    result = qrm_client.get_token_status(token)
+    resp = qrm_client.new_request(rr.as_json())
+    print(resp.get('token'))
+    result = qrm_client.get_token_status(resp.get('token'))
     print(result)
 

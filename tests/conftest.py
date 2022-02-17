@@ -11,7 +11,7 @@ from qrm_server.resource_definition import Resource, ACTIVE_STATUS
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
 from pytest_httpserver import HTTPServer
-from qrm_client.qrm_http_client import QrmClient
+from qrm_client.qrm_http_client import QrmClient, ManagementClient
 from werkzeug.wrappers import Request, Response
 REDIS_PORT = 6379
 from multiprocessing import Process
@@ -179,7 +179,7 @@ def post_to_mgmt_server(loop, aiohttp_client):
     management_server.init_redis()
     app.router.add_post(management_server.ADD_RESOURCES, management_server.add_resources)
     app.router.add_post(management_server.REMOVE_RESOURCES, management_server.remove_resources)
-    app.router.add_get(management_server.STATUS, management_server.status)
+    app.router.add_get(management_server.MGMT_STATUS_API, management_server.status)
     app.router.add_post(management_server.SET_SERVER_STATUS, management_server.set_server_status)
     app.router.add_post(management_server.SET_RESOURCE_STATUS, management_server.set_resource_status)
     app.router.add_post(management_server.ADD_JOB_TO_RESOURCE, management_server.add_job_to_resource)
@@ -218,6 +218,16 @@ def qrm_http_server_for_system(aiohttp_unused_port, redis_db_object) -> dict:
 
 
 @pytest.fixture(scope='function')
+def qrm_http_server_for_system_pending(aiohttp_unused_port, redis_db_object) -> dict:
+    pending = True
+    port = aiohttp_unused_port()
+    p = Process(target=qrm_server.qrm_http_server.run_server, args=(port, pending,))
+    p.start()
+    yield {'http_port': port}
+    p.kill()
+
+
+@pytest.fixture(scope='function')
 def qrm_management_server(aiohttp_unused_port, redis_db_object) -> dict:
     port = aiohttp_unused_port()
     p = Process(target=qrm_server.management_server.main, kwargs={'port': port})
@@ -227,7 +237,8 @@ def qrm_management_server(aiohttp_unused_port, redis_db_object) -> dict:
 
 
 @pytest.fixture(scope='function')
-def full_qrm_servers_ports(aiohttp_unused_port, qrm_http_server_for_system, qrm_management_server, redis_db_object) -> dict:
+def full_qrm_servers_ports(aiohttp_unused_port, qrm_http_server_for_system,
+                           qrm_management_server, redis_db_object) -> dict:
     ports_dict = {}
 
     r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server', status=ACTIVE_STATUS)))
@@ -239,6 +250,57 @@ def full_qrm_servers_ports(aiohttp_unused_port, qrm_http_server_for_system, qrm_
     loop.run_until_complete(r3)
     ports_dict.update(qrm_management_server)
     ports_dict.update(qrm_http_server_for_system)
+    return ports_dict
+
+
+@pytest.fixture(scope='function')
+def qrm_client(full_qrm_servers_ports: dict) -> QrmClient:
+    client = QrmClient(server_ip='127.0.0.1',
+                       server_port=full_qrm_servers_ports['http_port'],
+                       user_name='test_user')
+    client.wait_for_server_up()
+    return client
+
+
+@pytest.fixture(scope='function')
+def qrm_client_pending(full_qrm_servers_ports_pending_logic: dict) -> QrmClient:
+    client = QrmClient(server_ip='127.0.0.1',
+                       server_port=full_qrm_servers_ports_pending_logic['http_port'],
+                       user_name='test_user')
+    client.wait_for_server_up()
+    return client
+
+
+@pytest.fixture(scope='function')
+def mgmt_client(full_qrm_servers_ports: dict) -> ManagementClient:
+    client = ManagementClient(server_ip='127.0.0.1',
+                              server_port=full_qrm_servers_ports['management_port'],
+                              user_name='test_user')
+    return client
+
+
+@pytest.fixture(scope='function')
+def mgmt_client_pending(full_qrm_servers_ports_pending_logic: dict) -> ManagementClient:
+    client = ManagementClient(server_ip='127.0.0.1',
+                              server_port=full_qrm_servers_ports_pending_logic['management_port'],
+                              user_name='test_user')
+    return client
+
+
+@pytest.fixture(scope='function')
+def full_qrm_servers_ports_pending_logic(aiohttp_unused_port, qrm_http_server_for_system_pending,
+                                         qrm_management_server, redis_db_object) -> dict:
+    ports_dict = {}
+
+    r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server', status=ACTIVE_STATUS)))
+    r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server', status=ACTIVE_STATUS)))
+    r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server', status=ACTIVE_STATUS)))
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(r1)
+    loop.run_until_complete(r2)
+    loop.run_until_complete(r3)
+    ports_dict.update(qrm_management_server)
+    ports_dict.update(qrm_http_server_for_system_pending)
     return ports_dict
 
 
