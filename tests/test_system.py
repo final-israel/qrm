@@ -312,18 +312,48 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, default_test_tok
     assert resp.get('names') == ['r1']
 
 
-def test_resource_block_on_res_pending_job_with_one_pending_job(qrm_client_pending, default_test_token):
+def test_resource_block_on_res_pending_job_with_one_pending_job(qrm_client_pending, default_test_token,
+                                                                mgmt_client_pending):
     # send new request -> fill
     # send job2 -> verify waiting in queue
     # send cancel -> resource move to pending
     # move resource to active -> job2 filled
+
     raise NotImplementedError
 
 
 def test_new_token_accepted_not_move_to_pending(qrm_client_pending, default_test_token, mgmt_client_pending):
     # send new request -> active
-    # move resource to active
+    # move resource to active -> request filled
     # cancel the new token -> resource is active
     # resend the new token -> accepted and resource active
-    raise NotImplementedError
 
+    rr = ResourcesRequest()
+    rr.token = 'token_1'
+    rbn = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbn)
+    # r1 is now with active job:
+    resp = qrm_client_pending.new_request(rr.as_json())
+    token_1 = resp.get('token')
+    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
+
+    # move r1 to active, request filled:
+    mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
+    assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
+    qrm_client_pending.wait_for_token_ready(token_1, timeout=0.2, polling_sleep_time=0.1)
+    resp = qrm_client_pending.get_token_status(token_1)
+    assert resp.get('request_complete')
+    assert ['r1'] == resp.get('names')
+
+    # cancel the new token -> resource is active:
+    qrm_client_pending.send_cancel(token_1)
+    assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
+
+    # resend the new token -> accepted and resource active:
+    rr = ResourcesRequest()
+    rr.token = token_1
+    resp = qrm_client_pending.new_request(rr.as_json())
+    new_token = resp.get('token')
+    assert new_token == token_1
+    resp = qrm_client_pending.get_token_status(new_token)
+    assert resp['names'] == ['r1']
