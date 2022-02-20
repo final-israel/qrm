@@ -159,7 +159,7 @@ class QrmClient(object):
                                 f'canceling the token {token}')
                 resp = self.send_cancel(token)  # on timeout cancel the token
                 resp_data = json.loads(resp.json())
-                return resp_data
+                raise TimeoutError(f'got timeout while waiting for token {token} status complete')
             time.sleep(polling_sleep_time)
             resp_data = self.get_token_status(token=token)
         return resp_data

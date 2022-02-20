@@ -267,13 +267,39 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
     assert ['r1'] == resp_2.get('names')
 
 
-def test_resource_block_on_pending_job_wait(qrm_client_pending, default_test_token):
+def test_resource_block_on_pending_job_wait(qrm_client_pending, default_test_token, mgmt_client_pending):
     # send new request -> fill
-    # send cancel -> resource move to pending
     # send job2 -> verify waiting in queue
+    # send cancel -> resource move to pending
     # move resource to active -> job2 filled
+    rr = ResourcesRequest()
+    rr.token = 'token_1'
+    rbn = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbn)
+    # r1 is now with active job:
+    resp = qrm_client_pending.new_request(rr.as_json())
+    token_1 = resp.get('token')
+    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
 
-    raise NotImplementedError
+    # move r1 to active, request filled:
+    mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
+    assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
+    qrm_client_pending.wait_for_token_ready(token_1, timeout=0.2, polling_sleep_time=0.1)
+    resp = qrm_client_pending.get_token_status(token_1)
+    assert resp.get('request_complete')
+    assert ['r1'] == resp.get('names')
+
+    # send job2 -> verify waiting in queue:
+    rr = ResourcesRequest()
+    rr.token = 'token_2'
+    rbn = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbn)
+    resp2 = qrm_client_pending.new_request(rr.as_json())
+    token_2 = resp2.get('token')
+    assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
+    time.sleep(0.1)  # just to allow the server handle the request
+    resp2 = qrm_client_pending.get_token_status(token_2)
+    assert not resp2.get('request_complete')
 
 
 def test_resource_block_on_res_pending_job_with_one_pending_job(qrm_client_pending, default_test_token):

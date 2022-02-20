@@ -64,8 +64,6 @@ class QueueManagerBackEnd(QrmIfc):
         """
         if redis_port:
             self.redis = RedisDB(redis_port)
-        else:
-            self.redis = RedisDB(REDIS_PORT)
         self.use_pending_logic = use_pending_logic
         self.tokens_change_event = {}  # type: Dict[str, QRMEvent]
 
@@ -116,6 +114,7 @@ class QueueManagerBackEnd(QrmIfc):
         await self.wait_for_active_state_on_all_resources(token)
         await self.redis.remove_open_request(token)
         await self.redis.generate_token(token, resources_list)
+        logging.info(f'finalize fill for token {token}')
         return response
 
     async def wait_for_active_state_on_all_resources(self, token: str) -> None:

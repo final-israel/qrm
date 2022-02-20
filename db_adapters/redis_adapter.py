@@ -122,9 +122,13 @@ class RedisDB(QrmBaseDB):
     async def set_event_for_resource(self, resource: Resource, status: str) -> None:
         try:
             if status == ACTIVE_STATUS:
-                self.res_status_change_event[resource.name].set()
+                # self.res_status_change_event[resource.name].set()
+                loop = asyncio.get_event_loop()
+                loop.call_soon_threadsafe(self.res_status_change_event[resource.name].set)
+                logging.info(f'set change event for resource {resource.name}')
             else:
                 self.res_status_change_event[resource.name].clear()
+                logging.info(f'remove event for resource {resource.name}')
         except KeyError as e:
             self.res_status_change_event[resource.name] = asyncio.Event()
             await self.set_event_for_resource(resource, status)
@@ -301,8 +305,8 @@ class RedisDB(QrmBaseDB):
         token_in_map = await self.redis.hget(TOKEN_RESOURCES_MAP, token)
         token_in_open_req = await self.redis.hget(OPEN_REQUESTS, token)
         all_tokens = await self.redis.hgetall(TOKEN_RESOURCES_MAP)
-        logging.info(f'all tokens are: {all_tokens}')
-        logging.info(f'token_in_map: {token_in_map}, token_in_open_req: {token_in_open_req}')
+        logging.debug(f'all tokens are: {all_tokens}')
+        logging.debug(f'token_in_map: {token_in_map}, token_in_open_req: {token_in_open_req}')
         if token_in_map and not token_in_open_req:
             return True
         return False
