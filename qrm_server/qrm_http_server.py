@@ -147,6 +147,6 @@ def run_server(port: int = 5555, use_pending_logic: bool = False) -> None:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
     try:
-        run_server()
+        run_server(use_pending_logic=True)
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')

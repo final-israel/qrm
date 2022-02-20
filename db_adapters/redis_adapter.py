@@ -1,5 +1,6 @@
 import aioredis
 import asyncio
+import async_timeout
 import json
 import logging
 from qrm_server import resource_definition
@@ -7,6 +8,8 @@ from qrm_server.resource_definition import Resource, ALLOWED_SERVER_STATUSES, Re
 from db_adapters.qrm_db import QrmBaseDB
 from typing import Dict, List
 
+
+CHANNEL_RES_CHANGE_EVENT = 'channel:res_change_event'
 PARTIAL_FILL_REQUESTS = 'fill_requests'
 OPEN_REQUESTS = 'open_requests'
 ALL_RESOURCES = 'all_resources'
@@ -23,6 +26,27 @@ class RedisDB(QrmBaseDB):
             f"redis://localhost:{redis_port}", encoding="utf-8", decode_responses=True
         )
         self.res_status_change_event = {}  # type: Dict[str, asyncio.Event]
+        self.pub_sub = self.redis.pubsub()
+        asyncio.ensure_future(self.pubsub_reader())
+
+    async def pubsub_reader(self):
+        await self.pub_sub.subscribe(CHANNEL_RES_CHANGE_EVENT)
+        while True:
+            try:
+                async with async_timeout.timeout(0.1):
+                    message = await self.pub_sub.get_message(ignore_subscribe_messages=True)
+                    if message is not None:
+                        try:
+                            res_name = message.get('data')
+                            self.res_status_change_event[res_name].set()
+                            logging.info(f'got info from other redis adapter for resource '
+                                         f'status change on resource {res_name}')
+                        except KeyError as e:
+                            self.res_status_change_event[res_name] = asyncio.Event()
+                            self.res_status_change_event[res_name].set()
+                    await asyncio.sleep(0.1)
+            except asyncio.TimeoutError:
+                pass
 
     def init_params_blocking(self) -> None:
         asyncio.ensure_future(self.set_qrm_status(status=ACTIVE_STATUS))
@@ -126,6 +150,7 @@ class RedisDB(QrmBaseDB):
                 loop = asyncio.get_event_loop()
                 loop.call_soon_threadsafe(self.res_status_change_event[resource.name].set)
                 logging.info(f'set change event for resource {resource.name}')
+                await self.redis.publish(CHANNEL_RES_CHANGE_EVENT, f'{resource.name}')
             else:
                 self.res_status_change_event[resource.name].clear()
                 logging.info(f'remove event for resource {resource.name}')
@@ -225,6 +250,7 @@ class RedisDB(QrmBaseDB):
         resources_list = []
         for resource in resources:
             resources_list.append(resource.as_json())
+            await self.set_token_for_resource(token, resource)
         logging.info(f'generate token {token} with {resources_list}')
         return await self.redis.hset(TOKEN_RESOURCES_MAP, token, json.dumps(resources_list))
 

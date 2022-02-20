@@ -269,7 +269,7 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
 
 def test_resource_block_on_pending_job_wait(qrm_client_pending, default_test_token, mgmt_client_pending):
     # send new request -> fill
-    # send job2 -> verify waiting in queue
+    # send token_2 -> verify waiting in queue
     # send cancel -> resource move to pending
     # move resource to active -> job2 filled
     rr = ResourcesRequest()
@@ -300,6 +300,16 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, default_test_tok
     time.sleep(0.1)  # just to allow the server handle the request
     resp2 = qrm_client_pending.get_token_status(token_2)
     assert not resp2.get('request_complete')
+
+    # send cancel on token_1 -> resource move to pending
+    qrm_client_pending.send_cancel(token_1)
+    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
+
+    # move resource to active -> job2 filled:
+    mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
+    qrm_client_pending.wait_for_token_ready(token_2, timeout=0.2, polling_sleep_time=0.1)
+    resp2 = qrm_client_pending.get_token_status(token_2)
+    assert resp.get('names') == ['r1']
 
 
 def test_resource_block_on_res_pending_job_with_one_pending_job(qrm_client_pending, default_test_token):
