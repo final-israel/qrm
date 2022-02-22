@@ -47,13 +47,13 @@ Show status of the server with it's resources and their jobs url:
 http://127.0.0.1:8080/status
 ```
 
-#Communication Server
-#####Server uptime info:
+# Communication Server
+##### Server uptime info:
 This web URL will show information about the server. 
 ```console
 http://127.0.0.1:5555/is_server_up
 ```
-#####Is server up API:
+##### Is server up API:
 ```bash
 curl http://localhost:5555/is_server_up
 Json Response 
@@ -61,19 +61,19 @@ Json Response
 ```
 
 ### API Version 1
-####To access to version 1 API all API calls must end with the suffix "/v1"
+#### To access to version 1 API all API calls must end with the suffix "/v1"
 example: /new_request -> /new_request/v1
 
 
-####New_request:
+#### New_request:
 ```bash
 curl --header "Content-Type: application/json" --request POST --data '{"names": [{"names": ["r1"], "count": 1}], "tags": [], "token": "token1234"}'  http://localhost:8080/new_request/v1
 ```
-####Get token status:
+#### Get token status:
 ```bash
 curl --header "Content-Type: application/json"  http://localhost:8080//get_token_status/v1?token=<token>
 ```
-####Cancel token:
+#### Cancel token:
 ```bash
 curl --header "Content-Type: application/json" --request POST --data '{"token": "token1234"}'  http://localhost:8080/cancel_token/v1
 ```
