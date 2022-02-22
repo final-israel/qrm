@@ -363,6 +363,11 @@ class RedisDB(QrmBaseDB):
 
         return list(set(tokens_list))
 
+    async def close(self) -> None:
+        await self.redis.unsubscribe(CHANNEL_RES_CHANGE_EVENT)
+        self.pub_sub.close()
+        await self.redis.close()
+
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:
         if status not in ALLOWED_SERVER_STATUSES:

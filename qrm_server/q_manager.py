@@ -83,7 +83,7 @@ class QueueManagerBackEnd(QrmIfc):
             asyncio.ensure_future(self.names_worker(token))
 
     async def stop_backend(self) -> None:
-        await self.redis.redis.close()
+        await self.redis.close()
 
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
         user_req = await self.redis.get_open_request_by_token(token)
