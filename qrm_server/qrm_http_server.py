@@ -4,16 +4,13 @@ import logging
 from aiohttp import web
 from http import HTTPStatus
 import asyncio
+
+from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
+    URL_GET_UPTIME, URL_GET_IS_SERVER_UP
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
-from qrm_resources.resource_definition import resource_request_from_json, ResourcesRequestResponse
+from qrm_defs.resource_definition import resource_request_from_json, ResourcesRequestResponse
 import datetime
-URL_API_VERSION = '/v1'
-URL_POST_NEW_REQUEST = f'/new_request{URL_API_VERSION}'
-URL_GET_TOKEN_STATUS = f'/get_token_status{URL_API_VERSION}'
-URL_POST_CANCEL_TOKEN = f'/cancel_token{URL_API_VERSION}'
-URL_GET_ROOT = '/'
-URL_GET_UPTIME = f'/uptime'
-URL_GET_IS_SERVER_UP = '/is_server_up'
+
 global qrm_back_end
 global_number: int = 0
 import aiohttp_jinja2

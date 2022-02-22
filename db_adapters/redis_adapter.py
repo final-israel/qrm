@@ -3,8 +3,8 @@ import asyncio
 import async_timeout
 import json
 import logging
-from qrm_resources import resource_definition
-from qrm_resources.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest, ResourcesRequestResponse
+from qrm_defs import resource_definition
+from qrm_defs.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest, ResourcesRequestResponse
 from db_adapters.qrm_db import QrmBaseDB
 from typing import Dict, List
 

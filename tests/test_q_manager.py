@@ -3,7 +3,7 @@ import json
 import logging
 import pytest
 
-from qrm_resources.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
+from qrm_defs.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
     PENDING_STATUS, ACTIVE_STATUS, DISABLED_STATUS
 from qrm_server.q_manager import QueueManagerBackEnd
 

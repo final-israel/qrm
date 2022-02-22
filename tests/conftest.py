@@ -1,5 +1,8 @@
 import sys
 from pathlib import Path
+
+import qrm_defs.qrm_urls
+
 here = Path(__file__).resolve().parent.parent
 sys.path.append(f'{here}')
 import asyncio
@@ -11,7 +14,7 @@ from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
 from qrm_server import qrm_http_server
-from qrm_resources.resource_definition import Resource, ACTIVE_STATUS
+from qrm_defs.resource_definition import Resource, ACTIVE_STATUS
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
 from pytest_httpserver import HTTPServer
@@ -67,12 +70,12 @@ def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) 
     rrr_obj = ResourcesRequestResponse()
     rrr_obj.token = default_test_token
     rrr_json = rrr_obj.as_json()
-    httpserver.expect_request(f'{qrm_http_server.URL_GET_ROOT}').respond_with_data("1")
+    httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_GET_ROOT}').respond_with_data("1")
     httpserver.expect_request(
-        f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
-    httpserver.expect_request(qrm_http_server.URL_POST_NEW_REQUEST).respond_with_json(rrr_json)
-    httpserver.expect_request(qrm_http_server.URL_GET_TOKEN_STATUS).respond_with_json(rrr_json)
-    httpserver.expect_request(qrm_http_server.URL_GET_IS_SERVER_UP).respond_with_json({'status': True})
+        f'{qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
+    httpserver.expect_request(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST).respond_with_json(rrr_json)
+    httpserver.expect_request(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS).respond_with_json(rrr_json)
+    httpserver.expect_request(qrm_defs.qrm_urls.URL_GET_IS_SERVER_UP).respond_with_json({'status': True})
     return httpserver
 
 
@@ -98,15 +101,15 @@ def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer, default_test_to
         res = Response(rrr_json, status=200, content_type="application/json")
         wait_for_test_call_times += 1
         return res
-    httpserver.expect_request(f'{qrm_http_server.URL_GET_ROOT}').respond_with_handler(handler)
-    httpserver.expect_request(f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_handler(handler)
-    httpserver.expect_request(qrm_http_server.URL_GET_TOKEN_STATUS).respond_with_handler(handler_for_wait_for_test)
+    httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_GET_ROOT}').respond_with_handler(handler)
+    httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN}').respond_with_handler(handler)
+    httpserver.expect_request(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS).respond_with_handler(handler_for_wait_for_test)
     yield httpserver
 
 
 @pytest.fixture(scope='function')
 def qrm_server_mock_for_client_with_error(httpserver: HTTPServer) -> HTTPServer:
-    httpserver.expect_request(f'{qrm_http_server.URL_POST_CANCEL_TOKEN}').respond_with_response(Response(status=400))
+    httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN}').respond_with_response(Response(status=400))
     return httpserver
 
 
@@ -184,13 +187,13 @@ def redis_db_object_with_resources(redis_my, resource_foo) -> redis_adapter.Redi
 def post_to_mgmt_server(loop, aiohttp_client):
     app = web.Application(loop=loop)
     management_server.init_redis()
-    app.router.add_post(management_server.ADD_RESOURCES, management_server.add_resources)
-    app.router.add_post(management_server.REMOVE_RESOURCES, management_server.remove_resources)
-    app.router.add_get(management_server.MGMT_STATUS_API, management_server.status)
-    app.router.add_post(management_server.SET_SERVER_STATUS, management_server.set_server_status)
-    app.router.add_post(management_server.SET_RESOURCE_STATUS, management_server.set_resource_status)
-    app.router.add_post(management_server.ADD_JOB_TO_RESOURCE, management_server.add_job_to_resource)
-    app.router.add_post(management_server.REMOVE_JOB, management_server.remove_job)
+    app.router.add_post(qrm_defs.qrm_urls.ADD_RESOURCES, management_server.add_resources)
+    app.router.add_post(qrm_defs.qrm_urls.REMOVE_RESOURCES, management_server.remove_resources)
+    app.router.add_get(qrm_defs.qrm_urls.MGMT_STATUS_API, management_server.status)
+    app.router.add_post(qrm_defs.qrm_urls.SET_SERVER_STATUS, management_server.set_server_status)
+    app.router.add_post(qrm_defs.qrm_urls.SET_RESOURCE_STATUS, management_server.set_resource_status)
+    app.router.add_post(qrm_defs.qrm_urls.ADD_JOB_TO_RESOURCE, management_server.add_job_to_resource)
+    app.router.add_post(qrm_defs.qrm_urls.REMOVE_JOB, management_server.remove_job)
     yield loop.run_until_complete(aiohttp_client(app))
 
 
@@ -198,9 +201,9 @@ def post_to_mgmt_server(loop, aiohttp_client):
 def post_to_http_server(loop, aiohttp_client):
     app = web.Application(loop=loop)
     qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock())
-    app.router.add_post(qrm_http_server.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
-    app.router.add_post(qrm_http_server.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
-    app.router.add_get(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
+    app.router.add_post(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
+    app.router.add_post(qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
+    app.router.add_get(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
     yield loop.run_until_complete(aiohttp_client(app))
 
 
@@ -208,10 +211,10 @@ def post_to_http_server(loop, aiohttp_client):
 def post_to_http_server2(loop, aiohttp_server):
     app = web.Application(loop=loop)
     qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock())
-    app.router.add_post(qrm_http_server.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
-    app.router.add_post(qrm_http_server.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
-    app.router.add_get(qrm_http_server.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
-    app.router.add_get(qrm_http_server.URL_GET_ROOT, qrm_http_server.root_url)
+    app.router.add_post(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
+    app.router.add_post(qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
+    app.router.add_get(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
+    app.router.add_get(qrm_defs.qrm_urls.URL_GET_ROOT, qrm_http_server.root_url)
     yield loop.run_until_complete(aiohttp_server(app))
 
 

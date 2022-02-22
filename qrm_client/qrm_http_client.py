@@ -1,7 +1,6 @@
-from qrm_resources.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus
-from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN, URL_GET_ROOT, URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS,\
-    URL_GET_IS_SERVER_UP
-from qrm_server.management_server import MGMT_STATUS_API, SET_RESOURCE_STATUS
+from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus
+from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
+    URL_GET_IS_SERVER_UP, MGMT_STATUS_API, SET_RESOURCE_STATUS
 import logging
 import json
 import requests

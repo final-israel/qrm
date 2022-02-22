@@ -3,15 +3,11 @@ import logging
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
-from qrm_resources.resource_definition import Resource
 
-REMOVE_JOB = '/remove_job'
-MGMT_STATUS_API = '/status'
-SET_SERVER_STATUS = '/set_server_status'
-REMOVE_RESOURCES = '/remove_resources'
-ADD_RESOURCES = '/add_resources'
-SET_RESOURCE_STATUS = '/set_resource_status'
-ADD_JOB_TO_RESOURCE = '/add_job_to_resource'
+from qrm_defs.qrm_urls import REMOVE_JOB, MGMT_STATUS_API, SET_SERVER_STATUS, REMOVE_RESOURCES, ADD_RESOURCES, \
+    SET_RESOURCE_STATUS, ADD_JOB_TO_RESOURCE
+from qrm_defs.resource_definition import Resource
+
 REDIS_PORT = 6379
 
 

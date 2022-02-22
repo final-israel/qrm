@@ -1,13 +1,15 @@
 import json
+
+import qrm_defs.qrm_urls
 from qrm_server import qrm_http_server
-from qrm_resources.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
+from qrm_defs.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
 
 
 async def test_http_server_cancel_token(post_to_http_server):
     token = 'token1'
     user_request = ResourcesRequest()
     user_request.add_request_by_token(token)
-    resp = await post_to_http_server.post(qrm_http_server.URL_POST_CANCEL_TOKEN,
+    resp = await post_to_http_server.post(qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN,
                                           data=json.dumps(user_request.as_json()))
 
     resp_json = await resp.json()
@@ -26,7 +28,7 @@ async def test_http_server_new_request_new_token(post_to_http_server):
     user_request.add_request_by_names([res_1.name, res_2.name], count=1)
     print(post_to_http_server.host)
     print(post_to_http_server.port)
-    resp = await post_to_http_server.post(qrm_http_server.URL_POST_NEW_REQUEST,
+    resp = await post_to_http_server.post(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST,
                                           data=json.dumps(user_request.as_json()))
     resp_json = await resp.json()
     resp_dict = json.loads(resp_json)
@@ -46,7 +48,7 @@ async def test_http_server_get_token_status_is_active(post_to_http_server, qrm_b
     queue_manager_back_end_mock = qrm_backend_mock_cls
     queue_manager_back_end_mock.for_test_is_request_active = True
     qrm_http_server.init_qrm_back_end(queue_manager_back_end_mock)
-    resp = await post_to_http_server.get(qrm_http_server.URL_GET_TOKEN_STATUS, params={'token': token})
+    resp = await post_to_http_server.get(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS, params={'token': token})
     resp_json = await resp.json()
     rrr_obj = ResourcesRequestResponse.from_json(resp_json)
     assert resp.status == 200
@@ -71,7 +73,7 @@ async def test_http_server_get_token_status_is_done(post_to_http_server, qrm_bac
     qrm_http_server.init_qrm_back_end(queue_manager_back_end_mock)
     # setup end
     # test start
-    resp = await post_to_http_server.get(qrm_http_server.URL_GET_TOKEN_STATUS, params={'token': token})
+    resp = await post_to_http_server.get(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS, params={'token': token})
     resp_json = await resp.json()
     rrr_obj = ResourcesRequestResponse.from_json(resp_json)
     assert resp.status == 200

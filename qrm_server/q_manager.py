@@ -2,7 +2,7 @@ import asyncio
 import copy
 import logging
 from db_adapters.redis_adapter import RedisDB
-from qrm_resources.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
+from qrm_defs.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
     generate_token_from_seed, ACTIVE_STATUS, DISABLED_STATUS, PENDING_STATUS
 from typing import List, Dict
 from abc import ABC, abstractmethod

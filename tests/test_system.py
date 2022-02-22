@@ -1,7 +1,7 @@
 import pytest
 import time
 
-from qrm_resources.resource_definition import ResourcesRequest, ResourcesByName, PENDING_STATUS, ACTIVE_STATUS
+from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, PENDING_STATUS, ACTIVE_STATUS
 
 
 def test_http_server_and_client_get_root_url(qrm_client, redis_db_object):

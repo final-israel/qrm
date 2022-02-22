@@ -5,7 +5,7 @@ import pytest
 import subprocess
 
 from db_adapters.redis_adapter import RedisDB
-from qrm_resources.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, \
+from qrm_defs.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, \
     generate_token_from_seed
 
 
