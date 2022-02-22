@@ -370,6 +370,3 @@ async def test_basic_recovery(mgmt_client_pending, aiohttp_unused_port, redis_db
     # move resource to active -> request filled
 
     raise NotImplementedError
-
-
-
