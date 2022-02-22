@@ -1,3 +1,4 @@
+import argparse
 import json
 import logging
 
@@ -10,6 +11,8 @@ from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_PO
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
 from qrm_defs.resource_definition import resource_request_from_json, ResourcesRequestResponse
 import datetime
+
+HTTP_LISTEN_PORT = 5555
 
 global qrm_back_end
 global_number: int = 0
@@ -145,13 +148,25 @@ async def main(use_pending_logic: bool = False):
     return app
 
 
-def run_server(port: int = 5555, use_pending_logic: bool = False) -> None:
-    web.run_app(main(use_pending_logic), port=port)
+def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = False) -> None:
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
+    web.run_app(main(use_pending_logic), port=listen_port)
+
+
+def create_parser() -> argparse.ArgumentParser.parse_args:
+    parser = argparse.ArgumentParser(description='QRM HTTP SERVER')
+    parser.add_argument('--listen_port',
+                        help='qrm http server listen port',
+                        default=HTTP_LISTEN_PORT)
+    parser.add_argument('--use_pending_logic',
+                        help='move resource to pending when resource change owners',
+                        default=True)
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
     try:
-        run_server(use_pending_logic=True)
+        run_args = create_parser()
+        run_server(run_args.listen_port, run_args.use_pending_logic)
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')

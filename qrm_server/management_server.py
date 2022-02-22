@@ -1,12 +1,14 @@
+import argparse
 import logging
 
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
-
 from qrm_defs.qrm_urls import REMOVE_JOB, MGMT_STATUS_API, SET_SERVER_STATUS, REMOVE_RESOURCES, ADD_RESOURCES, \
     SET_RESOURCE_STATUS, ADD_JOB_TO_RESOURCE
 from qrm_defs.resource_definition import Resource
+
+LISTEN_PORT = 8080
 
 REDIS_PORT = 6379
 
@@ -184,7 +186,8 @@ async def add_job_to_resource(request):
                             text=f'Error: must specify both job and resource_name in your request: {req_dict}\n')
 
 
-def main(redis_port: int = REDIS_PORT, port: int = 8080):
+def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT):
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
     init_redis(redis_port)
     app = web.Application()
     app.add_routes([web.post(f'{ADD_RESOURCES}', add_resources),
@@ -195,7 +198,18 @@ def main(redis_port: int = REDIS_PORT, port: int = 8080):
                     web.post(f'{REMOVE_JOB}', remove_job),
                     web.post(f'{SET_RESOURCE_STATUS}', set_resource_status),
                     web.post(f'{ADD_JOB_TO_RESOURCE}', add_job_to_resource)])
-    web.run_app(app, port=port)
+    web.run_app(app, port=listen_port)
+
+
+def create_parser() -> argparse.ArgumentParser.parse_args:
+    parser = argparse.ArgumentParser(description='QRM HTTP SERVER')
+    parser.add_argument('--redis_port',
+                        help='redis server listen port',
+                        default=REDIS_PORT)
+    parser.add_argument('--listen_port',
+                        help='http listen port',
+                        default=LISTEN_PORT)
+    return parser.parse_args()
 
 
 def init_redis(redis_port: int = REDIS_PORT):
@@ -204,5 +218,5 @@ def init_redis(redis_port: int = REDIS_PORT):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
-    main()
+    args = create_parser()
+    main(args.redis_port, args.listen_port)

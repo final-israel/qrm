@@ -30,10 +30,11 @@ class RedisDB(QrmBaseDB):
         self.all_tasks = set()  # type: [asyncio.Task]
         task = asyncio.ensure_future(self.pubsub_reader())
         self.all_tasks.add(task)
+        self.is_running = asyncio.Event()
 
     async def pubsub_reader(self):
         await self.pub_sub.subscribe(CHANNEL_RES_CHANGE_EVENT)
-        while True:
+        while await self.is_running.wait():
             try:
                 async with async_timeout.timeout(0.1):
                     message = await self.pub_sub.get_message(ignore_subscribe_messages=True)
@@ -49,6 +50,7 @@ class RedisDB(QrmBaseDB):
                     await asyncio.sleep(0.1)
             except asyncio.TimeoutError:
                 pass
+        logging.info('done with pubsub reader')
 
     def init_params_blocking(self) -> None:
         asyncio.ensure_future(self.set_qrm_status(status=ACTIVE_STATUS))
@@ -57,6 +59,7 @@ class RedisDB(QrmBaseDB):
     async def init_default_params(self) -> None:
         await self.set_qrm_status(status=ACTIVE_STATUS)
         await self.init_events_for_resources()
+        self.is_running.set()
 
     async def init_events_for_resources(self) -> None:
         all_resources = await self.get_all_resources()
@@ -364,9 +367,11 @@ class RedisDB(QrmBaseDB):
         return list(set(tokens_list))
 
     async def close(self) -> None:
-        await self.redis.unsubscribe(CHANNEL_RES_CHANGE_EVENT)
-        self.pub_sub.close()
+        self.is_running.clear()
+        await self.pub_sub.close()
         await self.redis.close()
+        return
+        # await self.redis.unsubscribe(CHANNEL_RES_CHANGE_EVENT)
 
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:
