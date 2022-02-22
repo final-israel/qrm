@@ -1,14 +1,12 @@
-import asyncio
 import logging
 
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
-from qrm_server.resource_definition import Resource, resource_from_json
-
+from qrm_resources.resource_definition import Resource
 
 REMOVE_JOB = '/remove_job'
-STATUS = '/status'
+MGMT_STATUS_API = '/status'
 SET_SERVER_STATUS = '/set_server_status'
 REMOVE_RESOURCES = '/remove_resources'
 ADD_RESOURCES = '/add_resources'
@@ -190,18 +188,18 @@ async def add_job_to_resource(request):
                             text=f'Error: must specify both job and resource_name in your request: {req_dict}\n')
 
 
-def main(redis_port: int = REDIS_PORT):
+def main(redis_port: int = REDIS_PORT, port: int = 8080):
     init_redis(redis_port)
     app = web.Application()
     app.add_routes([web.post(f'{ADD_RESOURCES}', add_resources),
                     web.post(f'{REMOVE_RESOURCES}', remove_resources),
                     web.post(f'{SET_SERVER_STATUS}', set_server_status),
-                    web.get(f'{STATUS}', status),
+                    web.get(f'{MGMT_STATUS_API}', status),
                     web.get(f'/', status),
                     web.post(f'{REMOVE_JOB}', remove_job),
                     web.post(f'{SET_RESOURCE_STATUS}', set_resource_status),
                     web.post(f'{ADD_JOB_TO_RESOURCE}', add_job_to_resource)])
-    web.run_app(app)
+    web.run_app(app, port=port)
 
 
 def init_redis(redis_port: int = REDIS_PORT):

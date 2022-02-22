@@ -1,24 +1,25 @@
 import json
 import logging
-import time
 
 from aiohttp import web
 from http import HTTPStatus
 import asyncio
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
-from qrm_server.resource_definition import resource_request_from_json, ResourcesRequestResponse, \
-    resource_request_response_to_json
+from qrm_resources.resource_definition import resource_request_from_json, ResourcesRequestResponse
 import datetime
-
-URL_POST_NEW_REQUEST = '/new_request'
-URL_GET_TOKEN_STATUS = '/get_token_status'
-URL_POST_CANCEL_TOKEN = '/cancel_token'
+URL_API_VERSION = '/v1'
+URL_POST_NEW_REQUEST = f'/new_request{URL_API_VERSION}'
+URL_GET_TOKEN_STATUS = f'/get_token_status{URL_API_VERSION}'
+URL_POST_CANCEL_TOKEN = f'/cancel_token{URL_API_VERSION}'
 URL_GET_ROOT = '/'
-URL_GET_UPTIME = '/uptime'
-URL_GET_INIT_QRM_BACKEND = '/init_qrm_db'
+URL_GET_UPTIME = f'/uptime'
+URL_GET_IS_SERVER_UP = '/is_server_up'
 global qrm_back_end
 global_number: int = 0
-
+import aiohttp_jinja2
+import jinja2
+from pathlib import Path
+here = Path(__file__).resolve().parent
 server_start_time = datetime.datetime.now()
 
 
@@ -41,7 +42,7 @@ async def new_request(request) -> web.json_response:
     rrr_obj = ResourcesRequestResponse()
     rrr_obj.request_complete = False
     rrr_obj.token = active_token
-    rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+    rrr_json = rrr_obj.as_json()
     return web.json_response(rrr_json, status=HTTPStatus.OK)
 
 
@@ -53,13 +54,21 @@ async def get_token_status(request) -> web.json_response:
     if await qrm_back_end.is_request_active(token=token):
         rrr_obj = ResourcesRequestResponse()
         rrr_obj.request_complete = False
-        rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+        rrr_json = rrr_obj.as_json()
         return web.json_response(rrr_json, status=HTTPStatus.OK)
     else:
-        rrr_obj = await qrm_back_end.get_filled_request(token=token)
+        rrr_obj = await qrm_back_end.get_resource_req_resp(token=token)
         rrr_obj.request_complete = True
-        rrr_json = resource_request_response_to_json(resource_req_res_obj=rrr_obj)
+        rrr_json = rrr_obj.as_json()
         return web.json_response(rrr_json, status=HTTPStatus.OK)
+
+
+# noinspection PyUnusedLocal
+async def is_server_up(request) -> web.json_response:
+    global qrm_back_end  # type: QueueManagerBackEnd
+    logging.info(f'in url is server up {request.rel_url}')
+    is_server_up = {'status': True}
+    return web.json_response(is_server_up, status=HTTPStatus.OK)
 
 
 # noinspection PyUnusedLocal
@@ -72,17 +81,20 @@ async def cancel_token(request) -> web.Response:
         req_dict = json.loads(req_dict)
     token = req_dict.get('token')
     await qrm_back_end.cancel_request(token=token)
-    return web.Response(status=HTTPStatus.OK,
-                        text=f'canceled token {token}')
+    rrr_obj = ResourcesRequestResponse()
+    rrr_obj.request_complete = False
+    rrr_obj.token = token
+    rrr_obj.message = f'canceled token {rrr_obj.token}'
+    rrr_json = rrr_obj.as_json()
+    return web.json_response(rrr_json, status=HTTPStatus.OK)
 
 
 # noinspection PyUnusedLocal
+@aiohttp_jinja2.template('base.html')
 async def root_url(request) -> web.Response:
     global global_number
     global_number += 1
-    return web.Response(status=HTTPStatus.OK,
-                        text=f'server up {global_number}')
-
+    return {'global_number': global_number}
 
 # noinspection PyUnusedLocal
 async def uptime_url(request) -> web.Response:
@@ -110,25 +122,39 @@ async def init_qrm_backend(request) -> web.Response:
     global qrm_back_end  # type: QueueManagerBackEnd
     await qrm_back_end.init_backend()
     return web.Response(status=HTTPStatus.OK,
-                        text=f'init qrm db')
+                        text=f'init qrm backend')
 
 
-async def main():
-    init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd())
+async def close_qrm_backend(request) -> web.Response:
+    logging.info('stop qrm backend')
+    global qrm_back_end  # type: QueueManagerBackEnd
+    await qrm_back_end.stop_backend()
+    return web.Response(status=HTTPStatus.OK,
+                        text=f'stop qrm backend')
+
+
+async def main(use_pending_logic: bool = False):
+    init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd(use_pending_logic=use_pending_logic))
     app = web.Application()
+    aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(f'{here}/templates'))
     app.router.add_post(URL_POST_CANCEL_TOKEN, cancel_token)
     app.router.add_post(URL_POST_NEW_REQUEST, new_request)
     app.router.add_get(URL_GET_UPTIME, uptime_url)
     app.router.add_get(URL_GET_ROOT, root_url)
     app.router.add_get(URL_GET_TOKEN_STATUS, get_token_status)
-    app.router.add_get(URL_GET_INIT_QRM_BACKEND, init_qrm_backend)
+    app.router.add_get(URL_GET_IS_SERVER_UP, is_server_up)
     app.on_startup.append(init_qrm_backend)
+    app.on_shutdown.append(close_qrm_backend)
     return app
+
+
+def run_server(port: int = 5555, use_pending_logic: bool = False) -> None:
+    web.run_app(main(use_pending_logic), port=port)
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
     try:
-        web.run_app(main(), port=5555)
+        run_server(use_pending_logic=True)
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')
