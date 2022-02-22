@@ -5,7 +5,7 @@ name: test
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, test_github ]
   pull_request:
     branches: [ main ]
 
