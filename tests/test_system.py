@@ -1,4 +1,6 @@
+import pytest
 import time
+
 from qrm_server.resource_definition import ResourcesRequest, ResourcesByName, PENDING_STATUS, ACTIVE_STATUS
 
 
@@ -267,7 +269,7 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
     assert ['r1'] == resp_2.get('names')
 
 
-def test_resource_block_on_pending_job_wait(qrm_client_pending, default_test_token, mgmt_client_pending):
+def test_resource_block_on_pending_job_wait(qrm_client_pending, mgmt_client_pending):
     # send new request -> fill
     # send token_2 -> verify waiting in queue
     # send cancel -> resource move to pending
@@ -312,6 +314,7 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, default_test_tok
     assert resp.get('names') == ['r1']
 
 
+@pytest.mark.skip
 def test_resource_block_on_res_pending_job_with_one_pending_job(qrm_client_pending, default_test_token,
                                                                 mgmt_client_pending):
     # send new request -> fill
@@ -322,7 +325,7 @@ def test_resource_block_on_res_pending_job_with_one_pending_job(qrm_client_pendi
     raise NotImplementedError
 
 
-def test_new_token_accepted_not_move_to_pending(qrm_client_pending, default_test_token, mgmt_client_pending):
+def test_new_token_accepted_not_move_to_pending(qrm_client_pending, mgmt_client_pending):
     # send new request -> active
     # move resource to active -> request filled
     # cancel the new token -> resource is active
@@ -357,3 +360,16 @@ def test_new_token_accepted_not_move_to_pending(qrm_client_pending, default_test
     assert new_token == token_1
     resp = qrm_client_pending.get_token_status(new_token)
     assert resp['names'] == ['r1']
+
+
+@pytest.mark.skip
+async def test_basic_recovery(mgmt_client_pending, aiohttp_unused_port, redis_db_object):
+    # send new request -> pending
+    # shut down server
+    # start new server -> request still pending
+    # move resource to active -> request filled
+
+    raise NotImplementedError
+
+
+
