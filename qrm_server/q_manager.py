@@ -2,7 +2,7 @@ import asyncio
 import copy
 import logging
 from db_adapters.redis_adapter import RedisDB
-from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
+from qrm_resources.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
     generate_token_from_seed, ACTIVE_STATUS, DISABLED_STATUS, PENDING_STATUS
 from typing import List, Dict
 from abc import ABC, abstractmethod
@@ -51,6 +51,10 @@ class QrmIfc(ABC):
     async def init_backend(self) -> None:
         pass
 
+    @abstractmethod
+    async def stop_backend(self) -> None:
+        pass
+
 
 class QueueManagerBackEnd(QrmIfc):
     def __init__(self,
@@ -77,6 +81,9 @@ class QueueManagerBackEnd(QrmIfc):
         open_requests = await self.redis.get_open_requests()
         for token in open_requests.keys():
             asyncio.ensure_future(self.names_worker(token))
+
+    async def stop_backend(self) -> None:
+        await self.redis.redis.close()
 
     async def names_worker(self, token: str) -> ResourcesRequestResponse:
         user_req = await self.redis.get_open_request_by_token(token)

@@ -1,12 +1,11 @@
 import json
 import logging
-import time
 
 from aiohttp import web
 from http import HTTPStatus
 import asyncio
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
-from qrm_server.resource_definition import resource_request_from_json, ResourcesRequestResponse
+from qrm_resources.resource_definition import resource_request_from_json, ResourcesRequestResponse
 import datetime
 URL_API_VERSION = '/v1'
 URL_POST_NEW_REQUEST = f'/new_request{URL_API_VERSION}'
@@ -123,7 +122,15 @@ async def init_qrm_backend(request) -> web.Response:
     global qrm_back_end  # type: QueueManagerBackEnd
     await qrm_back_end.init_backend()
     return web.Response(status=HTTPStatus.OK,
-                        text=f'init qrm db')
+                        text=f'init qrm backend')
+
+
+async def close_qrm_backend(request) -> web.Response:
+    logging.info('stop qrm backend')
+    global qrm_back_end  # type: QueueManagerBackEnd
+    await qrm_back_end.stop_backend()
+    return web.Response(status=HTTPStatus.OK,
+                        text=f'stop qrm backend')
 
 
 async def main(use_pending_logic: bool = False):
@@ -137,6 +144,7 @@ async def main(use_pending_logic: bool = False):
     app.router.add_get(URL_GET_TOKEN_STATUS, get_token_status)
     app.router.add_get(URL_GET_IS_SERVER_UP, is_server_up)
     app.on_startup.append(init_qrm_backend)
+    app.on_shutdown.append(close_qrm_backend)
     return app
 
 

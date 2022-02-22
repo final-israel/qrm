@@ -1,10 +1,8 @@
 import json
 
-import requests
-
 from qrm_server import qrm_http_server
 from qrm_client.qrm_http_client import QrmClient
-from qrm_server.resource_definition import ResourcesRequest, ResourcesByName, ACTIVE_STATUS, PENDING_STATUS
+from qrm_resources.resource_definition import ResourcesRequest, ResourcesByName, ACTIVE_STATUS, PENDING_STATUS
 
 
 def test_qrm_http_client_get_root_url_debug(qrm_http_client_with_server_mock_debug_prints: QrmClient):

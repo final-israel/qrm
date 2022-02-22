@@ -1,6 +1,6 @@
 import json
 from qrm_server import qrm_http_server
-from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
+from qrm_resources.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
 
 
 async def test_http_server_cancel_token(post_to_http_server):

@@ -1,4 +1,4 @@
-from qrm_server.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus
+from qrm_resources.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus
 from qrm_server.qrm_http_server import URL_POST_CANCEL_TOKEN, URL_GET_ROOT, URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS,\
     URL_GET_IS_SERVER_UP
 from qrm_server.management_server import MGMT_STATUS_API, SET_RESOURCE_STATUS
@@ -6,7 +6,6 @@ import logging
 import json
 import requests
 import time
-from abc import ABC, abstractmethod
 
 
 def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> requests.Response or None:

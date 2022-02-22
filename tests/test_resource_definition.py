@@ -1,4 +1,4 @@
-from qrm_server.resource_definition import ResourcesRequestResponse
+from qrm_resources.resource_definition import ResourcesRequestResponse
 
 
 def test_resources_request_response_from_json():

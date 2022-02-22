@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from qrm_server.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
+from qrm_resources.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse
 from typing import List, Dict
 
 

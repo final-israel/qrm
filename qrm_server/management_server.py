@@ -1,11 +1,9 @@
-import asyncio
 import logging
 
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
-from qrm_server.resource_definition import Resource, resource_from_json
-
+from qrm_resources.resource_definition import Resource
 
 REMOVE_JOB = '/remove_job'
 MGMT_STATUS_API = '/status'

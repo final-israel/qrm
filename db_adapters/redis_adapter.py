@@ -3,8 +3,8 @@ import asyncio
 import async_timeout
 import json
 import logging
-from qrm_server import resource_definition
-from qrm_server.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest, ResourcesRequestResponse
+from qrm_resources import resource_definition
+from qrm_resources.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest, ResourcesRequestResponse
 from db_adapters.qrm_db import QrmBaseDB
 from typing import Dict, List
 
@@ -27,7 +27,9 @@ class RedisDB(QrmBaseDB):
         )
         self.res_status_change_event = {}  # type: Dict[str, asyncio.Event]
         self.pub_sub = self.redis.pubsub()
-        asyncio.ensure_future(self.pubsub_reader())
+        self.all_tasks = set()  # type: [asyncio.Task]
+        task = asyncio.ensure_future(self.pubsub_reader())
+        self.all_tasks.add(task)
 
     async def pubsub_reader(self):
         await self.pub_sub.subscribe(CHANNEL_RES_CHANGE_EVENT)
@@ -376,5 +378,6 @@ class RedisDB(QrmBaseDB):
             ret_list.append(json.loads(job))
         return ret_list
 
-    # def __del__(self):
-    #     self.redis.close()
+    def __del__(self):
+        for task in self.all_tasks:
+            task.cancel()

@@ -2,7 +2,7 @@ import copy
 import json
 import pytest
 from qrm_server import management_server
-from qrm_server.resource_definition import Resource
+from qrm_resources.resource_definition import Resource
 
 
 async def test_add_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):

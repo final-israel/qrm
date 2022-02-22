@@ -11,7 +11,7 @@ from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
 from qrm_server import qrm_http_server
-from qrm_server.resource_definition import Resource, ACTIVE_STATUS
+from qrm_resources.resource_definition import Resource, ACTIVE_STATUS
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
 from pytest_httpserver import HTTPServer
@@ -51,6 +51,9 @@ class QueueManagerBackEndMock(QrmIfc):
         return self.get_filled_request_obj
 
     async def init_backend(self) -> None:
+        pass
+
+    async def stop_backend(self) -> None:
         pass
 
 
