@@ -1,4 +1,3 @@
-from __future__ import annotations
 import json
 import pickle
 from dataclasses import dataclass, asdict, field
@@ -41,7 +40,7 @@ def is_token_format(token: str) -> bool:
         return False
 
 
-def resource_request_from_json(resource_req_as_json: json) -> ResourcesRequest:
+def resource_request_from_json(resource_req_as_json: json):  # type:  ResourcesRequest
     res_req = ResourcesRequest()
     res_dict = json.loads(resource_req_as_json)
     res_req.add_request_by_token(res_dict.get('token'))
@@ -109,12 +108,11 @@ class ResourcesRequestResponse:
         return json.dumps(self.as_dict())
 
     @classmethod
-    def from_json(cls, json_str: str) -> ResourcesRequestResponse:
+    def from_json(cls, json_str: str):  # type: ResourcesRequestResponse
         json_as_dict = json.loads(json_str)
         return ResourcesRequestResponse(**json_as_dict)
 
 
-@dataclass_validate
 @dataclass
 class ResourcesRequest:
     names: List[ResourcesByName] = field(default_factory=list)
@@ -166,6 +164,3 @@ class ResourceStatus:
 
     def as_json(self) -> str:
         return json.dumps(self.as_dict())
-
-
-
