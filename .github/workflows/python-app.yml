@@ -42,7 +42,7 @@ jobs:
       run: |
         coverage run pytest
         coverage lcov
-
+    - name: Build covereage report
       uses: romeovs/lcov-reporter-action@v0.2.16
       with:
         lcov-file: coverage.lcov
