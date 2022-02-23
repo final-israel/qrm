@@ -5,7 +5,7 @@ name: test QRM client
 
 on:
   push:
-    branches: [ main, test_github ]
+    branches: [ main, code_cov ]
   pull_request:
     branches: [ main ]
 

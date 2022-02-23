@@ -2,3 +2,4 @@ wheel
 twine
 pip>=21.2.4
 vmn>=0.6.0
+coverage
