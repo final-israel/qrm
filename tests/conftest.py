@@ -1,15 +1,12 @@
-import sys
-from pathlib import Path
-
-import qrm_defs.qrm_urls
-
-here = Path(__file__).resolve().parent.parent
-sys.path.append(f'{here}')
 import asyncio
 import logging
 import pytest
-from aiohttp import web
+import sys
 import qrm_server.qrm_http_server
+import qrm_defs.qrm_urls
+
+from aiohttp import web
+from pathlib import Path
 from db_adapters import redis_adapter
 from pytest_redis import factories
 from qrm_server import management_server
@@ -20,14 +17,19 @@ from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
 from pytest_httpserver import HTTPServer
 from qrm_client.qrm_http_client import QrmClient, ManagementClient
 from werkzeug.wrappers import Request, Response
-REDIS_PORT = 6379
 from multiprocessing import Process
+
+
+TEST_TOKEN = 'token1234'
+REDIS_PORT = 6379
+
+
+here = Path(__file__).resolve().parent.parent
+sys.path.append(f'{here}')
 logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
 wait_for_test_call_times = 0
-TEST_TOKEN = 'token1234'
-
 
 
 # noinspection PyMethodMayBeStatic
@@ -166,20 +168,21 @@ def resource_bar() -> Resource:
 
 @pytest.fixture(scope='function')
 def redis_db_object(redis_my) -> redis_adapter.RedisDB:
-    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT)
+    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.01)
     test_adapter_obj.init_params_blocking()
     yield test_adapter_obj
     del test_adapter_obj
 
 
 @pytest.fixture(scope='function')
-def redis_db_object_with_resources(redis_my, resource_foo) -> redis_adapter.RedisDB:
-    import asyncio
-    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT)
+async def redis_db_object_with_resources(redis_my, resource_foo) -> redis_adapter.RedisDB:
+    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.01)
+    test_adapter_obj.init_params_blocking()
     asyncio.ensure_future(test_adapter_obj.add_resource(resource_foo))
     asyncio.ensure_future(test_adapter_obj.set_qrm_status(status='active'))
     asyncio.ensure_future(test_adapter_obj.get_all_resources_dict())
     yield test_adapter_obj
+    await test_adapter_obj.close()
     del test_adapter_obj
 
 

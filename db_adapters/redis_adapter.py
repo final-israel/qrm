@@ -1,3 +1,5 @@
+import time
+
 import aioredis
 import asyncio
 import async_timeout
@@ -18,25 +20,30 @@ ACTIVE_STATUS = 'active'
 TOKEN_RESOURCES_MAP = 'token_dict'
 ACTIVE_TOKEN_DICT = 'active_token_dict'
 LAST_REQ_RESP = 'last_req_resp'
+PUBSUB_POLLING_TIME = 0.1
 
 
 class RedisDB(QrmBaseDB):
-    def __init__(self, redis_port: int = 6379):
+    def __init__(self,
+                 redis_port: int = 6379,
+                 pubsub_polling_time: float = PUBSUB_POLLING_TIME):
         self.redis = aioredis.from_url(
             f"redis://localhost:{redis_port}", encoding="utf-8", decode_responses=True
         )
         self.res_status_change_event = {}  # type: Dict[str, asyncio.Event]
         self.pub_sub = self.redis.pubsub()
+        self.pubsub_polling_time = pubsub_polling_time
         self.all_tasks = set()  # type: [asyncio.Task]
-        task = asyncio.ensure_future(self.pubsub_reader())
-        self.all_tasks.add(task)
-        self.is_running = asyncio.Event()
+        pub_sub_task = asyncio.ensure_future(self.pubsub_reader())
+        pub_sub_task.set_name('pub_sub_task')
+        self.all_tasks.add(pub_sub_task)
+        self.is_running = True
 
     async def pubsub_reader(self):
         await self.pub_sub.subscribe(CHANNEL_RES_CHANGE_EVENT)
-        while await self.is_running.wait():
+        while self.is_running:
             try:
-                async with async_timeout.timeout(0.1):
+                async with async_timeout.timeout(PUBSUB_POLLING_TIME):
                     message = await self.pub_sub.get_message(ignore_subscribe_messages=True)
                     if message is not None:
                         try:
@@ -47,7 +54,7 @@ class RedisDB(QrmBaseDB):
                         except KeyError as e:
                             self.res_status_change_event[res_name] = asyncio.Event()
                             self.res_status_change_event[res_name].set()
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(PUBSUB_POLLING_TIME)
             except asyncio.TimeoutError:
                 pass
         logging.info('done with pubsub reader')
@@ -59,7 +66,7 @@ class RedisDB(QrmBaseDB):
     async def init_default_params(self) -> None:
         await self.set_qrm_status(status=ACTIVE_STATUS)
         await self.init_events_for_resources()
-        self.is_running.set()
+        self.is_running = True
 
     async def init_events_for_resources(self) -> None:
         all_resources = await self.get_all_resources()
@@ -367,7 +374,8 @@ class RedisDB(QrmBaseDB):
         return list(set(tokens_list))
 
     async def close(self) -> None:
-        self.is_running.clear()
+        self.is_running = False
+        await asyncio.sleep(2 * self.pubsub_polling_time)  # to allow gracefully shutdown
         await self.pub_sub.close()
         await self.redis.close()
         return
@@ -390,4 +398,6 @@ class RedisDB(QrmBaseDB):
 
     def __del__(self):
         for task in self.all_tasks:
-            task.cancel()
+            if not task.cancelled():
+                logging.info(f'cancelling task {task.get_name()}')
+                task.cancel()

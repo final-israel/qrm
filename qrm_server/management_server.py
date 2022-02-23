@@ -100,7 +100,7 @@ async def build_status_dict():
                 #       ]
                 #   }
             },
-        'groups':
+        'tokens_resources_group':
             {
                 # token1: [{resource1: type1}, {resource2: type2}, ...],
                 # token2: ...
@@ -118,10 +118,10 @@ async def build_status_dict():
 def add_resource_to_token_list(resource, status_dict):
     if resource.token != '':
         try:
-            status_dict['groups'][resource.token].append({resource.name: resource.type})
+            status_dict['tokens_resources_group'][resource.token].append({resource.name: resource.type})
         except KeyError as e:  # first time this token appears
-            status_dict['groups'][resource.token] = []
-            status_dict['groups'][resource.token].append({resource.name: resource.type})
+            status_dict['tokens_resources_group'][resource.token] = []
+            status_dict['tokens_resources_group'][resource.token].append({resource.name: resource.type})
 
 
 async def remove_job(request):

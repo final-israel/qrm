@@ -1,9 +1,8 @@
 import copy
 import json
 import pytest
-
 import qrm_defs.qrm_urls
-from qrm_server import management_server
+
 from qrm_defs.resource_definition import Resource
 
 
@@ -222,6 +221,6 @@ async def test_basic_token_grouping(post_to_mgmt_server, redis_db_object, resour
     qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
     qrm_status_dict = await qrm_status.json()
     assert qrm_status.status == 200
-    assert {res1_with_token['name']: res1_with_token['type']} in qrm_status_dict['groups']['token1']
-    assert {res2_with_token['name']: res2_with_token['type']} in qrm_status_dict['groups']['token1']
-    assert [{res3_with_token['name']: res3_with_token['type']}] == qrm_status_dict['groups']['token2']
+    assert {res1_with_token['name']: res1_with_token['type']} in qrm_status_dict['tokens_resources_group']['token1']
+    assert {res2_with_token['name']: res2_with_token['type']} in qrm_status_dict['tokens_resources_group']['token1']
+    assert [{res3_with_token['name']: res3_with_token['type']}] == qrm_status_dict['tokens_resources_group']['token2']
