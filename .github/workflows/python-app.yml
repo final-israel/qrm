@@ -41,8 +41,8 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        coverage run pytest
-        coverage lcov
+        python -m coverage run -m pytest
+        python -m coverage lcov
     - name: Build covereage report
       uses: romeovs/lcov-reporter-action@v0.2.16
       with:
