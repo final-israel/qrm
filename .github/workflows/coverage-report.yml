@@ -37,8 +37,7 @@ jobs:
         python -m coverage run -m pytest
         python -m coverage xml
     - name: Build covereage report
-    - uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: ./coverage.xml
-        flags: unittests # optional
