@@ -1,6 +1,9 @@
 # qrm
 Queue Resources Manager
 
+# Build 
+[![codecov](https://codecov.io/gh/final-israel/qrm/branch/main/graph/badge.svg?token=0FIPGEXVJ6)](https://codecov.io/gh/final-israel/qrm)
+
 # management server
 Add resource to qrm:
 
