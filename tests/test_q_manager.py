@@ -546,6 +546,7 @@ async def test_cancel_move_pending_status(redis_db_object, qrm_backend_with_db):
 @pytest.mark.asyncio
 async def test_cancel_not_move_to_pending_status(redis_db_object, qrm_backend_with_db):
     # use the pending logic:
+    # TODO test unstable
     qrm_backend_with_db.use_pending_logic = True
 
     job1 = {'token': 'job_1_token'}

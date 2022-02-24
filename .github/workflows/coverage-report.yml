@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a single version of Python
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: test QRM client
+name: coverage QRM server and client
 
 on:
   push:
@@ -11,18 +11,17 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
-          python-version: [ '3.6.9', '3.7', '3.8', '3.9', ]
+          python-version: [3.9]
 
     steps:
     - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: "3.10"
     - name: Install dependencies
       run: |
         sudo apt install -y redis-server
@@ -33,12 +32,12 @@ jobs:
         if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
         if [ -f env_requirements.txt ]; then pip install -r env_requirements.txt; fi
         sudo service redis-server stop
-    - name: Lint with flake8
+    - name: Test with pytest and coverage
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        #flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --ignore="F723,"
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
-      run: |
-        python -m pytest tests/test_qrm_http_client.py 
+        python -m coverage run -m pytest .
+        python -m coverage xml
+    - name: Build covereage report
+      uses: codecov/codecov-action@v2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
