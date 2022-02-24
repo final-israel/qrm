@@ -21,7 +21,7 @@ jobs:
     - name: Set up Python 3.10
       uses: actions/setup-python@v2
       with:
-        python-version: "3.9"
+        python-version: "3.10"
     - name: Install dependencies
       run: |
         sudo apt install -y redis-server
@@ -34,7 +34,7 @@ jobs:
         sudo service redis-server stop
     - name: Test with pytest and coverage
       run: |
-        python -m coverage run -m pytest
+        python -m coverage run -m pytest .
         python -m coverage xml
     - name: Build covereage report
       uses: codecov/codecov-action@v2
