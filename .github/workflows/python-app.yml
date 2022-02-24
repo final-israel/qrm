@@ -47,3 +47,4 @@ jobs:
       uses: romeovs/lcov-reporter-action@v0.2.21
       with:
         lcov-file: coverage.lcov
+        github-token: ${{ secrets.GITHUB_TOKEN }}
