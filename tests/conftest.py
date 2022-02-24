@@ -227,7 +227,7 @@ def qrm_http_server_for_system(aiohttp_unused_port, redis_db_object) -> dict:
     p = Process(target=qrm_server.qrm_http_server.run_server, args=(port,))
     p.start()
     yield {'http_port': port}
-    p.kill()
+    p.terminate()
 
 
 @pytest.fixture(scope='function')
@@ -237,7 +237,7 @@ def qrm_http_server_for_system_pending(aiohttp_unused_port, redis_db_object) -> 
     p = Process(target=qrm_server.qrm_http_server.run_server, args=(port, pending,))
     p.start()
     yield {'http_port': port}
-    p.kill()
+    p.terminate()
 
 
 @pytest.fixture(scope='function')
@@ -246,7 +246,7 @@ def qrm_management_server(aiohttp_unused_port, redis_db_object) -> dict:
     p = Process(target=qrm_server.management_server.main, kwargs={'listen_port': port})
     p.start()
     yield {'management_port': port}
-    p.kill()
+    p.terminate()
 
 
 @pytest.fixture(scope='function')

@@ -703,6 +703,38 @@ async def test_validate_new_request_not_enough_res_in_db(redis_db_object, qrm_ba
     assert 'not enough available resources' in result.message
 
 
+@pytest.mark.asyncio
+async def test_one_res_from_three_another_same_request(redis_db_object, qrm_backend_with_db):
+    # two active resources
+    # new request: 1 res from 3 -> fill
+    # new request: 1 res from 3 -> fill
+
+    job1 = {'token': 'job_1_token'}
+    job2 = {'token': 'job_2_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS)
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS)
+    res_3 = Resource(name='res2', type='type1', status=ACTIVE_STATUS)
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+
+    # new request: 1 res from 2 -> fill
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_names([res_1.name, res_2.name, res_2.name], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name or res_2.name in result.names
+    assert len(result.names) == 1
+
+    # new request: 1 res from 2 -> fill
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job2["token"])
+    user_request.add_request_by_names([res_1.name, res_2.name, res_2.name], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name or res_2.name in result.names
+    assert len(result.names) == 1
+
+
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
                                                  redis, token_job_2: str):
     await asyncio.sleep(timeout_sec)
