@@ -362,6 +362,53 @@ def test_new_token_accepted_not_move_to_pending(qrm_client_pending, mgmt_client_
     assert resp['names'] == ['r1']
 
 
+def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, mgmt_client_pending):
+    # send new request 1 res from 2 res -> 1 res is pending
+    # send same request -> the second res is pending
+    # move res_1 to active -> req_1 filled
+    # move res_2 to active -> req_2 filled
+
+    rr = ResourcesRequest()
+    rr.token = 'token_1'
+    rbn = ResourcesByName(names=['r1', 'r2'], count=1)
+    rr.names.append(rbn)
+    # send new request 1 res from 2 res -> 1 res is pending:
+    resp = qrm_client_pending.new_request(rr.as_json())
+    token_1 = resp.get('token')
+    # only one resource is in pending state:
+    res_statuses = [mgmt_client_pending.get_resource_status('r1'), mgmt_client_pending.get_resource_status('r2')]
+    assert PENDING_STATUS in res_statuses
+    assert ACTIVE_STATUS in res_statuses
+
+    # send same request -> the second res is pending:
+    rr = ResourcesRequest()
+    rr.token = 'token_2'
+    rbn = ResourcesByName(names=['r1', 'r2'], count=1)
+    rr.names.append(rbn)
+    # send new request 1 res from 2 res -> 1 res is pending:
+    resp = qrm_client_pending.new_request(rr.as_json())
+    token_2 = resp.get('token')
+    # both resources are pending:
+    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
+    assert mgmt_client_pending.get_resource_status('r2') == PENDING_STATUS
+
+    # move res_1 to active -> req_1 filled:
+    mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
+    qrm_client_pending.wait_for_token_ready(token_1, timeout=0.2, polling_sleep_time=0.1)
+    resp = qrm_client_pending.get_token_status(token_1)
+    assert resp.get('request_complete')
+    assert len(resp.get('names')) == 1
+    assert 'r1' or 'r2' in resp.get('names')
+
+    # move res_2 to active -> req_2 filled:
+    mgmt_client_pending.set_resource_status('r2', ACTIVE_STATUS)
+    qrm_client_pending.wait_for_token_ready(token_2, timeout=0.2, polling_sleep_time=0.1)
+    resp = qrm_client_pending.get_token_status(token_2)
+    assert resp.get('request_complete')
+    assert len(resp.get('names')) == 1
+    assert 'r1' or 'r2' in resp.get('names')
+
+
 @pytest.mark.skip
 async def test_basic_recovery(mgmt_client_pending, aiohttp_unused_port, redis_db_object):
     # send new request -> pending

@@ -132,12 +132,28 @@ class QueueManagerBackEnd(QrmIfc):
                         rrr = ResourcesRequestResponse(token=token, message='request not valid')
                         await self.redis.set_req_resp(rrr)
                         return rrr
+                else:
+                    await self.remove_job_from_unused_resources(resources_list_request.names, token)
+
         logging.info(f'done handling token: {token}')
 
         if self.use_pending_logic:
             await self.move_resources_to_pending(token=token, reason_cancel=False)
 
         return await self.finalize_filled_request(token)
+
+    async def remove_job_from_unused_resources(self, resources_names: List[str], token: str):
+        """
+        remove the request jobs from all unused resources,
+        for example, if the request is one resource from three, and th BE found
+        one resource from the three (the job is first in queue there),
+        it will remove the job from the other two resources
+        :param resources_names: list of resources names
+        :param token: request token
+        """
+        for res_name in resources_names:
+            resource = await self.redis.get_resource_by_name(res_name)
+            await self.redis.remove_job(token, [resource])
 
     async def finalize_filled_request(self, token: str):
         """
