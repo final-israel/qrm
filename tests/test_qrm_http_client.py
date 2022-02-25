@@ -115,7 +115,7 @@ def test_mgmt_client_set_resource_status(mgmt_client, qrm_client):
 
 def test_qrm_http_client_the_server_is_down():
     qrm_client_obj = QrmClient(server_ip='127.0.0.1',
-                               server_port=0,
+                               server_port='0',
                                user_name='test_user')
     resp = qrm_client_obj.send_cancel(token='12345')
     assert resp is None
