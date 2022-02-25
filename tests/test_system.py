@@ -410,10 +410,17 @@ def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, m
 
 
 @pytest.mark.skip
-async def test_basic_recovery(mgmt_client_pending, aiohttp_unused_port, redis_db_object):
+async def test_basic_recovery(mgmt_client_pending, redis_db_object):
     # send new request -> pending
     # shut down server
     # start new server -> request still pending
     # move resource to active -> request filled
 
     raise NotImplementedError
+
+
+def test_token_status_unknown_token(qrm_client):
+    qrm_client.wait_for_server_up()
+    resp = qrm_client.get_token_status('unknown_token')
+    assert 'unknown token in qrm' in resp.get('message')
+    assert not resp.get('is_valid')

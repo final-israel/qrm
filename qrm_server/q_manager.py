@@ -273,8 +273,10 @@ class QueueManagerBackEnd(QrmIfc):
             affected_token = ret["token"]
             # release coros
             self.tokens_change_event[affected_token].set()
-
-        self.tokens_change_event[token].set(reason=CANCELED)
+        try:
+            self.tokens_change_event[token].set(reason=CANCELED)
+        except KeyError as e:
+            logging.error(f'got request to cancel unknown token {token}')
 
     async def move_resources_to_pending(self, token: str, reason_cancel: bool) -> None:
         """
@@ -413,12 +415,21 @@ class QueueManagerBackEnd(QrmIfc):
 
     async def is_request_active(self, token: str) -> bool:
         # request is active if it's not filled, or it's already cancelled:
-        is_filled = await self.redis.is_request_filled(token)
-        is_cancelled = self.tokens_change_event[token].reason == CANCELED
-        is_not_valid = self.tokens_change_event[token].reason == NOT_VALID
-        logging.info(f'request for token: {token} cancelled: {is_cancelled}, '
-                     f'filled: {is_filled}, not_valid: {is_not_valid}')
-        return not (is_filled or is_cancelled or is_not_valid)
+        try:
+            is_filled = await self.redis.is_request_filled(token)
+            is_cancelled = self.tokens_change_event[token].reason == CANCELED
+            is_not_valid = self.tokens_change_event[token].reason == NOT_VALID
+            logging.info(f'request for token: {token} cancelled: {is_cancelled}, '
+                         f'filled: {is_filled}, not_valid: {is_not_valid}')
+            return not (is_filled or is_cancelled or is_not_valid)
+        except KeyError as e:
+            logging.info(f'got request for unknown token {token}')
+            rrr = ResourcesRequestResponse()
+            rrr.token = token
+            rrr.is_valid = False
+            rrr.message = f'unknown token in qrm {token}'
+            await self.redis.set_req_resp(rrr)
+            return False
 
     async def get_new_token(self, token: str) -> str:
         new_token = await self.redis.get_active_token_from_user_token(token)
