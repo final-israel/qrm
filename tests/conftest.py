@@ -62,6 +62,13 @@ class QueueManagerBackEndMock(QrmIfc):
         pass
 
 
+@pytest.fixture
+def event_loop():
+    loop = asyncio.get_event_loop()
+    yield loop
+    loop.close()
+
+
 @pytest.fixture(scope='session')
 def default_test_token() -> str:
     return TEST_TOKEN
@@ -167,10 +174,11 @@ def resource_bar() -> Resource:
 
 
 @pytest.fixture(scope='function')
-def redis_db_object(redis_my) -> redis_adapter.RedisDB:
-    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.01)
+async def redis_db_object(redis_my) -> redis_adapter.RedisDB:
+    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.05)
     test_adapter_obj.init_params_blocking()
     yield test_adapter_obj
+    await test_adapter_obj.close()
     del test_adapter_obj
 
 
@@ -187,8 +195,8 @@ async def redis_db_object_with_resources(redis_my, resource_foo) -> redis_adapte
 
 
 @pytest.fixture(scope='function')
-def post_to_mgmt_server(loop, aiohttp_client):
-    app = web.Application(loop=loop)
+def post_to_mgmt_server(event_loop, aiohttp_client):
+    app = web.Application()
     management_server.init_redis()
     app.router.add_post(qrm_defs.qrm_urls.ADD_RESOURCES, management_server.add_resources)
     app.router.add_post(qrm_defs.qrm_urls.REMOVE_RESOURCES, management_server.remove_resources)
@@ -197,33 +205,34 @@ def post_to_mgmt_server(loop, aiohttp_client):
     app.router.add_post(qrm_defs.qrm_urls.SET_RESOURCE_STATUS, management_server.set_resource_status)
     app.router.add_post(qrm_defs.qrm_urls.ADD_JOB_TO_RESOURCE, management_server.add_job_to_resource)
     app.router.add_post(qrm_defs.qrm_urls.REMOVE_JOB, management_server.remove_job)
-    yield loop.run_until_complete(aiohttp_client(app))
+    app.on_shutdown.append(management_server.close_redis)
+    yield event_loop.run_until_complete(aiohttp_client(app))
 
 
 @pytest.fixture(scope='function')
-def post_to_http_server(loop, aiohttp_client):
-    app = web.Application(loop=loop)
+def post_to_http_server(event_loop, aiohttp_client):
+    app = web.Application()
     qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock())
     app.router.add_post(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
     app.router.add_post(qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
     app.router.add_get(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
-    yield loop.run_until_complete(aiohttp_client(app))
+    yield event_loop.run_until_complete(aiohttp_client(app))
 
 
 @pytest.fixture(scope='function')
-def post_to_http_server2(loop, aiohttp_server):
-    app = web.Application(loop=loop)
+def post_to_http_server2(event_loop, aiohttp_server):
+    app = web.Application()
     qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock())
     app.router.add_post(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
     app.router.add_post(qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
     app.router.add_get(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
     app.router.add_get(qrm_defs.qrm_urls.URL_GET_ROOT, qrm_http_server.root_url)
-    yield loop.run_until_complete(aiohttp_server(app))
+    yield event_loop.run_until_complete(aiohttp_server(app))
 
 
 @pytest.fixture(scope='function')
-def qrm_http_server_for_system(aiohttp_unused_port, redis_db_object) -> dict:
-    port = aiohttp_unused_port()
+def qrm_http_server_for_system(unused_tcp_port_factory, redis_db_object) -> dict:
+    port = unused_tcp_port_factory()
     p = Process(target=qrm_server.qrm_http_server.run_server, args=(port,))
     p.start()
     yield {'http_port': port}
@@ -231,9 +240,9 @@ def qrm_http_server_for_system(aiohttp_unused_port, redis_db_object) -> dict:
 
 
 @pytest.fixture(scope='function')
-def qrm_http_server_for_system_pending(aiohttp_unused_port, redis_db_object) -> dict:
+def qrm_http_server_for_system_pending(unused_tcp_port_factory, redis_db_object) -> dict:
     pending = True
-    port = aiohttp_unused_port()
+    port = unused_tcp_port_factory()
     p = Process(target=qrm_server.qrm_http_server.run_server, args=(port, pending,))
     p.start()
     yield {'http_port': port}
@@ -241,8 +250,8 @@ def qrm_http_server_for_system_pending(aiohttp_unused_port, redis_db_object) -> 
 
 
 @pytest.fixture(scope='function')
-def qrm_management_server(aiohttp_unused_port, redis_db_object) -> dict:
-    port = aiohttp_unused_port()
+def qrm_management_server(unused_tcp_port_factory, redis_db_object) -> dict:
+    port = unused_tcp_port_factory()
     p = Process(target=qrm_server.management_server.main, kwargs={'listen_port': port})
     p.start()
     yield {'management_port': port}
@@ -250,7 +259,7 @@ def qrm_management_server(aiohttp_unused_port, redis_db_object) -> dict:
 
 
 @pytest.fixture(scope='function')
-def full_qrm_servers_ports(aiohttp_unused_port, qrm_http_server_for_system,
+def full_qrm_servers_ports(unused_tcp_port_factory, qrm_http_server_for_system,
                            qrm_management_server, redis_db_object) -> dict:
     ports_dict = {}
 
@@ -301,7 +310,7 @@ def mgmt_client_pending(full_qrm_servers_ports_pending_logic: dict) -> Managemen
 
 
 @pytest.fixture(scope='function')
-def full_qrm_servers_ports_pending_logic(aiohttp_unused_port, qrm_http_server_for_system_pending,
+def full_qrm_servers_ports_pending_logic(unused_tcp_port_factory, qrm_http_server_for_system_pending,
                                          qrm_management_server, redis_db_object) -> dict:
     ports_dict = {}
 
@@ -318,5 +327,8 @@ def full_qrm_servers_ports_pending_logic(aiohttp_unused_port, qrm_http_server_fo
 
 
 @pytest.fixture(scope='function')
-def qrm_backend_with_db(redis_db_object) -> QueueManagerBackEnd:
-    return QueueManagerBackEnd(redis_port=REDIS_PORT)
+async def qrm_backend_with_db(redis_db_object) -> QueueManagerBackEnd:
+    qrm_be = QueueManagerBackEnd(redis_port=REDIS_PORT)
+    yield qrm_be
+    await qrm_be.stop_backend()
+

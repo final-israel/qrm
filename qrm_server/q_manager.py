@@ -86,7 +86,11 @@ class QueueManagerBackEnd(QrmIfc):
         init all tokens_change_events data structure for open requests
         :return: None
         """
-        for token in await self.redis.get_all_open_tokens():
+        logging.info('start init open tokens')
+        all_tokens = await self.redis.get_all_open_tokens()
+        logging.info(f'all tokens in db are {all_tokens}')
+        for token in all_tokens:
+            logging.info(f'init events for token {token}')
             self.tokens_change_event[token] = QRMEvent()
             self.tokens_change_event[token].set()
 

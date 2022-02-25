@@ -198,6 +198,7 @@ def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT):
                     web.post(f'{REMOVE_JOB}', remove_job),
                     web.post(f'{SET_RESOURCE_STATUS}', set_resource_status),
                     web.post(f'{ADD_JOB_TO_RESOURCE}', add_job_to_resource)])
+    app.on_shutdown.append(close_redis)
     web.run_app(app, port=listen_port)
 
 
@@ -215,6 +216,11 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
 def init_redis(redis_port: int = REDIS_PORT):
     global redis
     redis = RedisDB(redis_port)
+
+
+async def close_redis(request):
+    global redis
+    await redis.close()
 
 
 if __name__ == '__main__':

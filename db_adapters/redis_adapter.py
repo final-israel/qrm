@@ -57,6 +57,7 @@ class RedisDB(QrmBaseDB):
                     await asyncio.sleep(PUBSUB_POLLING_TIME)
             except asyncio.TimeoutError:
                 pass
+        await self.pub_sub.unsubscribe(CHANNEL_RES_CHANGE_EVENT)
         logging.info('done with pubsub reader')
 
     def init_params_blocking(self) -> None:
@@ -371,15 +372,25 @@ class RedisDB(QrmBaseDB):
         open_req = await self.redis.hgetall(OPEN_REQUESTS)
         tokens_list.extend(open_req.keys())
 
+        part_fill = await self.redis.hgetall(PARTIAL_FILL_REQUESTS)
+        tokens_list.extend(part_fill.keys())
+
         return list(set(tokens_list))
 
     async def close(self) -> None:
         self.is_running = False
         await asyncio.sleep(2 * self.pubsub_polling_time)  # to allow gracefully shutdown
+
+        # for task in self.all_tasks:
+        #     task.cancel()
+        #     try:
+        #         await task
+        #     except asyncio.CancelledError as e:
+        #         pass
+
         await self.pub_sub.close()
         await self.redis.close()
         return
-        # await self.redis.unsubscribe(CHANNEL_RES_CHANGE_EVENT)
 
     @staticmethod
     def validate_allowed_server_status(status: str) -> bool:
@@ -396,8 +407,8 @@ class RedisDB(QrmBaseDB):
             ret_list.append(json.loads(job))
         return ret_list
 
-    def __del__(self):
-        for task in self.all_tasks:
-            if not task.cancelled():
-                logging.info(f'cancelling task {task.get_name()}')
-                task.cancel()
+    # def __del__(self):
+    #     for task in self.all_tasks:
+    #         if not task.cancelled():
+    #             logging.info(f'cancelling task {task.get_name()}')
+    #             task.cancel()
