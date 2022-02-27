@@ -1,10 +1,12 @@
-from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus
-from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
-    URL_GET_IS_SERVER_UP, MGMT_STATUS_API, SET_RESOURCE_STATUS
 import logging
 import json
 import requests
 import time
+
+from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus
+from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
+    URL_GET_IS_SERVER_UP, MGMT_STATUS_API, SET_RESOURCE_STATUS
+from requests.adapters import HTTPAdapter, Retry
 
 
 def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> requests.Response or None:
@@ -28,7 +30,13 @@ def get_from_url(full_url: str, params: dict = None, *args, **kwargs) -> request
         logging.info(f'send to url {full_url}, params={params}')
 
     try:
-        _resp = requests.get(full_url, params=params)
+        s = requests.Session()
+        retries = Retry(total=5,
+                        backoff_factor=0.1,
+                        status_forcelist=[500, 502, 503, 504])
+        s.mount('http://', HTTPAdapter(max_retries=retries))
+
+        _resp = s.get(full_url, params=params)
         logging.info(f'full url by requests {_resp.url}')
     except Exception as e:
         logging.critical(f'{e}')
