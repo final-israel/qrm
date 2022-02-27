@@ -35,7 +35,7 @@ class RedisDB(QrmBaseDB):
         self.pubsub_polling_time = pubsub_polling_time
         self.all_tasks = set()  # type: [asyncio.Task]
         pub_sub_task = asyncio.ensure_future(self.pubsub_reader())
-        pub_sub_task.set_name('pub_sub_task')
+        # pub_sub_task.set_name('pub_sub_task')
         self.all_tasks.add(pub_sub_task)
         self.is_running = True
 
