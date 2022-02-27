@@ -85,7 +85,7 @@ def test_full_request_job_blocking_in_queue_release_by_cancel(qrm_client, defaul
     # r1 is now with active job:
     resp = qrm_client.new_request(rr.as_json())
     token_1 = resp.get('token')
-    qrm_client.wait_for_token_ready(token_1, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client.get_token_status(token_1)
     assert 'r1' in resp.get('names')
 
@@ -103,7 +103,7 @@ def test_full_request_job_blocking_in_queue_release_by_cancel(qrm_client, defaul
 
     # send cancel on token1 will release the token_2 req and it should be filled
     qrm_client.send_cancel(token_1)
-    qrm_client.wait_for_token_ready(token_2, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client.wait_for_token_ready(token_2, timeout=2, polling_sleep_time=0.1)
     resp_token_2 = qrm_client.get_token_status(token_2)
     assert resp_token_2.get('request_complete')
     assert resp_token_2.get('names') == ['r1']
@@ -118,7 +118,7 @@ def test_full_req_cancel_after_partial_fill(qrm_client, default_test_token):
     # r1 is now with active job:
     resp = qrm_client.new_request(rr.as_json())
     token_1 = resp.get('token')
-    qrm_client.wait_for_token_ready(token_1, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client.get_token_status(token_1)
     assert 'r1' in resp.get('names')
 
@@ -148,7 +148,7 @@ def test_full_req_cancel_after_partial_fill(qrm_client, default_test_token):
 
     # after cancel token_2, token_3 should be filled:
     qrm_client.send_cancel(token_2)
-    qrm_client.wait_for_token_ready(token_3, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client.wait_for_token_ready(token_3, timeout=2, polling_sleep_time=0.1)
     resp_token_3 = qrm_client.get_token_status(token_3)
     assert resp_token_3.get('request_complete')
     assert resp_token_3.get('names') == ['r2']
@@ -242,7 +242,7 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
     # move r1 to active, token_1 filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
     assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
-    qrm_client_pending.wait_for_token_ready(token_1, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client_pending.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client_pending.get_token_status(token_1)
     assert resp.get('request_complete')
     assert ['r1'] == resp.get('names')
@@ -263,7 +263,7 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
 
     # move resource to active -> token_2 filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
-    qrm_client_pending.wait_for_token_ready(token_2, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client_pending.wait_for_token_ready(token_2, timeout=2, polling_sleep_time=0.1)
     resp_2 = qrm_client_pending.get_token_status(token_2)
     assert resp_2.get('request_complete')
     assert ['r1'] == resp_2.get('names')
@@ -286,7 +286,7 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, mgmt_client_pend
     # move r1 to active, request filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
     assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
-    qrm_client_pending.wait_for_token_ready(token_1, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client_pending.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client_pending.get_token_status(token_1)
     assert resp.get('request_complete')
     assert ['r1'] == resp.get('names')
@@ -309,7 +309,7 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, mgmt_client_pend
 
     # move resource to active -> job2 filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
-    qrm_client_pending.wait_for_token_ready(token_2, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client_pending.wait_for_token_ready(token_2, timeout=2, polling_sleep_time=0.1)
     resp2 = qrm_client_pending.get_token_status(token_2)
     assert resp.get('names') == ['r1']
 
@@ -343,7 +343,7 @@ def test_new_token_accepted_not_move_to_pending(qrm_client_pending, mgmt_client_
     # move r1 to active, request filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
     assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
-    qrm_client_pending.wait_for_token_ready(token_1, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client_pending.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client_pending.get_token_status(token_1)
     assert resp.get('request_complete')
     assert ['r1'] == resp.get('names')
@@ -394,7 +394,7 @@ def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, m
 
     # move res_1 to active -> req_1 filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
-    qrm_client_pending.wait_for_token_ready(token_1, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client_pending.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client_pending.get_token_status(token_1)
     assert resp.get('request_complete')
     assert len(resp.get('names')) == 1
@@ -402,7 +402,7 @@ def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, m
 
     # move res_2 to active -> req_2 filled:
     mgmt_client_pending.set_resource_status('r2', ACTIVE_STATUS)
-    qrm_client_pending.wait_for_token_ready(token_2, timeout=0.2, polling_sleep_time=0.1)
+    qrm_client_pending.wait_for_token_ready(token_2, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client_pending.get_token_status(token_2)
     assert resp.get('request_complete')
     assert len(resp.get('names')) == 1
@@ -410,10 +410,17 @@ def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, m
 
 
 @pytest.mark.skip
-async def test_basic_recovery(mgmt_client_pending, aiohttp_unused_port, redis_db_object):
+async def test_basic_recovery(mgmt_client_pending, redis_db_object):
     # send new request -> pending
     # shut down server
     # start new server -> request still pending
     # move resource to active -> request filled
 
     raise NotImplementedError
+
+
+def test_token_status_unknown_token(qrm_client):
+    qrm_client.wait_for_server_up()
+    resp = qrm_client.get_token_status('unknown_token')
+    assert 'unknown token in qrm' in resp.get('message')
+    assert not resp.get('is_valid')

@@ -96,16 +96,16 @@ def test_qrm_http_client_send_cancel_get_bad_response_400(qrm_server_mock_for_cl
     assert resp.status_code == 400
 
 
-def test_mgmt_client_get_resource_status(mgmt_client, qrm_client):
-    qrm_client.wait_for_server_up()
+def test_mgmt_client_get_resource_status(mgmt_client, qrm_http_client_with_server_mock):
+    qrm_http_client_with_server_mock.wait_for_server_up()
 
     # r1 starts with active status:
     r1_status = mgmt_client.get_resource_status('r1')
     assert r1_status == ACTIVE_STATUS
 
 
-def test_mgmt_client_set_resource_status(mgmt_client, qrm_client):
-    qrm_client.wait_for_server_up()
+def test_mgmt_client_set_resource_status(mgmt_client, qrm_http_client_with_server_mock):
+    qrm_http_client_with_server_mock.wait_for_server_up()
     r1_status = mgmt_client.get_resource_status('r1')
     assert r1_status == ACTIVE_STATUS
     mgmt_client.set_resource_status('r1', PENDING_STATUS)
@@ -115,7 +115,7 @@ def test_mgmt_client_set_resource_status(mgmt_client, qrm_client):
 
 def test_qrm_http_client_the_server_is_down():
     qrm_client_obj = QrmClient(server_ip='127.0.0.1',
-                               server_port=0,
+                               server_port='0',
                                user_name='test_user')
     resp = qrm_client_obj.send_cancel(token='12345')
     assert resp is None
