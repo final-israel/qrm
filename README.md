@@ -1,13 +1,13 @@
 # qrm
 Queue Resources Manager
 
-# Build 
+## Build 
 
 [![codecov](https://codecov.io/gh/final-israel/qrm/branch/main/graph/badge.svg?token=0FIPGEXVJ6)](https://codecov.io/gh/final-israel/qrm)
 ![](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 ![](https://img.shields.io/github/issues/final-israel/qrm.svg)
 [![PyPI](https://img.shields.io/pypi/v/qrm-client?color=blue&label=qrm-client%20pypi)](https://pypi.org/project/qrm-client/)
-# management server
+## management server
 Add resource to qrm:
 
 ```bash
@@ -53,7 +53,7 @@ Show status of the server with it's resources and their jobs url:
 http://127.0.0.1:8080/status
 ```
 
-# Communication Server
+## Communication Server
 ##### Server uptime info:
 This web URL will show information about the server. 
 ```console

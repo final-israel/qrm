@@ -1,6 +1,4 @@
 import asyncio
-import logging
-
 import pytest
 
 from qrm_defs.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
@@ -10,11 +8,11 @@ from qrm_server.q_manager import QueueManagerBackEnd
 
 @pytest.mark.asyncio
 async def test_qbackend_new_request_by_token_only(redis_db_object, qrm_backend_with_db):
-    req_token = '123456'
+    req_token = 'my_req_token'
     res_1 = Resource(name='res1', type='type1', token=req_token, status=ACTIVE_STATUS)
     res_2 = Resource(name='res2', type='type1', token=req_token, status=ACTIVE_STATUS)
     res_3 = Resource(name='res3', type='type1', token=req_token, status=ACTIVE_STATUS)
-    res_4 = Resource(name='res4', type='type1', token='1234567', status=ACTIVE_STATUS)
+    res_4 = Resource(name='res4', type='type1', token='my_req_other_token', status=ACTIVE_STATUS)
     await redis_db_object.add_resource(res_1)
     await redis_db_object.add_resource(res_2)
     await redis_db_object.add_resource(res_3)
@@ -41,7 +39,7 @@ async def test_request_by_token_not_valid(redis_db_object, qrm_backend_with_db):
     await redis_db_object.add_resource(res_2)
     await redis_db_object.generate_token(req_token, [res_1, res_2])
     user_request = ResourcesRequest()
-    req_token = '123456'
+    req_token = 'my_req_token'
     user_request.add_request_by_token(req_token)
     await qrm_backend_with_db.new_request(resources_request=user_request)
     new_token = await qrm_backend_with_db.get_new_token(req_token)
@@ -185,7 +183,7 @@ async def test_cancel_request(redis_db_object, qrm_backend_with_db):
     def cancel_cb(result):
         try:
             ret = result.result()
-        except Exception as exc:
+        except Exception:
             # TODO: make it less ugly
             asyncio.get_event_loop().stop()
             raise Exception("dead")
@@ -498,7 +496,6 @@ async def test_recovery_jobs_in_queue(redis_db_object, qrm_backend_with_db):
     qrm_backend_with_db.use_pending_logic = True
 
     job1 = {'token': 'job_1_token'}
-    job2 = {'token': 'job_2_token'}
     res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS)
     res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS)
     await redis_db_object.add_resource(res_1)
@@ -543,7 +540,7 @@ async def test_cancel_move_pending_status(redis_db_object, qrm_backend_with_db):
     user_request.add_request_by_token(job1["token"])
     user_request.add_request_by_names([res_1.name, res_2.name], count=2)
     result_job_1 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
-    new_token_job_1 = await qrm_backend_with_db.get_new_token(job1['token'])
+    await qrm_backend_with_db.get_new_token(job1['token'])
     await redis_db_object.set_resource_status(res_1, ACTIVE_STATUS)
     await redis_db_object.set_resource_status(res_2, ACTIVE_STATUS)
 
@@ -553,7 +550,7 @@ async def test_cancel_move_pending_status(redis_db_object, qrm_backend_with_db):
     user_request.add_request_by_names([res_1.name], count=1)
     result_job_2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
     # enforce waiting for new request to be active (got new token):
-    job_2_token = await qrm_backend_with_db.get_new_token(job2["token"])
+    await qrm_backend_with_db.get_new_token(job2["token"])
 
     # res_1: [job_2_token, job_1_token],  res_2: [job_1_token]
     # cancel the job, res_1 and res_2 should be in pending state since there is a job waiting in queue:
@@ -672,7 +669,7 @@ async def test_job_not_added_to_disabled_resource(redis_db_object, qrm_backend_w
     user_request = ResourcesRequest()
     user_request.add_request_by_token(job1["token"])
     user_request.add_request_by_names([res_1.name, res_2.name], count=1)
-    result_job_1 = await qrm_backend_with_db.new_request(user_request)
+    await qrm_backend_with_db.new_request(user_request)
     new_token_job_1 = await qrm_backend_with_db.get_new_token(job1['token'])
 
     # add job2 to res_1 queue:
@@ -680,7 +677,7 @@ async def test_job_not_added_to_disabled_resource(redis_db_object, qrm_backend_w
     user_request.add_request_by_token(job2["token"])
     user_request.add_request_by_names([res_1.name, res_2.name], count=1)
     result_job_2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
-    new_token_job_2 = await qrm_backend_with_db.get_new_token(job2['token'])
+    await qrm_backend_with_db.get_new_token(job2['token'])
 
     assert await redis_db_object.get_active_job(res_1) == {}
     active_job_res_2 = await redis_db_object.get_active_job(res_2)
@@ -774,5 +771,5 @@ async def cancel_all_open_tasks(tasks) -> None:
         task.cancel()
         try:
             await task
-        except asyncio.CancelledError as e:
+        except asyncio.CancelledError:
             pass

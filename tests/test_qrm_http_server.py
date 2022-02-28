@@ -6,7 +6,7 @@ from qrm_defs.resource_definition import Resource, ResourcesRequest, ResourcesRe
 
 
 async def test_http_server_cancel_token(post_to_http_server):
-    token = 'token1'
+    token = 'my_req_token'
     user_request = ResourcesRequest()
     user_request.add_request_by_token(token)
     resp = await post_to_http_server.post(qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN,
@@ -20,7 +20,7 @@ async def test_http_server_cancel_token(post_to_http_server):
 
 # noinspection DuplicatedCode
 async def test_http_server_new_request_new_token(post_to_http_server):
-    token = 'token1'
+    token = 'my_req_token'
     res_1 = Resource(name='res1', type='type1')
     res_2 = Resource(name='res2', type='type1')
     user_request = ResourcesRequest()
@@ -39,7 +39,7 @@ async def test_http_server_new_request_new_token(post_to_http_server):
 
 # noinspection DuplicatedCode,PyTypeChecker
 async def test_http_server_get_token_status_is_active(post_to_http_server, qrm_backend_mock_cls):
-    token = 'token1'
+    token = 'my_req_token'
     res_1 = Resource(name='res1', type='type1')
     res_2 = Resource(name='res2', type='type1')
     user_request = ResourcesRequest()
@@ -58,7 +58,7 @@ async def test_http_server_get_token_status_is_active(post_to_http_server, qrm_b
 # noinspection DuplicatedCode
 async def test_http_server_get_token_status_is_done(post_to_http_server, qrm_backend_mock_cls):
     # setup start
-    token = 'token1'
+    token = 'my_req_token'
     res_1 = Resource(name='res1', type='type1')
     res_2 = Resource(name='res2', type='type1')
     user_request = ResourcesRequest()
