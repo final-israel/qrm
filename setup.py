@@ -33,7 +33,7 @@ setuptools.setup(
     packages=['qrm_defs', 'qrm_client'],
     include_package_data=True,
     classifiers=[
-        'Programming Language :: Python :: 3.6.9',
+        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
