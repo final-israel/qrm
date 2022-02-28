@@ -6,7 +6,7 @@ Queue Resources Manager
 [![codecov](https://codecov.io/gh/final-israel/qrm/branch/main/graph/badge.svg?token=0FIPGEXVJ6)](https://codecov.io/gh/final-israel/qrm)
 ![](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 ![](https://img.shields.io/github/issues/final-israel/qrm.svg)
-[![Latest Version](https://pypip.in/version/qrm_client/badge.svg)](https://pypi.python.org/pypi/qrm_client/)
+[![Latest Version](https://pypip.in/version/qrm-client/badge.svg)](https://pypi.python.org/pypi/qrm-client/)
 # management server
 Add resource to qrm:
 
