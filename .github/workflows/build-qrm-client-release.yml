@@ -1,0 +1,59 @@
+# This workflow will install Python dependencies, run tests and lint with a single version of Python
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Build qrm client pkg
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        type: choice
+        description: Version type
+        options:
+        - patch
+        - minor
+        - major
+        required: true
+
+jobs:
+  build_pkg:
+    needs: run_tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.6.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.6.9"
+      
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 pytest
+        if [ -f env_requirements.txt ]; then pip install -r env_requirements.txt; fi
+        if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
+        if [ -f qrm_client/requirements.txt ]; then pip install -r qrm_client/requirements.txt; fi
+
+    - name: stamp with vmn
+      run: |
+        vmn stamp -r ${{ github.event.inputs.version_type }} qrm_client
+        vmn show qrm_client --verbose > ./qrm_client/ver.yaml
+        echo "cat ./qrm_client/ver.yaml"
+        cat ./qrm_client/ver.yaml
+    
+    - name: build pkg
+      run: |
+        python setup.py bdist_wheel sdist
+        ls -ltrh ./dist/
+    
+    - name: Publish a Python distribution to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        verbose: true
+#         password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+#         repository_url: https://test.pypi.org/legacy/
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        print_hash: true
+        skip_existing: false

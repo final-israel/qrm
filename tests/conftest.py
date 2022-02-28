@@ -99,7 +99,6 @@ def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer, default_test_to
         return res
 
     def handler_for_wait_for_test(request: Request):
-        print('#########')
         global wait_for_test_call_times
         rrr_obj = ResourcesRequestResponse()
         rrr_obj.token = default_test_token
