@@ -150,6 +150,8 @@ async def main(use_pending_logic: bool = False):
 
 def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = False) -> None:
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
+    logging.info(f'listening on port {listen_port}')
+    logging.info(f'use_pending_logic: {use_pending_logic}')
     web.run_app(main(use_pending_logic), port=listen_port)
 
 
@@ -168,7 +170,6 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
 if __name__ == "__main__":
     try:
         run_args = create_parser()
-        print(run_args)
         run_server(run_args.listen_port, run_args.use_pending_logic)
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')
