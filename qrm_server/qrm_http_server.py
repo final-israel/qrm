@@ -168,6 +168,7 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
 if __name__ == "__main__":
     try:
         run_args = create_parser()
+        print(run_args)
         run_server(run_args.listen_port, run_args.use_pending_logic)
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')
