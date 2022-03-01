@@ -1,4 +1,4 @@
-name: build-qrm-server
+name: build-mgmt-server
 
 on:
   workflow_dispatch:
