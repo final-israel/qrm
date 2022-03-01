@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1
+FROM ubuntu:focal
+
+COPY qrm_server /qrm_server
+COPY qrm_defs /qrm_defs
+COPY db_adapters /db_adapters
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONPATH=/
+
+RUN apt update -y \
+    && apt upgrade -y \
+    && apt install -y software-properties-common \
+    && add-apt-repository -y ppa:deadsnakes/ppa \
+    && apt install -y python3-pip \
+    && apt install -y python3.9 --no-install-recommends \
+    && apt install -y vim --no-install-recommends \
+    && apt install -y curl --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONBUFFERED=1
+
+RUN python3 -m pip install -U pip
+RUN python3 -m pip install -r /qrm_server/requirements.txt
+
+ENTRYPOINT ["python3", "/qrm_server/management_server.py"]
