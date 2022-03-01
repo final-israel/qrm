@@ -160,7 +160,8 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
                         default=HTTP_LISTEN_PORT)
     parser.add_argument('--use_pending_logic',
                         help='move resource to pending when resource change owners',
-                        default=True)
+                        default=False,
+                        action='store_true')
     return parser.parse_args()
 
 
