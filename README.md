@@ -1,6 +1,6 @@
 # qrm
 Queue Resources Manager
-
+![QRM](https://github.com/final-israel/qrm/blob/new_image/qrm_logo.jpeg?raw=true)
 ## Build 
 
 [![codecov](https://codecov.io/gh/final-israel/qrm/branch/main/graph/badge.svg?token=0FIPGEXVJ6)](https://codecov.io/gh/final-israel/qrm)
