@@ -13,10 +13,11 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu:bionic
+    runs-on: ubuntu-18.04
     strategy:
       matrix:
-          python-version: [ '3.6.9', '3.7', '3.8', '3.9', ]
+          #python-version: [ '3.6.9', '3.7', '3.8', '3.9', ]
+          python-version: [ '3.6.9', ]
 
     steps:
     - uses: actions/checkout@v2
