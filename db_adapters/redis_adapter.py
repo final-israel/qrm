@@ -60,8 +60,8 @@ class RedisDB(QrmBaseDB):
         await self.pub_sub.unsubscribe(CHANNEL_RES_CHANGE_EVENT)
         logging.info('done with pubsub reader')
 
-    def init_params_blocking(self) -> None:
-        asyncio.ensure_future(self.set_qrm_status(status=ACTIVE_STATUS))
+    async def init_params_blocking(self) -> None:
+        await self.set_qrm_status(status=ACTIVE_STATUS)
         return
 
     async def init_default_params(self) -> None:

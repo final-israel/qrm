@@ -433,9 +433,13 @@ class QueueManagerBackEnd(QrmIfc):
 
     async def get_new_token(self, token: str) -> str:
         new_token = await self.redis.get_active_token_from_user_token(token)
+        logging_count = 0
         while not new_token:
             await asyncio.sleep(0.1)
+            if logging_count % 10 == 0:  # log only every 10 iterations
+                logging.info(f'waiting for new token on requested token {token}')
             new_token = await self.redis.get_active_token_from_user_token(token)
+            logging_count += 1
         return new_token
 
     async def get_resource_req_resp(self, token: str) -> ResourcesRequestResponse:
