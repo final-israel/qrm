@@ -1,0 +1,29 @@
+version: "3.9"
+services:
+  qrm_server:
+    image: finalil/qrm_server
+    network_mode: "host"
+    pid: "host"
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - /var/log/final:/var/log/final
+    command:
+  
+  mgmt_server:
+    image: finalil/qrm_mgmt_server
+    network_mode: "host"
+    pid: "host"
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - /var/log/final:/var/log/final
+    command:
+  
+  redis_db:
+    image:
+    network_mode: "host"
+    pid: "host"
+    volumes:
+      - /etc/localtime:/etc/localtime
+      - /var/log/final:/var/log/final
+    command:
+  
