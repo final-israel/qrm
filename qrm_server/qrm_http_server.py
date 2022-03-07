@@ -12,6 +12,8 @@ from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
 from qrm_defs.resource_definition import resource_request_from_json, ResourcesRequestResponse
 import datetime
 
+LOG_FILE_PATH = '/var/log/qrm_server.txt'
+
 HTTP_LISTEN_PORT = 5555
 
 global qrm_back_end
@@ -19,6 +21,7 @@ global_number: int = 0
 import aiohttp_jinja2
 import jinja2
 from pathlib import Path
+
 here = Path(__file__).resolve().parent
 server_start_time = datetime.datetime.now()
 
@@ -96,6 +99,7 @@ async def root_url(request) -> web.Response:
     global_number += 1
     return {'global_number': global_number}
 
+
 # noinspection PyUnusedLocal
 async def uptime_url(request) -> web.Response:
     logging.info('url ask for server uptime')
@@ -147,13 +151,51 @@ async def main(use_pending_logic: bool = False):
     app.on_shutdown.append(close_qrm_backend)
     return app
 
+def init_log():
+    LOGGING_CONFIG = {
+        'version': 1,
+        'disable_existing_loggers': True,
+        'formatters': {
+            'standard': {
+                'format': '%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+            },
+        },
+        'handlers': {
+            'default': {
+                'level': 'INFO',
+                'formatter': 'standard',
+                'class': 'logging.StreamHandler',
+                'stream': 'ext://sys.stdout',  # Default is stderr
+            },
+        },
+        'loggers': {
+            '': {  # root logger
+                'handlers': ['default'],
+                'level': 'WARNING',
+                'propagate': False
+            },
+            'my.packg': {
+                'handlers': ['default'],
+                'level': 'INFO',
+                'propagate': False
+            },
+            '__main__': {  # if __name__ == '__main__'
+                'handlers': ['default'],
+                'level': 'DEBUG',
+                'propagate': False
+            },
+        }
+    }
 
-def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = False) -> None:
+def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = False,
+               path_to_log_file: str = LOG_FILE_PATH) -> None:
     logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
+
+    logging.getLogger().addHandler(logging.FileHandler(LOG_FILE_PATH),
+                                   format='%(asctime)s %(levelname)s %(module)s %(message)s')
     logging.info(f'listening on port {listen_port}')
     logging.info(f'use_pending_logic: {use_pending_logic}')
     web.run_app(main(use_pending_logic), port=listen_port)
-
 
 def create_parser() -> argparse.ArgumentParser.parse_args:
     parser = argparse.ArgumentParser(description='QRM HTTP SERVER')
