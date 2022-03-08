@@ -13,7 +13,7 @@ from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
 from qrm_defs.resource_definition import resource_request_from_json, ResourcesRequestResponse
 from pathlib import Path
 
-LOG_FILE_PATH = '/var/log/qrm-server/qrm_server.txt'
+LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_server.txt'
 HTTP_LISTEN_PORT = 5555
 global qrm_back_end
 global_number: int = 0

@@ -12,7 +12,7 @@ LISTEN_PORT = 8080
 
 REDIS_PORT = 6379
 
-LOG_FILE_PATH = '/var/log/qrm-server/qrm_server.txt'
+LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_server.txt'
 
 
 async def add_resources(request) -> web.Response:
