@@ -7,10 +7,12 @@ from http import HTTPStatus
 from qrm_defs.qrm_urls import REMOVE_JOB, MGMT_STATUS_API, SET_SERVER_STATUS, REMOVE_RESOURCES, ADD_RESOURCES, \
     SET_RESOURCE_STATUS, ADD_JOB_TO_RESOURCE
 from qrm_defs.resource_definition import Resource
-
+from pathlib import Path
 LISTEN_PORT = 8080
 
 REDIS_PORT = 6379
+
+LOG_FILE_PATH = '/var/log/qrm-server/qrm_server.txt'
 
 
 async def add_resources(request) -> web.Response:
@@ -186,8 +188,16 @@ async def add_job_to_resource(request):
                             text=f'Error: must specify both job and resource_name in your request: {req_dict}\n')
 
 
-def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT):
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
+def config_log(path_to_log_file: str = LOG_FILE_PATH):
+    print(f'log file path is: {path_to_log_file}')
+    Path(path_to_log_file).parent.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(filename=path_to_log_file, level=logging.DEBUG, format=
+    '[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+    logging.info(f'log file path is: {path_to_log_file}')
+
+
+def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT, path_to_log_file: str = LOG_FILE_PATH ):
+    config_log(path_to_log_file=path_to_log_file)
     init_redis(redis_port)
     app = web.Application()
     app.add_routes([web.post(f'{ADD_RESOURCES}', add_resources),
@@ -210,6 +220,9 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
     parser.add_argument('--listen_port',
                         help='http listen port',
                         default=LISTEN_PORT)
+    parser.add_argument('--log_file_path',
+                        help='path to text log file',
+                        default=LOG_FILE_PATH)
     return parser.parse_args()
 
 
@@ -225,4 +238,4 @@ async def close_redis(request):
 
 if __name__ == '__main__':
     args = create_parser()
-    main(args.redis_port, args.listen_port)
+    main(args.redis_port, args.listen_port, args.log_file_path)
