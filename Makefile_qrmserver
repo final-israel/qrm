@@ -4,16 +4,21 @@ VERSION=debug
 
 .PHONY: build check-local dist major _major minor _minor patch _patch debug
 get_ver:
-	$(eval VERSION :=$(shell vmn show ${NAME}))
-	vmn show --verbose ${NAME} > ./qrm_server/ver.yaml
-	@echo "cat ./qrm_server/ver.yaml"
-	cat ./qrm_server/ver.yaml
+	$(eval VERSION :=$ (shell vmn show ${NAME}))
+	vmn show --verbose ${NAME} > ./${NAME}/ver.yaml
+	@echo "cat ./${NAME}/ver.yaml"
+	cat ./${NAME}/ver.yaml
 
 build: check
 	@echo "Buliding"
 	docker build --network host -f DockerfileQrmServer -t finalil/${NAME}:${VERSION} .
-	git checkout -- ./qrm_server/ver.yaml
+	git checkout -- ./${NAME}/ver.yaml
 	docker tag finalil/${NAME}:${VERSION} finalil/${NAME}:latest
+
+create_env:
+	@echo "Creating venv"
+	python3 -m pip install --upgrade pip
+
 
 major: _major get_ver build _publish
 _major:
@@ -44,4 +49,5 @@ check-local:
 	@echo "---------------------------------------------------------------"
 	@echo "---------------------------------------------------------------"
 	@echo "---~               Running unit tests                      ~---"
+	
                
