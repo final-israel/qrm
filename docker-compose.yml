@@ -1,5 +1,22 @@
 version: "3.3"
 services:
+  redis_db:
+    image: redis:6.2.6
+    pid: "host"
+    container_name: redis_db
+    ports:
+      - "6379:6379"
+    volumes:
+      - "/tmp/redis/data:/data"
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    command:
+      - 'redis-server'
+      - '--loglevel ${REDIS_LOGLEVEL:-warning}'
+      - '--save 900 1'
+      - '--save 300 10'
+      - '--save 60 10000'
+      - '--maxmemory ${REDIS_MAXMEM:-50mb}'
   qrm_server:
     image: finalil/qrm_server:0.0.2
     network_mode: "host"
