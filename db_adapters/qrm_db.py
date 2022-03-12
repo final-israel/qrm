@@ -143,3 +143,7 @@ class QrmBaseDB(ABC):
     @abstractmethod
     async def get_all_open_tokens(self) -> List[str]:
         pass
+
+    @abstractmethod
+    async def get_resources_names_by_tags(self, tags: List[str]) -> List[str]:
+        pass

@@ -58,6 +58,7 @@ class Resource:
     type: str
     status: str = ''
     token: str = ''
+    tags: List[str] = field(default_factory=list)
 
     def db_name(self) -> str:
         return f'{RESOURCE_NAME_PREFIX}_{self.name}'

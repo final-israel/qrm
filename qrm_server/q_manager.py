@@ -348,6 +348,8 @@ class QueueManagerBackEnd(QrmIfc):
 
         await self.init_event_for_token(active_token)
 
+        await self.convert_tags_to_names(resources_request)
+
         if not await self.validate_new_request(resources_request):
             return ResourcesRequestResponse()
 
@@ -369,6 +371,16 @@ class QueueManagerBackEnd(QrmIfc):
     async def init_event_for_token(self, token) -> None:
         self.tokens_change_event[token] = QRMEvent()
         self.tokens_change_event[token].set()
+
+    async def convert_tags_to_names(self, resources_req: ResourcesRequest) -> List[str]:
+        """
+        this method converts tags for resources names and change the resource_req by reference
+        for each tag, it finds the resources that has this tag and add the correspond names request
+        :param resources_req: user resources request
+        """
+        for rbt in resources_req.tags:
+            resources_names = await self.redis.get_resources_names_by_tags(rbt.tags)
+            resources_req.add_request_by_names(names=resources_names, count=rbt.count)
 
     async def reorder_names_request(self, old_token: str, resources_by_name: List[ResourcesByName],
                                     all_resources_dict: Dict[str, Resource]) -> None:

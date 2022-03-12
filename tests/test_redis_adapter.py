@@ -6,7 +6,7 @@ import subprocess
 
 from db_adapters.redis_adapter import RedisDB
 from qrm_defs.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, \
-    generate_token_from_seed
+    generate_token_from_seed, ACTIVE_STATUS
 
 
 def test_env():
@@ -451,3 +451,26 @@ async def test_res_status_change_event_after_recovery(resource_foo, redis_db_obj
     all_res = await new_redis_obj.get_all_resources()
     await new_redis_obj.init_default_params()
     assert new_redis_obj.res_status_change_event[resource_foo.name]
+
+
+@pytest.mark.asyncio
+async def test_get_resources_by_tags(redis_db_object):
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server', 'high_perf'])
+    await redis_db_object.add_resource(res_1)
+    resources = await redis_db_object.get_resources_names_by_tags(res_1.tags)
+    assert [res_1.name] == resources
+
+
+@pytest.mark.asyncio
+async def test_get_res_by_multi_tags(redis_db_object):
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server', 'high_perf'])
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, tags=['server', 'low_perf'])
+    res_3 = Resource(name='res3', type='type1', status=ACTIVE_STATUS, tags=['vlan', 'trunc'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+    assert res_1.name and res_2.name in await redis_db_object.get_resources_names_by_tags(['server'])
+    assert [res_2.name] == await redis_db_object.get_resources_names_by_tags(['low_perf'])
+    assert [res_1.name] not in await redis_db_object.get_resources_names_by_tags(['high_perf'])
+    assert [res_3.name] == await redis_db_object.get_resources_names_by_tags(['vlan'])
+

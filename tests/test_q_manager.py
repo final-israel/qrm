@@ -759,6 +759,61 @@ async def test_one_res_from_two_another_same_request(redis_db_object, qrm_backen
     assert len(result.names) == 1
 
 
+async def test_basic_req_by_tags(redis_db_object, qrm_backend_with_db):
+    # one resource, send request by tag -> fill
+
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+
+    # send req by tag
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name in result.names
+
+
+async def test_request_one_tag_for_two_res(redis_db_object, qrm_backend_with_db):
+    # two resources with the same tag
+    # send request with count 2 by this tag -> filled
+
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    # send req by tag
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=2)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name and res_2.name in result.names
+
+
+async def test_req_two_tags(redis_db_object, qrm_backend_with_db):
+    # three resources, each resource has unique tag
+
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, tags=['vlan'])
+    res_3 = Resource(name='res3', type='type1', status=ACTIVE_STATUS, tags=['foo'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+
+    # send req by tag
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    user_request.add_request_by_tags(['vlan'], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name and res_2.name in result.names
+    assert res_3.name not in result.names
+
+
+
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
                                                  redis, token_job_2: str):
     await asyncio.sleep(timeout_sec)
