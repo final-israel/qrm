@@ -1,24 +1,23 @@
 import argparse
 import json
 import logging
-
+import datetime
+import asyncio
+import aiohttp_jinja2
+import jinja2
 from aiohttp import web
 from http import HTTPStatus
-import asyncio
-
 from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
     URL_GET_UPTIME, URL_GET_IS_SERVER_UP
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc
 from qrm_defs.resource_definition import resource_request_from_json, ResourcesRequestResponse
-import datetime
+from pathlib import Path
 
+LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_server.txt'
 HTTP_LISTEN_PORT = 5555
-
 global qrm_back_end
 global_number: int = 0
-import aiohttp_jinja2
-import jinja2
-from pathlib import Path
+
 here = Path(__file__).resolve().parent
 server_start_time = datetime.datetime.now()
 
@@ -96,6 +95,7 @@ async def root_url(request) -> web.Response:
     global_number += 1
     return {'global_number': global_number}
 
+
 # noinspection PyUnusedLocal
 async def uptime_url(request) -> web.Response:
     logging.info('url ask for server uptime')
@@ -148,8 +148,27 @@ async def main(use_pending_logic: bool = False):
     return app
 
 
-def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = False) -> None:
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(module)s %(message)s')
+def config_log(path_to_log_file: str = LOG_FILE_PATH):
+    print(f'log file path is: {path_to_log_file}')
+    Path(path_to_log_file).parent.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(filename=path_to_log_file, level=logging.DEBUG, format=
+    '[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+
+    # set up logging to console
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    # set a format which is simpler for console use
+    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logging.getLogger('').addHandler(console)
+    logger = logging.getLogger(__name__)
+    logging.info(f'log file path is: {path_to_log_file}')
+
+
+def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = False,
+               path_to_log_file: str = LOG_FILE_PATH) -> None:
+    config_log(path_to_log_file=path_to_log_file)
     logging.info(f'listening on port {listen_port}')
     logging.info(f'use_pending_logic: {use_pending_logic}')
     web.run_app(main(use_pending_logic), port=listen_port)
@@ -164,12 +183,17 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
                         help='move resource to pending when resource change owners',
                         default=False,
                         action='store_true')
+
+    parser.add_argument('--log_file_path',
+                        help='path to text log file',
+                        default=LOG_FILE_PATH)
+
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     try:
         run_args = create_parser()
-        run_server(run_args.listen_port, run_args.use_pending_logic)
+        run_server(run_args.listen_port, run_args.use_pending_logic, path_to_log_file=run_args.log_file_path)
     except KeyboardInterrupt as e:
         logging.error(f'got keyboard interrupt: {e}')
