@@ -1,6 +1,6 @@
-NAME=qrm_server
+NAME=mgmt_server
 VERSION=debug
-DOCKER_FILE=DockerfileQrmServer
+DOCKER_FILE=DockerfileMgmtServer
 
 .PHONY: build check major _major minor _minor patch _patch debug _debug get_ver install_py_req flake8_check tests _publish_debug _publish
 
@@ -35,7 +35,7 @@ flake8_check:
 
 tests:
 	@echo "Run tests with pytest"
-	python3 -m pytest tests/
+	python -m pytest tests/
 
 _major:
 	@echo "Major Release"
@@ -61,3 +61,4 @@ _publish:
 _publish_debug:
 	docker login
 	docker push finalil/${NAME}:${VERSION}
+
