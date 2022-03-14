@@ -2,15 +2,15 @@ NAME=qrm_server
 VERSION=debug
 DOCKER_FILE=DockerfileQrmServer
 
-.PHONY: build check major _major minor _minor patch _patch debug _debug get_ver install_py_req flake8_check tests _publish_debug _publish
+.PHONY: build check major _major minor _minor patch _patch debug _debug get_ver install_py_req flake8_check tests _publish_debug _publish _clean
 
-major: _major get_ver build _publish
-minor: _minor get_ver build _publish
-patch: _patch get_ver build _publish
-debug: _debug build _publish_debug
+major: _major get_ver build _publish _clean
+minor: _minor get_ver build _publish _clean
+patch: _patch get_ver build _publish _clean
+debug: _debug build _publish_debug _clean
 check: install_py_req flake8_check tests
 
-get_ver:
+get_ver: _clean
 	$(eval VERSION := $(shell vmn show ${NAME}))
 	vmn show --verbose ${NAME} > ./${NAME}/ver.yaml
 	@echo "cat ./${NAME}/ver.yaml"
@@ -19,7 +19,6 @@ get_ver:
 build: check
 	@echo "Building"
 	docker build --network host -f ${DOCKER_FILE} -t finalil/${NAME}:${VERSION} .
-	git checkout -- ./${NAME}/ver.yaml
 
 install_py_req:
 	@echo "Installing Python req files"
@@ -61,3 +60,6 @@ _publish:
 _publish_debug:
 	docker login
 	docker push finalil/${NAME}:${VERSION}
+
+_clean:
+	rm -rf ./${NAME}/ver.yaml
