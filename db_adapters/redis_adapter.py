@@ -387,7 +387,7 @@ class RedisDB(QrmBaseDB):
                 ret_list.extend(json.loads(resources_names_json))
         return list(set(ret_list))  # find unique resources names
 
-    async def add_tags_for_resource(self, resource) -> None:
+    async def add_tags_for_resource(self, resource: Resource) -> None:
         for tag in resource.tags:
             resources_for_tag = await self.get_resources_names_by_tags([tag])
             resources_for_tag.append(resource.name)
