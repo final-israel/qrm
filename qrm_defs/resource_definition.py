@@ -2,7 +2,6 @@ import json
 import pickle
 from dataclasses import dataclass, asdict, field
 from typing import List
-from dataclass_type_validator import dataclass_validate
 from datetime import datetime
 
 PENDING_STATUS = 'pending'
@@ -51,13 +50,13 @@ def resource_request_from_json(resource_req_as_json: json):  # type:  ResourcesR
     return res_req
 
 
-@dataclass_validate
 @dataclass
 class Resource:
     name: str
     type: str
     status: str = ''
     token: str = ''
+    tags: List[str] = field(default_factory=list)
 
     def db_name(self) -> str:
         return f'{RESOURCE_NAME_PREFIX}_{self.name}'
@@ -153,7 +152,6 @@ class ResourcesRequest:
         return json.dumps(self.as_dict())
 
 
-@dataclass_validate
 @dataclass
 class ResourceStatus:
     resource_name: str = ''

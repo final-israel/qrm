@@ -153,6 +153,16 @@ def config_log(path_to_log_file: str = LOG_FILE_PATH):
     Path(path_to_log_file).parent.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(filename=path_to_log_file, level=logging.DEBUG, format=
     '[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+
+    # set up logging to console
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    # set a format which is simpler for console use
+    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logging.getLogger('').addHandler(console)
+    logger = logging.getLogger(__name__)
     logging.info(f'log file path is: {path_to_log_file}')
 
 
