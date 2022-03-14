@@ -32,8 +32,7 @@ jobs:
 
       - name: prepare env
         run: |
-          python -m pip install --upgrade pip
-          if [ -f env_requirements.txt ]; then pip install -r env_requirements.txt; fi
+          make -f Makefile_qrmserver install_py_req
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
