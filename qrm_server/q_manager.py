@@ -348,6 +348,8 @@ class QueueManagerBackEnd(QrmIfc):
 
         await self.init_event_for_token(active_token)
 
+        await self.convert_tags_to_names(resources_request)
+
         if not await self.validate_new_request(resources_request):
             return ResourcesRequestResponse()
 
@@ -369,6 +371,16 @@ class QueueManagerBackEnd(QrmIfc):
     async def init_event_for_token(self, token) -> None:
         self.tokens_change_event[token] = QRMEvent()
         self.tokens_change_event[token].set()
+
+    async def convert_tags_to_names(self, resources_req: ResourcesRequest) -> List[str]:
+        """
+        this method converts tags for resources names and change the resource_req by reference
+        for each tag, it finds the resources that has this tag and add the correspond names request
+        :param resources_req: user resources request
+        """
+        for rbt in resources_req.tags:
+            resources_names = await self.redis.get_resources_names_by_tags(rbt.tags)
+            resources_req.add_request_by_names(names=resources_names, count=rbt.count)
 
     async def reorder_names_request(self, old_token: str, resources_by_name: List[ResourcesByName],
                                     all_resources_dict: Dict[str, Resource]) -> None:
@@ -433,9 +445,13 @@ class QueueManagerBackEnd(QrmIfc):
 
     async def get_new_token(self, token: str) -> str:
         new_token = await self.redis.get_active_token_from_user_token(token)
+        logging_count = 0
         while not new_token:
             await asyncio.sleep(0.1)
+            if logging_count % 10 == 0:  # log only every 10 iterations
+                logging.info(f'waiting for new token on requested token {token}')
             new_token = await self.redis.get_active_token_from_user_token(token)
+            logging_count += 1
         return new_token
 
     async def get_resource_req_resp(self, token: str) -> ResourcesRequestResponse:

@@ -20,6 +20,7 @@ ACTIVE_STATUS = 'active'
 TOKEN_RESOURCES_MAP = 'token_dict'
 ACTIVE_TOKEN_DICT = 'active_token_dict'
 LAST_REQ_RESP = 'last_req_resp'
+TAGS_RES_NAME_MAP = 'tag_res_name_map'
 PUBSUB_POLLING_TIME = 0.1
 
 
@@ -60,8 +61,8 @@ class RedisDB(QrmBaseDB):
         await self.pub_sub.unsubscribe(CHANNEL_RES_CHANGE_EVENT)
         logging.info('done with pubsub reader')
 
-    def init_params_blocking(self) -> None:
-        asyncio.ensure_future(self.set_qrm_status(status=ACTIVE_STATUS))
+    async def init_params_blocking(self) -> None:
+        await self.set_qrm_status(status=ACTIVE_STATUS)
         return
 
     async def init_default_params(self) -> None:
@@ -119,6 +120,7 @@ class RedisDB(QrmBaseDB):
                 return False
         await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
         await self.redis.rpush(resource.db_name(), json.dumps({}))
+        await self.add_tags_for_resource(resource)
         await self.init_event_for_resource(resource)
         return True
 
@@ -376,6 +378,20 @@ class RedisDB(QrmBaseDB):
         tokens_list.extend(part_fill.keys())
 
         return list(set(tokens_list))
+
+    async def get_resources_names_by_tags(self, tags: List[str]) -> List[str]:
+        ret_list = []
+        for tag in tags:
+            resources_names_json = await self.redis.hget(TAGS_RES_NAME_MAP, tag)
+            if resources_names_json:
+                ret_list.extend(json.loads(resources_names_json))
+        return list(set(ret_list))  # find unique resources names
+
+    async def add_tags_for_resource(self, resource: Resource) -> None:
+        for tag in resource.tags:
+            resources_for_tag = await self.get_resources_names_by_tags([tag])
+            resources_for_tag.append(resource.name)
+            await self.redis.hset(TAGS_RES_NAME_MAP, tag, json.dumps(resources_for_tag))
 
     async def close(self) -> None:
         self.is_running = False

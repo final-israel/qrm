@@ -126,6 +126,7 @@ def qrm_http_client_with_server_mock(qrm_server_mock_for_client: HTTPServer) -> 
     qrm_client_obj = QrmClient(server_ip=qrm_server_mock_for_client.host,
                                server_port=qrm_server_mock_for_client.port,
                                user_name='test_user')
+    qrm_client_obj.wait_for_server_up()
     return qrm_client_obj
 
 
@@ -175,7 +176,7 @@ def resource_bar() -> Resource:
 @pytest.fixture(scope='function')
 async def redis_db_object(redis_my) -> redis_adapter.RedisDB:
     test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.05)
-    test_adapter_obj.init_params_blocking()
+    await test_adapter_obj.init_params_blocking()
     yield test_adapter_obj
     await test_adapter_obj.close()
     del test_adapter_obj
@@ -183,11 +184,11 @@ async def redis_db_object(redis_my) -> redis_adapter.RedisDB:
 
 @pytest.fixture(scope='function')
 async def redis_db_object_with_resources(redis_my, resource_foo) -> redis_adapter.RedisDB:
-    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.01)
-    test_adapter_obj.init_params_blocking()
-    asyncio.ensure_future(test_adapter_obj.add_resource(resource_foo))
-    asyncio.ensure_future(test_adapter_obj.set_qrm_status(status='active'))
-    asyncio.ensure_future(test_adapter_obj.get_all_resources_dict())
+    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.05)
+    await test_adapter_obj.init_params_blocking()
+    await test_adapter_obj.add_resource(resource_foo)
+    await test_adapter_obj.set_qrm_status(status='active')
+    await test_adapter_obj.get_all_resources_dict()
     yield test_adapter_obj
     await test_adapter_obj.close()
     del test_adapter_obj
@@ -230,7 +231,7 @@ def post_to_http_server2(event_loop, aiohttp_server):
 
 
 @pytest.fixture(scope='function')
-def qrm_http_server_for_system(unused_tcp_port_factory, redis_db_object) -> dict:
+def qrm_http_server_for_system(unused_tcp_port_factory) -> dict:
     port = unused_tcp_port_factory()
     p = Process(target=qrm_server.qrm_http_server.run_server, args=(port,))
     p.start()
@@ -239,7 +240,7 @@ def qrm_http_server_for_system(unused_tcp_port_factory, redis_db_object) -> dict
 
 
 @pytest.fixture(scope='function')
-def qrm_http_server_for_system_pending(unused_tcp_port_factory, redis_db_object) -> dict:
+def qrm_http_server_for_system_pending(unused_tcp_port_factory) -> dict:
     pending = True
     port = unused_tcp_port_factory()
     p = Process(target=qrm_server.qrm_http_server.run_server, args=(port, pending,))
@@ -249,7 +250,7 @@ def qrm_http_server_for_system_pending(unused_tcp_port_factory, redis_db_object)
 
 
 @pytest.fixture(scope='function')
-def qrm_management_server(unused_tcp_port_factory, redis_db_object) -> dict:
+def qrm_management_server(unused_tcp_port_factory) -> dict:
     port = unused_tcp_port_factory()
     p = Process(target=qrm_server.management_server.main, kwargs={'listen_port': port})
     p.start()
@@ -258,17 +259,13 @@ def qrm_management_server(unused_tcp_port_factory, redis_db_object) -> dict:
 
 
 @pytest.fixture(scope='function')
-def full_qrm_servers_ports(unused_tcp_port_factory, qrm_http_server_for_system,
-                           qrm_management_server, redis_db_object) -> dict:
+async def full_qrm_servers_ports(unused_tcp_port_factory, qrm_http_server_for_system,
+                                 qrm_management_server, redis_db_object) -> dict:
     ports_dict = {}
 
-    r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server', status=ACTIVE_STATUS)))
-    r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server', status=ACTIVE_STATUS)))
-    r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server', status=ACTIVE_STATUS)))
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(r1)
-    loop.run_until_complete(r2)
-    loop.run_until_complete(r3)
+    await redis_db_object.add_resource(Resource(name='r1', type='server', status=ACTIVE_STATUS))
+    await redis_db_object.add_resource(Resource(name='r2', type='server', status=ACTIVE_STATUS))
+    await redis_db_object.add_resource(Resource(name='r3', type='server', status=ACTIVE_STATUS))
     ports_dict.update(qrm_management_server)
     ports_dict.update(qrm_http_server_for_system)
     return ports_dict
@@ -326,7 +323,7 @@ def full_qrm_servers_ports_pending_logic(unused_tcp_port_factory, qrm_http_serve
 
 
 @pytest.fixture(scope='function')
-async def qrm_backend_with_db(redis_db_object) -> QueueManagerBackEnd:
+async def qrm_backend_with_db(redis_my) -> QueueManagerBackEnd:
     qrm_be = QueueManagerBackEnd(redis_port=REDIS_PORT)
     yield qrm_be
     await qrm_be.stop_backend()
