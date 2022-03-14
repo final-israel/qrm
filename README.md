@@ -83,3 +83,12 @@ curl --header "Content-Type: application/json"  http://localhost:8080//get_token
 ```bash
 curl --header "Content-Type: application/json" --request POST --data '{"token": "token1234"}'  http://localhost:8080/cancel_token/v1
 ```
+
+## How it works
+```mermaid
+sequenceDiagram
+    Alice->>+John: Hello John, how are you?
+    Alice->>+John: John, can you hear me?
+    John-->>-Alice: Hi Alice, I can hear you!
+    John-->>-Alice: I feel great!
+```           
