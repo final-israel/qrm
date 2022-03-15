@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 
 NOT_VALID = 'not_valid'
 CANCELED = "canceled"
-
+TIMEOUT_ACTIVE_STATE = 60 * 60 * 24
 REDIS_PORT = 6379
 ResourcesListType = List[Resource]
 
@@ -59,7 +59,8 @@ class QrmIfc(ABC):
 class QueueManagerBackEnd(QrmIfc):
     def __init__(self,
                  redis_port: int = REDIS_PORT,
-                 use_pending_logic: bool = False):
+                 use_pending_logic: bool = False,
+                 timeout_for_active_state: float = TIMEOUT_ACTIVE_STATE):
         """
         :Params:
         redis_port - redis server port to connect
@@ -69,6 +70,7 @@ class QueueManagerBackEnd(QrmIfc):
         self.redis = RedisDB(redis_port)
         self.use_pending_logic = use_pending_logic
         self.tokens_change_event = {}  # type: Dict[str, QRMEvent]
+        self.timeout_for_active_state = timeout_for_active_state
 
     # Recovery from DB
     async def init_backend(self) -> None:
@@ -189,7 +191,11 @@ class QueueManagerBackEnd(QrmIfc):
             resource = await self.redis.get_resource_by_name(resource_name)
             if resource.status != ACTIVE_STATUS:
                 logging.info(f'waiting for active state on resource {resource.name}')
-                await self.redis.wait_for_resource_active_status(resource)
+                await self.redis.\
+                    wait_for_resource_active_status(
+                        resource,
+                        timeout=self.timeout_for_active_state
+                )
                 logging.info(f'done waiting for active state on resource {resource.name}')
         return
 
@@ -310,7 +316,7 @@ class QueueManagerBackEnd(QrmIfc):
         """
 
         resources_for_token = await self.redis.get_partial_fill(token)
-        logging.info(f'will move resources: {resources_for_token} to PENDING state')
+        logging.info(f'will move resources: {resources_for_token.names} to PENDING state')
 
         for resource_name in resources_for_token.names:
             resource = await self.redis.get_resource_by_name(resource_name)

@@ -177,6 +177,8 @@ def resource_bar() -> Resource:
 async def redis_db_object(redis_my) -> redis_adapter.RedisDB:
     test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.05)
     await test_adapter_obj.init_params_blocking()
+    await test_adapter_obj.wait_for_pubsub_ready()
+    # await asyncio.sleep(0.1)
     yield test_adapter_obj
     await test_adapter_obj.close()
     del test_adapter_obj
@@ -189,6 +191,8 @@ async def redis_db_object_with_resources(redis_my, resource_foo) -> redis_adapte
     await test_adapter_obj.add_resource(resource_foo)
     await test_adapter_obj.set_qrm_status(status='active')
     await test_adapter_obj.get_all_resources_dict()
+    await test_adapter_obj.wait_for_pubsub_ready()
+    # await asyncio.sleep(0.1)
     yield test_adapter_obj
     await test_adapter_obj.close()
     del test_adapter_obj
@@ -212,7 +216,7 @@ def post_to_mgmt_server(event_loop, aiohttp_client):
 @pytest.fixture(scope='function')
 def post_to_http_server(event_loop, aiohttp_client):
     app = web.Application()
-    qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock())
+    asyncio.ensure_future(qrm_http_server.init_qrm_back_end(QueueManagerBackEndMock()))
     app.router.add_post(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST, qrm_http_server.new_request)
     app.router.add_post(qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN, qrm_http_server.cancel_token)
     app.router.add_get(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS, qrm_http_server.get_token_status)
@@ -324,7 +328,8 @@ def full_qrm_servers_ports_pending_logic(unused_tcp_port_factory, qrm_http_serve
 
 @pytest.fixture(scope='function')
 async def qrm_backend_with_db(redis_my) -> QueueManagerBackEnd:
-    qrm_be = QueueManagerBackEnd(redis_port=REDIS_PORT)
+    qrm_be = QueueManagerBackEnd(redis_port=REDIS_PORT, timeout_for_active_state=2)
+    await qrm_be.init_backend()
     yield qrm_be
     await qrm_be.stop_backend()
 

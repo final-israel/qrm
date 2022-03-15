@@ -27,7 +27,7 @@ def test_client_new_requested_resource_does_not_exist(qrm_client, default_test_t
     rr.names.append(rbn)
     resp = qrm_client.new_request(rr.as_json())
     new_token = resp['token']
-    qrm_client.wait_for_token_ready(new_token, timeout=2)
+    qrm_client.wait_for_token_ready(new_token, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client.get_token_status(new_token)
 
     assert default_test_token in resp.get('token')
@@ -43,7 +43,7 @@ def test_http_server_and_client_new_request_token_not_valid_and_no_servers(qrm_c
     rr.token = default_test_token
     resp = qrm_client.new_request(rr.as_json())
     new_token = resp['token']
-    qrm_client.wait_for_token_ready(new_token, timeout=2)
+    qrm_client.wait_for_token_ready(new_token, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client.get_token_status(new_token)
     assert 'contains names ' in resp.get('message')
     assert resp.get('is_valid') is False
@@ -54,9 +54,9 @@ def test_http_server_and_client_status_done(qrm_client, default_test_token):
     rr.token = default_test_token
     rbs = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbs)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.test_token_status_unknown_token(rr.as_json())
     new_token = resp.get('token')
-    qrm_client.wait_for_token_ready(new_token, timeout=2)
+    qrm_client.wait_for_token_ready(new_token, timeout=2, polling_sleep_time=0.1)
     resp_2 = qrm_client.get_token_status(new_token)
     assert default_test_token in new_token
     assert resp_2.get('request_complete')
@@ -70,7 +70,7 @@ def test_full_request_two_resources(qrm_client, default_test_token):
     rr.names.append(rbn)
     resp = qrm_client.new_request(rr.as_json())
     new_token = resp.get('token')
-    qrm_client.wait_for_token_ready(new_token, timeout=2)
+    qrm_client.wait_for_token_ready(new_token, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client.get_token_status(new_token)
     assert default_test_token in new_token
     assert resp.get('request_complete')
@@ -161,7 +161,7 @@ def test_http_server_and_client_status_done_for_resources_r1_and_r2_resources(qr
     rr.names.append(rbs)
     resp = qrm_client.new_request(rr.as_json())
     new_token = resp.get('token')
-    qrm_client.wait_for_token_ready(new_token, timeout=2)
+    qrm_client.wait_for_token_ready(new_token, timeout=2, polling_sleep_time=0.1)
     resp_2 = qrm_client.get_token_status(new_token)
     assert resp_2.get('request_complete')
     assert 'r1' in resp_2.get('names')
@@ -176,7 +176,7 @@ def test_full_request_one_from_two_resources(qrm_client, default_test_token):
     rr.names.append(rbn)
     resp = qrm_client.new_request(rr.as_json())
     new_token = resp.get('token')
-    qrm_client.wait_for_token_ready(new_token, timeout=2)
+    qrm_client.wait_for_token_ready(new_token, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client.get_token_status(new_token)
     assert default_test_token in new_token
     assert resp.get('request_complete')
@@ -191,7 +191,7 @@ def test_http_server_and_client_cancel(qrm_client, default_test_token):
     rr.names.append(rbs)
     resp = qrm_client.new_request(rr.as_json())
     new_token = resp.get('token')
-    qrm_client.wait_for_token_ready(new_token, timeout=120)
+    qrm_client.wait_for_token_ready(new_token, timeout=2, polling_sleep_time=0.1)
     resp_2 = qrm_client.get_token_status(new_token)
     resp = qrm_client.send_cancel(new_token)
     assert default_test_token in new_token

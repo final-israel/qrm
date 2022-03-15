@@ -514,7 +514,7 @@ async def test_recovery_jobs_in_queue(redis_db_object, qrm_backend_with_db):
 
     # remove the old QrmBackend and init a new instance:
     await qrm_backend_with_db.stop_backend()
-    new_qrm = QueueManagerBackEnd()
+    new_qrm = QueueManagerBackEnd(timeout_for_active_state=2)
     await new_qrm.init_backend()
 
     # validate that previous request is still in the correct state:
