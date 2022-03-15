@@ -10,6 +10,7 @@ on:
         - patch
         - minor
         - major
+        - debug
         required: true
 
 jobs:
@@ -45,10 +46,15 @@ jobs:
 
       - name: Stamp with vmn
         run: |
-          vmn stamp -r ${{ github.event.inputs.version_type }} qrm_mgmt_server
-          vmn show qrm_mgmt_server --verbose > ./qrm_server/mgmt_ver.yaml
-          echo "cat ./qrm_server/mgmt_ver.yaml"
-          cat ./qrm_server/mgmt_ver.yaml
+          echo "debug print ${{ github.event.inputs.version_type }}"
+          if [ ${{ github.event.inputs.version_type != 'debug' }}  ]
+          then
+            make ${{ github.event.inputs.version_type
+#            vmn stamp -r ${{ github.event.inputs.version_type }} qrm_mgmt_server
+#            vmn show qrm_mgmt_server --verbose > ./qrm_server/mgmt_ver.yaml
+#            echo "cat ./qrm_server/mgmt_ver.yaml"
+#            cat ./qrm_server/mgmt_ver.yaml
+          fi
 
       - name: "Set version from Commit"
         id: get_version
