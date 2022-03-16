@@ -54,7 +54,7 @@ def test_http_server_and_client_status_done(qrm_client, default_test_token):
     rr.token = default_test_token
     rbs = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbs)
-    resp = qrm_client.test_token_status_unknown_token(rr.as_json())
+    resp = qrm_client.new_request(rr.as_json())
     new_token = resp.get('token')
     qrm_client.wait_for_token_ready(new_token, timeout=2, polling_sleep_time=0.1)
     resp_2 = qrm_client.get_token_status(new_token)
