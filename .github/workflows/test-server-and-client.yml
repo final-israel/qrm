@@ -5,7 +5,7 @@ name: test QRM server and client
 
 on:
   push:
-    branches: [ main, rerun_tests_on_failure ]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
   workflow_call:
