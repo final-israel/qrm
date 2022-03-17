@@ -3,3 +3,5 @@ pytest-redis
 pytest-asyncio
 pytest-aiohttp
 pytest-httpserver
+pytest-rerunfailures
+pytest-timeout

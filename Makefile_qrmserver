@@ -34,7 +34,7 @@ flake8_check:
 
 tests:
 	@echo "Run tests with pytest"
-	python3 -m pytest tests/
+	python3 -m pytest --reruns 3 tests/
 
 _major:
 	@echo "Major Release"
