@@ -3,6 +3,7 @@ import time
 import aioredis
 import asyncio
 import async_timeout
+import contextlib
 import json
 import logging
 from qrm_defs import resource_definition
@@ -35,10 +36,18 @@ class RedisDB(QrmBaseDB):
         self.pub_sub = self.redis.pubsub()
         self.pubsub_polling_time = pubsub_polling_time
         self.all_tasks = set()  # type: [asyncio.Task]
+        self.is_running = True
+        self.pubsub_ready = False
         pub_sub_task = asyncio.ensure_future(self.pubsub_reader())
         # pub_sub_task.set_name('pub_sub_task')
         self.all_tasks.add(pub_sub_task)
-        self.is_running = True
+
+    async def wait_for_pubsub_ready(self) -> None:
+        while not self.pubsub_ready:
+            logging.info('waiting for pubsub ready')
+            await asyncio.sleep(0.05)
+        logging.info('redis pubsub is ready')
+        return
 
     async def pubsub_reader(self):
         await self.pub_sub.subscribe(CHANNEL_RES_CHANGE_EVENT)
@@ -46,6 +55,7 @@ class RedisDB(QrmBaseDB):
             try:
                 async with async_timeout.timeout(PUBSUB_POLLING_TIME):
                     message = await self.pub_sub.get_message(ignore_subscribe_messages=True)
+                    self.pubsub_ready = True
                     if message is not None:
                         try:
                             res_name = message.get('data')
@@ -61,14 +71,10 @@ class RedisDB(QrmBaseDB):
         await self.pub_sub.unsubscribe(CHANNEL_RES_CHANGE_EVENT)
         logging.info('done with pubsub reader')
 
-    async def init_params_blocking(self) -> None:
-        await self.set_qrm_status(status=ACTIVE_STATUS)
-        return
-
     async def init_default_params(self) -> None:
         await self.set_qrm_status(status=ACTIVE_STATUS)
         await self.init_events_for_resources()
-        self.is_running = True
+        await self.wait_for_pubsub_ready()
 
     async def init_events_for_resources(self) -> None:
         all_resources = await self.get_all_resources()
@@ -173,9 +179,11 @@ class RedisDB(QrmBaseDB):
             self.res_status_change_event[resource.name] = asyncio.Event()
             await self.set_event_for_resource(resource, status)
 
-    async def wait_for_resource_active_status(self, resource: Resource) -> None:
+    async def wait_for_resource_active_status(self, resource: Resource, timeout: float) -> None:
         try:
-            await self.res_status_change_event[resource.name].wait()
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(self.res_status_change_event[resource.name].wait(), timeout)
+            # await self.res_status_change_event[resource.name].wait()
             logging.info(f'done waiting for resource {resource.name} {ACTIVE_STATUS} status')
         except KeyError as e:
             self.res_status_change_event[resource.name] = asyncio.Event()

@@ -26,9 +26,10 @@ def canceled_token_msg(token):
     return f'canceled token {token}'
 
 
-def init_qrm_back_end(qrm_back_end_obj: QrmIfc) -> None:
+async def init_qrm_back_end(qrm_back_end_obj: QrmIfc) -> None:
     global qrm_back_end
     qrm_back_end = qrm_back_end_obj
+    await qrm_back_end.init_backend()
 
 
 async def new_request(request) -> web.json_response:
@@ -134,7 +135,9 @@ async def close_qrm_backend(request) -> web.Response:
 
 
 async def main(use_pending_logic: bool = False):
-    init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd(use_pending_logic=use_pending_logic))
+    # TODO: fix this param:
+    await init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd(use_pending_logic=use_pending_logic,
+                                                                 timeout_for_active_state=2))
     app = web.Application()
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(f'{here}/templates'))
     app.router.add_post(URL_POST_CANCEL_TOKEN, cancel_token)

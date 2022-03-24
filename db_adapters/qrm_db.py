@@ -129,7 +129,7 @@ class QrmBaseDB(ABC):
         pass
 
     @abstractmethod
-    async def wait_for_resource_active_status(self, resource: Resource) -> None:
+    async def wait_for_resource_active_status(self, resource: Resource, timeout: float) -> None:
         pass
 
     @abstractmethod

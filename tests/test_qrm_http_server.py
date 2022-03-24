@@ -47,7 +47,7 @@ async def test_http_server_get_token_status_is_active(post_to_http_server, qrm_b
     user_request.add_request_by_names([res_1.name, res_2.name], count=1)
     queue_manager_back_end_mock = qrm_backend_mock_cls
     queue_manager_back_end_mock.for_test_is_request_active = True
-    qrm_http_server.init_qrm_back_end(queue_manager_back_end_mock)
+    await qrm_http_server.init_qrm_back_end(queue_manager_back_end_mock)
     resp = await post_to_http_server.get(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS, params={'token': token})
     resp_json = await resp.json()
     rrr_obj = ResourcesRequestResponse.from_json(resp_json)
@@ -70,7 +70,7 @@ async def test_http_server_get_token_status_is_done(post_to_http_server, qrm_bac
     expected_rrr_obj.token = token
     expected_rrr_obj.names = [res_1.name, res_2.name]
     queue_manager_back_end_mock.get_filled_request_obj = expected_rrr_obj
-    qrm_http_server.init_qrm_back_end(queue_manager_back_end_mock)
+    await qrm_http_server.init_qrm_back_end(queue_manager_back_end_mock)
     # setup end
     # test start
     resp = await post_to_http_server.get(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS, params={'token': token})

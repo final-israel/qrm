@@ -514,7 +514,7 @@ async def test_recovery_jobs_in_queue(redis_db_object, qrm_backend_with_db):
 
     # remove the old QrmBackend and init a new instance:
     await qrm_backend_with_db.stop_backend()
-    new_qrm = QueueManagerBackEnd()
+    new_qrm = QueueManagerBackEnd(timeout_for_active_state=2)
     await new_qrm.init_backend()
 
     # validate that previous request is still in the correct state:
@@ -523,6 +523,7 @@ async def test_recovery_jobs_in_queue(redis_db_object, qrm_backend_with_db):
     await redis_db_object.set_resource_status(res_2, ACTIVE_STATUS)
     result = await new_qrm.get_resource_req_resp(new_token_job_1)
     assert res_1.name and res_2.name in result.names
+    await new_qrm.stop_backend()
 
 
 @pytest.mark.asyncio
@@ -560,7 +561,6 @@ async def test_cancel_move_pending_status(redis_db_object, qrm_backend_with_db):
     await qrm_backend_with_db.cancel_request(active_token_job_1)
     assert await redis_db_object.get_resource_status(res_1) == PENDING_STATUS
     assert await redis_db_object.get_resource_status(res_2) == PENDING_STATUS
-
     await cancel_all_open_tasks([result_job_1, result_job_2])
 
 
