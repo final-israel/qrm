@@ -417,7 +417,9 @@ class QueueManagerBackEnd(QrmIfc):
         resources_request_resp = ResourcesRequestResponse()
         resources_request_resp.token = token
         for resource in resources_token_list:
-            await self.generate_job(resource, token)
+            active_job = await self.redis.get_active_job(resource)
+            if not active_job:
+                await self.generate_job(resource, token)
             resources_request_resp.names.append(resource.name)
         return resources_request_resp
 

@@ -813,6 +813,25 @@ async def test_req_two_tags(redis_db_object, qrm_backend_with_db):
     assert res_3.name not in result.names
 
 
+async def test_req_exisiting_token_in_queue_dont_add_to_queue(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name in result.names
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    assert len(res_1_jobs) == 2  # [job1, {}]
+
+    # send request with the same token again:
+    new_token = await qrm_backend_with_db.get_new_token(job1['token'])
+    req_token_only = ResourcesRequest(token=new_token)
+    await qrm_backend_with_db.new_request(req_token_only)
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    assert len(res_1_jobs) == 2  # [job1, {}]
+
 
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
                                                  redis, token_job_2: str):
