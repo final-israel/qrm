@@ -99,6 +99,7 @@ class ResourcesRequestResponse:
     is_valid: bool = True
     message: str = ''
     version: int = RESOURCES_REQUEST_RESPONSE_VERSION
+    is_token_active_in_queue: bool = False
 
     def as_dict(self) -> dict:
         return asdict(self)

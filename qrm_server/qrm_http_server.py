@@ -39,7 +39,6 @@ async def new_request(request) -> web.json_response:
     asyncio.ensure_future(qrm_back_end.new_request(resources_request=resource_request))
     active_token = await qrm_back_end.get_new_token(resource_request.token)
     rrr_obj = ResourcesRequestResponse()
-    rrr_obj.request_complete = False
     rrr_obj.token = active_token
     rrr_json = rrr_obj.as_json()
     return web.json_response(rrr_json, status=HTTPStatus.OK)
