@@ -37,4 +37,4 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        python -m pytest tests/test_qrm_http_client.py 
+        python -m pytest --reruns 3 tests/test_qrm_http_client.py 

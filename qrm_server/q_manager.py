@@ -417,7 +417,9 @@ class QueueManagerBackEnd(QrmIfc):
         resources_request_resp = ResourcesRequestResponse()
         resources_request_resp.token = token
         for resource in resources_token_list:
-            await self.generate_job(resource, token)
+            active_job = await self.redis.get_active_job(resource)
+            if not active_job:
+                await self.generate_job(resource, token)
             resources_request_resp.names.append(resource.name)
         return resources_request_resp
 
@@ -457,7 +459,15 @@ class QueueManagerBackEnd(QrmIfc):
     async def get_resource_req_resp(self, token: str) -> ResourcesRequestResponse:
         # if the request is not totally filled, you will get the current partial fill.
         # in case you want only totally filled, first check is_request_active method
-        return await self.redis.get_req_resp_for_token(token)
+        rrr = await self.redis.get_req_resp_for_token(token)
+        for resource_name in rrr.names:
+            resource = await self.redis.get_resource_by_name(resource_name)
+            res_job = await self.redis.get_active_job(resource)
+            if res_job.get('token') != token:
+                rrr.is_token_active_in_queue = False
+                return rrr
+        rrr.is_token_active_in_queue = True  # all resources jobs are active in queues
+        return rrr
 
     async def validate_new_request(self, resources_request: ResourcesRequest) -> bool:
         all_validations = list()

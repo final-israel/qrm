@@ -113,6 +113,7 @@ async def build_status_dict():
         status_dict['resources_status'][resource.name] = {}
         status_dict['resources_status'][resource.name]['status'] = await redis.get_resource_status(resource)
         status_dict['resources_status'][resource.name]['jobs'] = await redis.get_resource_jobs(resource)
+        status_dict['resources_status'][resource.name]['tags'] = resource.tags
         add_resource_to_token_list(resource, status_dict)
     return status_dict
 

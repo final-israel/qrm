@@ -759,6 +759,7 @@ async def test_one_res_from_two_another_same_request(redis_db_object, qrm_backen
     assert len(result.names) == 1
 
 
+@pytest.mark.asyncio
 async def test_basic_req_by_tags(redis_db_object, qrm_backend_with_db):
     # one resource, send request by tag -> fill
 
@@ -774,6 +775,7 @@ async def test_basic_req_by_tags(redis_db_object, qrm_backend_with_db):
     assert res_1.name in result.names
 
 
+@pytest.mark.asyncio
 async def test_request_one_tag_for_two_res(redis_db_object, qrm_backend_with_db):
     # two resources with the same tag
     # send request with count 2 by this tag -> filled
@@ -792,6 +794,7 @@ async def test_request_one_tag_for_two_res(redis_db_object, qrm_backend_with_db)
     assert res_1.name and res_2.name in result.names
 
 
+@pytest.mark.asyncio
 async def test_req_two_tags(redis_db_object, qrm_backend_with_db):
     # three resources, each resource has unique tag
 
@@ -813,6 +816,52 @@ async def test_req_two_tags(redis_db_object, qrm_backend_with_db):
     assert res_3.name not in result.names
 
 
+@pytest.mark.asyncio
+async def test_req_existing_token_in_queue_dont_add_to_queue(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name in result.names
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    assert len(res_1_jobs) == 2  # [job1, {}]
+
+    # send request with the same token again:
+    new_token = await qrm_backend_with_db.get_new_token(job1['token'])
+    req_token_only = ResourcesRequest(token=new_token)
+    await qrm_backend_with_db.new_request(req_token_only)
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    assert len(res_1_jobs) == 2  # [job1, {}]
+
+
+@pytest.mark.asyncio
+async def test_is_token_active_in_queue(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    await qrm_backend_with_db.new_request(user_request)
+    new_token = await qrm_backend_with_db.get_new_token(job1['token'])
+    result = await qrm_backend_with_db.get_resource_req_resp(new_token)
+    assert res_1.name in result.names
+    assert result.is_token_active_in_queue
+
+    # cancel req -> job is no longer active in queue:
+    await qrm_backend_with_db.cancel_request(new_token)
+    result = await qrm_backend_with_db.get_resource_req_resp(new_token)
+    assert not result.is_token_active_in_queue
+
+    # new request with same token -> job is active now:
+    req_token_only = ResourcesRequest(token=new_token)
+    await qrm_backend_with_db.new_request(req_token_only)
+    result = await qrm_backend_with_db.get_resource_req_resp(new_token)
+    assert result.is_token_active_in_queue
+
 
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
                                                  redis, token_job_2: str):
@@ -830,3 +879,4 @@ async def cancel_all_open_tasks(tasks) -> None:
             await task
         except asyncio.CancelledError:
             pass
+
