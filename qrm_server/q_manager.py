@@ -67,7 +67,7 @@ class QueueManagerBackEnd(QrmIfc):
         use_pending_logic - qrm will remove the server to PENDING after remove the active job
         and will consider job as active only if the server change state to ACTIVE
         """
-        self.redis = RedisDB(redis_port)
+        self.redis = RedisDB(redis_port, name='q_mng_be_redis')
         self.use_pending_logic = use_pending_logic
         self.tokens_change_event = {}  # type: Dict[str, QRMEvent]
         self.timeout_for_active_state = timeout_for_active_state

@@ -100,6 +100,7 @@ async def build_status_dict():
                 #           {},
                 #           {}
                 #       ]
+                #       tags: [],
                 #   }
             },
         'tokens_resources_group':
@@ -229,7 +230,7 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
 
 def init_redis(redis_port: int = REDIS_PORT):
     global redis
-    redis = RedisDB(redis_port)
+    redis = RedisDB(redis_port, name='mgmt_sevrer_redis')
 
 
 async def close_redis(request):

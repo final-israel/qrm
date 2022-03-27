@@ -3,8 +3,11 @@ import json
 import logging
 import datetime
 import asyncio
+import os
+
 import aiohttp_jinja2
 import jinja2
+import pdb_attach
 from aiohttp import web
 from http import HTTPStatus
 from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
@@ -15,11 +18,27 @@ from pathlib import Path
 
 LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_server.txt'
 HTTP_LISTEN_PORT = 5555
+GDB_PORT = 50000
 global qrm_back_end
 global_number: int = 0
 
 here = Path(__file__).resolve().parent
 server_start_time = datetime.datetime.now()
+
+
+def listen_to_gdb():
+    pdb_port = GDB_PORT
+    while True:
+        try:
+            pdb_attach.listen(pdb_port)
+            break
+        except OSError:  # port in use
+            pdb_port += 1
+    logging.info(
+        f"python gdb is listening on port: {pdb_port}, "
+        "to attach the process, run: "
+        f"python3 -m pdb_attach {os.getgid()} {pdb_port}"
+    )
 
 
 def canceled_token_msg(token):
@@ -135,6 +154,7 @@ async def close_qrm_backend(request) -> web.Response:
 
 
 async def main(use_pending_logic: bool = False):
+    listen_to_gdb()
     # TODO: fix this param:
     await init_qrm_back_end(qrm_back_end_obj=QueueManagerBackEnd(use_pending_logic=use_pending_logic,
                                                                  timeout_for_active_state=2))

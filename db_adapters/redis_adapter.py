@@ -28,10 +28,12 @@ PUBSUB_POLLING_TIME = 0.1
 class RedisDB(QrmBaseDB):
     def __init__(self,
                  redis_port: int = 6379,
-                 pubsub_polling_time: float = PUBSUB_POLLING_TIME):
+                 pubsub_polling_time: float = PUBSUB_POLLING_TIME,
+                 name: str = ''):
         self.redis = aioredis.from_url(
             f"redis://localhost:{redis_port}", encoding="utf-8", decode_responses=True
         )
+        self.name = name
         self.res_status_change_event = {}  # type: Dict[str, asyncio.Event]
         self.pub_sub = self.redis.pubsub()
         self.pubsub_polling_time = pubsub_polling_time
@@ -51,6 +53,7 @@ class RedisDB(QrmBaseDB):
 
     async def pubsub_reader(self):
         await self.pub_sub.subscribe(CHANNEL_RES_CHANGE_EVENT)
+        logging.info(f'start redis pubsub reader for {self.name}')
         while self.is_running:
             try:
                 async with async_timeout.timeout(PUBSUB_POLLING_TIME):
@@ -69,7 +72,7 @@ class RedisDB(QrmBaseDB):
             except asyncio.TimeoutError:
                 pass
         await self.pub_sub.unsubscribe(CHANNEL_RES_CHANGE_EVENT)
-        logging.info('done with pubsub reader')
+        logging.info(f'done with pubsub reader for {self.name}')
 
     async def init_params_blocking(self) -> None:
         await self.set_qrm_status(status=ACTIVE_STATUS)
@@ -406,18 +409,12 @@ class RedisDB(QrmBaseDB):
             await self.redis.hset(TAGS_RES_NAME_MAP, tag, json.dumps(resources_for_tag))
 
     async def close(self) -> None:
+        logging.info(f'start closing redis adapter {self.name}')
         self.is_running = False
         await asyncio.sleep(2 * self.pubsub_polling_time)  # to allow gracefully shutdown
-
-        # for task in self.all_tasks:
-        #     task.cancel()
-        #     try:
-        #         await task
-        #     except asyncio.CancelledError as e:
-        #         pass
-
         await self.pub_sub.close()
         await self.redis.close()
+        logging.info(f'redis adapter closed for {self.name}')
         return
 
     @staticmethod

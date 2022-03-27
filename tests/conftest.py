@@ -175,7 +175,7 @@ def resource_bar() -> Resource:
 
 @pytest.fixture(scope='function')
 async def redis_db_object(redis_my) -> redis_adapter.RedisDB:
-    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.05)
+    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.05, name='redis_db_obj')
     await test_adapter_obj.init_params_blocking()
     await test_adapter_obj.wait_for_pubsub_ready()
     # await asyncio.sleep(0.1)
@@ -186,7 +186,7 @@ async def redis_db_object(redis_my) -> redis_adapter.RedisDB:
 
 @pytest.fixture(scope='function')
 async def redis_db_object_with_resources(redis_my, resource_foo) -> redis_adapter.RedisDB:
-    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.05)
+    test_adapter_obj = redis_adapter.RedisDB(redis_port=REDIS_PORT, pubsub_polling_time=0.05, name='redis_db_obj')
     await test_adapter_obj.init_params_blocking()
     await test_adapter_obj.add_resource(resource_foo)
     await test_adapter_obj.set_qrm_status(status='active')
