@@ -863,6 +863,25 @@ async def test_is_token_active_in_queue(redis_db_object, qrm_backend_with_db):
     assert result.is_token_active_in_queue
 
 
+@pytest.mark.asyncio
+async def test_tags_doesnt_match_any_resources(redis_db_object, qrm_backend_with_db):
+    # request by tags -> no matched resources found
+
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+
+    # send req by tag for not existing tag
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['non_exist_tag'], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    new_token = await qrm_backend_with_db.get_new_token(token=job1['token'])
+    result = await qrm_backend_with_db.get_resource_req_resp(new_token)
+    assert not result.is_valid
+    assert 'no matched resources' in result.message
+
+
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
                                                  redis, token_job_2: str):
     await asyncio.sleep(timeout_sec)
