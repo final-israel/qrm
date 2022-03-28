@@ -3,11 +3,18 @@ import json
 import requests
 import time
 
-from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus
+from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus, is_token_format, \
+    generate_token_from_seed
 from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
     URL_GET_IS_SERVER_UP, MGMT_STATUS_API, SET_RESOURCE_STATUS
 from requests.adapters import HTTPAdapter, Retry
 
+
+def json_to_dict(json_str: str or dict) -> dict:
+    if isinstance(json_str, str):
+        return json.loads(json_str)
+    else:
+        return json_str
 
 def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> requests.Response or None:
     logging.info(f'post {data_json} to url {full_url}')
@@ -129,11 +136,38 @@ class QrmClient(object):
         more...
         }
         """
+        data_json = self.get_token_from_seed_or_str(data_json)
         _resp = self._new_request(data_json=data_json)
         resp_json = _resp.json()
-        resp_data = json.loads(resp_json)
+        resp_data = json_to_dict(resp_json)
         self.valid_new_request(resp_data)
         return resp_data
+
+    def get_token_from_seed_or_str(self, data_json: str or dict, *args, **kwargs) -> dict:  # #type:  None:
+        """
+        # check if token is valid or not, if not, get new token
+        :param data_json:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+
+        def get_dict_from_input_data(data_json: str or dict) -> dict:
+            if isinstance(data_json, str):
+                data_json = json.loads(data_json)
+                return data_json
+            else:
+                return data_json
+
+        data_json = get_dict_from_input_data(data_json)
+        is_valid = is_token_format(data_json.get('token'))
+        if not is_valid:
+            new_toekn = generate_token_from_seed(seed=data_json.get('token'))
+            data_json['token'] = new_toekn
+            return data_json
+        else:
+            return data_json
+
 
     def _get_token_status(self, token: str, *args, **kwargs):  # #type:  requests.Response:
         full_url = self.full_url(URL_GET_TOKEN_STATUS)

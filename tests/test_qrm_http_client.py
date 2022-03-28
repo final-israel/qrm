@@ -5,6 +5,8 @@ from qrm_client.qrm_http_client import QrmClient
 from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ACTIVE_STATUS, PENDING_STATUS
 
 
+
+
 def test_qrm_http_client_get_root_url_debug(qrm_http_client_with_server_mock_debug_prints: QrmClient):
     resp = qrm_http_client_with_server_mock_debug_prints.get_root_url()
     assert resp.status_code == 200
@@ -33,9 +35,12 @@ def test_qrm_http_client__new_request(qrm_http_client_with_server_mock, default_
     rr.token = default_test_token
     resp = qrm_http_client_with_server_mock._new_request(data_json=rr.as_json())
     resp_json = resp.json()
-    resp_data = json.loads(resp_json)
+    if isinstance(resp_json, str):
+        resp_data = json.loads(resp_json)
+    else:
+        resp_data = resp_json
     assert resp.status_code == 200
-    assert resp_data.get('token') == default_test_token
+    assert default_test_token in resp_data.get('token')
 
 
 def test_qrm_http_client_new_request(qrm_http_client_with_server_mock, default_test_token):
@@ -43,7 +48,7 @@ def test_qrm_http_client_new_request(qrm_http_client_with_server_mock, default_t
     rr = ResourcesRequest()
     rr.token = default_test_token
     result = qrm_http_client_with_server_mock.new_request(data_json=rr.as_json())
-    assert result.get('token') == default_test_token
+    assert default_test_token in result.get('token')
 
 
 def test_qrm_http_client__get_token_status(qrm_http_client_with_server_mock, default_test_token):
