@@ -351,7 +351,7 @@ class QueueManagerBackEnd(QrmIfc):
         await self.convert_tags_to_names(resources_request)
 
         if not await self.validate_new_request(resources_request):
-            return ResourcesRequestResponse()
+            return ResourcesRequestResponse(is_valid=False)
 
         if resources_request.names:
             result = await self.handle_names_request(all_resources_dict, resources_request, requested_token,
@@ -380,6 +380,8 @@ class QueueManagerBackEnd(QrmIfc):
         """
         for rbt in resources_req.tags:
             resources_names = await self.redis.get_resources_names_by_tags(rbt.tags)
+            if not resources_names:  # no matched resources for tag
+                return []
             resources_req.add_request_by_names(names=resources_names, count=rbt.count)
 
     async def reorder_names_request(self, old_token: str, resources_by_name: List[ResourcesByName],
@@ -473,7 +475,7 @@ class QueueManagerBackEnd(QrmIfc):
         all_validations = list()
         msg = ''
         all_validations.extend([
-            await self.validate_enough_resources(resources_request)
+            await self.validate_enough_resources(resources_request),
         ])
         for ret in all_validations:
             if ret != '':
@@ -511,7 +513,9 @@ class QueueManagerBackEnd(QrmIfc):
 
     @staticmethod
     def validate_request_not_empty(resource_request: ResourcesRequest) -> str:
-        if not resource_request.names and not resource_request.tags:
+        if resource_request.tags and not resource_request.names:  # this means that tags didn't matched any resources
+            return f'no matched resources for tags: {resource_request.tags}'
+        if not resource_request.names:
             return 'request doesn\'t contains names and tags'''
         return ''
 

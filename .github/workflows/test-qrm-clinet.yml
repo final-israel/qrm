@@ -27,12 +27,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt install -y redis-server
-        python -m pip install --upgrade pip
-        pip install flake8 pytest
-        if [ -f qrm_client/requirements.txt ]; then pip install -r qrm_client/requirements.txt; fi
-        if [ -f qrm_server/requirements.txt ]; then pip install -r qrm_server/requirements.txt; fi
-        if [ -f test_requirements.txt ]; then pip install -r test_requirements.txt; fi
-        if [ -f env_requirements.txt ]; then pip install -r env_requirements.txt; fi
+        make -f Makefile_qrmserver install_py_req
         sudo service redis-server stop
     - name: Lint with flake8
       run: |
