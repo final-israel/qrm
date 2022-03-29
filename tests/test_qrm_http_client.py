@@ -2,7 +2,8 @@ import json
 
 from qrm_server import qrm_http_server
 from qrm_client.qrm_http_client import QrmClient
-from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ACTIVE_STATUS, PENDING_STATUS
+from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ACTIVE_STATUS, PENDING_STATUS, \
+    generate_token_from_seed, json_to_dict
 
 
 
@@ -29,7 +30,7 @@ def test_qrm_http_client_send_cancel(qrm_http_client_with_server_mock, default_t
     assert resp
 
 
-def test_qrm_http_client__new_request(qrm_http_client_with_server_mock, default_test_token):
+def test_qrm_http_client__new_request_with_seed(qrm_http_client_with_server_mock, default_test_token):
     qrm_http_client_with_server_mock.token = default_test_token
     rr = ResourcesRequest()
     rr.token = default_test_token
@@ -43,7 +44,7 @@ def test_qrm_http_client__new_request(qrm_http_client_with_server_mock, default_
     assert default_test_token in resp_data.get('token')
 
 
-def test_qrm_http_client_new_request(qrm_http_client_with_server_mock, default_test_token):
+def test_qrm_http_client_new_request_with_seed(qrm_http_client_with_server_mock, default_test_token):
     qrm_http_client_with_server_mock.token = default_test_token
     rr = ResourcesRequest()
     rr.token = default_test_token
