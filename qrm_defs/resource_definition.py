@@ -12,6 +12,12 @@ ALLOWED_SERVER_STATUSES = [ACTIVE_STATUS, DISABLED_STATUS, PENDING_STATUS]
 DATE_FMT = '%Y_%m_%d_%H_%M_%S'
 RESOURCES_REQUEST_RESPONSE_VERSION = 1
 
+def json_to_dict(json_str: str or dict) -> dict:
+    if isinstance(json_str, str):
+        return json.loads(json_str)
+    else:
+        return json_str
+
 
 def resource_from_json(resource_as_json: json):
     return Resource(**json.loads(resource_as_json))
@@ -39,9 +45,10 @@ def is_token_format(token: str) -> bool:
         return False
 
 
-def resource_request_from_json(resource_req_as_json: json):  # type:  ResourcesRequest
+def resource_request_from_json(resource_req_as_json: str):  # type:  ResourcesRequest
+
     res_req = ResourcesRequest()
-    res_dict = json.loads(resource_req_as_json)
+    res_dict = json_to_dict(resource_req_as_json)
     res_req.add_request_by_token(res_dict.get('token'))
     for name_req in res_dict['names']:
         res_req.add_request_by_names(**name_req)

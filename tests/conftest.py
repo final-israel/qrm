@@ -4,7 +4,7 @@ import pytest
 import sys
 import qrm_server.qrm_http_server
 import qrm_defs.qrm_urls
-
+import json
 from aiohttp import web
 from pathlib import Path
 from db_adapters import redis_adapter
@@ -30,6 +30,12 @@ logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
 wait_for_test_call_times = 0
+
+def json_to_dict(json_str: str or dict) -> dict:
+    if isinstance(json_str, str):
+        return json.loads(json_str)
+    else:
+        return json_str
 
 
 # noinspection PyMethodMayBeStatic
@@ -76,13 +82,21 @@ def default_test_token() -> str:
 
 @pytest.fixture(scope='function')
 def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) -> HTTPServer:
+    def new_request_handler(request: Request):
+        req_json = request.json
+        req_json = json_to_dict(req_json)
+        rrr_obj = ResourcesRequestResponse(token=req_json['token'])
+        rrr_json = rrr_obj.as_json()
+        res = Response(rrr_json, status=200, content_type="application/json")
+        return res
+
     rrr_obj = ResourcesRequestResponse()
     rrr_obj.token = default_test_token
     rrr_json = rrr_obj.as_json()
     httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_GET_ROOT}').respond_with_data("1")
     httpserver.expect_request(
         f'{qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
-    httpserver.expect_request(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST).respond_with_json(rrr_json)
+    httpserver.expect_request(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST).respond_with_handler(new_request_handler)
     httpserver.expect_request(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS).respond_with_json(rrr_json)
     httpserver.expect_request(qrm_defs.qrm_urls.URL_GET_IS_SERVER_UP).respond_with_json({'status': True})
     return httpserver
