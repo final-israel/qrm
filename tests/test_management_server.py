@@ -1,3 +1,4 @@
+import asyncio
 import copy
 import json
 import pytest
@@ -87,7 +88,7 @@ async def test_status_resource_with_job(post_to_mgmt_server, redis_db_object, re
     resp_as_dict = await resp.json()
     assert resp.status == 200
     assert resp_as_dict['resources_status']['resource_1']['status'] == 'active'
-    assert resp_as_dict['resources_status']['resource_1']['jobs'] == [{'token': 1, 'user': 'foo'}, {}]
+    assert resp_as_dict['resources_status']['resource_1']['jobs'] == [{'token': 1, 'user': 'foo'}]
 
 
 async def test_status_qrm_server(post_to_mgmt_server, redis_db_object):
@@ -168,7 +169,7 @@ async def test_add_job_to_resource(post_to_mgmt_server, redis_db_object, resourc
     qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
     qrm_status_dict = await qrm_status.json()
     assert resp.status == 200
-    assert qrm_status_dict['resources_status']['resource_1']['jobs'] == [req_dict['job'], {}]
+    assert qrm_status_dict['resources_status']['resource_1']['jobs'] == [req_dict['job']]
 
 
 async def test_remove_job_from_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
@@ -180,13 +181,13 @@ async def test_remove_job_from_resource(post_to_mgmt_server, redis_db_object, re
     qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
     qrm_status_dict = await qrm_status.json()
     assert resp.status == 200
-    assert qrm_status_dict['resources_status']['resource_1']['jobs'] == [req_dict['job'], {}]
+    assert qrm_status_dict['resources_status']['resource_1']['jobs'] == [req_dict['job']]
     await post_to_mgmt_server.post(qrm_defs.qrm_urls.REMOVE_JOB,
                                    data=json.dumps({'token': '1', 'resources': ['resource_1']}))
     qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
     qrm_status_dict = await qrm_status.json()
     assert resp.status == 200
-    assert qrm_status_dict['resources_status']['resource_1']['jobs'] == [{}]
+    assert qrm_status_dict['resources_status']['resource_1']['jobs'] == []
 
 
 async def test_add_existing_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
@@ -221,6 +222,6 @@ async def test_basic_token_grouping(post_to_mgmt_server, redis_db_object, resour
     qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
     qrm_status_dict = await qrm_status.json()
     assert qrm_status.status == 200
-    assert {res1_with_token['name']: res1_with_token['type']} in qrm_status_dict['tokens_resources_group']['token1']
-    assert {res2_with_token['name']: res2_with_token['type']} in qrm_status_dict['tokens_resources_group']['token1']
-    assert [{res3_with_token['name']: res3_with_token['type']}] == qrm_status_dict['tokens_resources_group']['token2']
+    assert res1_with_token['name'] in qrm_status_dict['tokens_resources_group']['token1'][res1_with_token['type']]
+    assert res2_with_token['name'] in qrm_status_dict['tokens_resources_group']['token1'][res2_with_token['type']]
+    assert res3_with_token['name'] in qrm_status_dict['tokens_resources_group']['token2'][res3_with_token['type']]

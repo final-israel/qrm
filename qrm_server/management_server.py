@@ -96,23 +96,31 @@ async def build_status_dict():
                 # resource_1:
                 #   {
                 #       status: str,
+                #       active_job: token1
                 #       jobs: [
-                #           {},
-                #           {}
+                #           {}, # first in queue
+                #           {}  # last in queue
                 #       ]
                 #   }
             },
         'tokens_resources_group':
             {
-                # token1: [{resource1: type1}, {resource2: type2}, ...],
+                # token1: {
+                #   type1: [res1, res2],
+                #   type2: [res3]
+                #   }
                 # token2: ...
             }
     }
 
     for resource in await redis.get_all_resources():
+        jobs = await redis.get_resource_jobs(resource)
+        jobs.remove({})
+        jobs.reverse()
         status_dict['resources_status'][resource.name] = {}
         status_dict['resources_status'][resource.name]['status'] = await redis.get_resource_status(resource)
-        status_dict['resources_status'][resource.name]['jobs'] = await redis.get_resource_jobs(resource)
+        status_dict['resources_status'][resource.name]['active_job'] = await redis.get_active_job(resource)
+        status_dict['resources_status'][resource.name]['jobs'] = jobs
         status_dict['resources_status'][resource.name]['tags'] = resource.tags
         add_resource_to_token_list(resource, status_dict)
     return status_dict
@@ -121,10 +129,14 @@ async def build_status_dict():
 def add_resource_to_token_list(resource, status_dict):
     if resource.token != '':
         try:
-            status_dict['tokens_resources_group'][resource.token].append({resource.name: resource.type})
-        except KeyError as e:  # first time this token appears
-            status_dict['tokens_resources_group'][resource.token] = []
-            status_dict['tokens_resources_group'][resource.token].append({resource.name: resource.type})
+            status_dict['tokens_resources_group'][resource.token]
+        except KeyError as e:
+            status_dict['tokens_resources_group'][resource.token] = {}
+        try:
+            status_dict['tokens_resources_group'][resource.token][resource.type]
+        except KeyError as e:
+            status_dict['tokens_resources_group'][resource.token][resource.type] = []
+        status_dict['tokens_resources_group'][resource.token][resource.type].append(resource.name)
 
 
 async def remove_job(request):
