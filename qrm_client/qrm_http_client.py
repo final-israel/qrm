@@ -18,6 +18,7 @@ def json_to_dict(json_str: str or dict) -> dict:
 
 def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> requests.Response or None:
     logging.info(f'post {data_json} to url {full_url}')
+    data_json = json_to_dict(data_json)
     try:
         _resp = requests.post(url=full_url, json=data_json)
     except Exception as e:
