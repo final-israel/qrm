@@ -415,7 +415,6 @@ def test_new_unknown_token(qrm_client):
     rrr = ResourcesRequestResponse(**rrr_json)
     assert not rrr.is_valid
     assert not rrr.is_token_active_in_queue
-    assert not rrr.request_complete
 
 
 @pytest.mark.skip

@@ -462,6 +462,8 @@ class QueueManagerBackEnd(QrmIfc):
         # if the request is not totally filled, you will get the current partial fill.
         # in case you want only totally filled, first check is_request_active method
         rrr = await self.redis.get_req_resp_for_token(token)
+        if not rrr.names:
+            return rrr
         for resource_name in rrr.names:
             resource = await self.redis.get_resource_by_name(resource_name)
             res_job = await self.redis.get_active_job(resource)
