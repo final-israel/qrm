@@ -1,7 +1,8 @@
 import pytest
 import time
 
-from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, PENDING_STATUS, ACTIVE_STATUS
+from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, PENDING_STATUS, ACTIVE_STATUS, \
+    ResourcesRequestResponse
 
 
 def test_http_server_and_client_get_root_url(qrm_client, redis_db_object):
@@ -407,6 +408,14 @@ def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, m
     assert resp.get('request_complete')
     assert len(resp.get('names')) == 1
     assert 'r1' or 'r2' in resp.get('names')
+
+
+def test_new_unknown_token(qrm_client):
+    rrr_json = qrm_client.get_token_status('unknown_token')
+    rrr = ResourcesRequestResponse(**rrr_json)
+    assert not rrr.is_valid
+    assert not rrr.is_token_active_in_queue
+    assert not rrr.request_complete
 
 
 @pytest.mark.skip

@@ -41,7 +41,7 @@ def json_to_dict(json_str: str or dict) -> dict:
 # noinspection PyMethodMayBeStatic
 class QueueManagerBackEndMock(QrmIfc):
     for_test_is_request_active: bool = False
-    get_filled_request_obj: ResourcesRequestResponse
+    get_filled_request_obj: ResourcesRequestResponse = ResourcesRequestResponse()
 
     async def cancel_request(self, token: str) -> None:
         print('#######  using cancel_request in QueueManagerBackEndMock ####### ')
