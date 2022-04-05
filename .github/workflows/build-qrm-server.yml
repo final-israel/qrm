@@ -16,8 +16,8 @@ jobs:
   run_tests:
     uses: ./.github/workflows/test-server-and-client.yml
 
-  coverage:
-    uses: ./.github/workflows/coverage-report.yml
+  #coverage:
+  #  uses: ./.github/workflows/coverage-report.yml
 
   docker:
     needs: [run_tests, coverage]
