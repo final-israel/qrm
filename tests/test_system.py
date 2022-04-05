@@ -417,6 +417,25 @@ def test_new_unknown_token(qrm_client):
     assert not rrr.is_token_active_in_queue
 
 
+def test_new_req_existing_token_with_active_req_in_queue(qrm_client):
+    rr = ResourcesRequest()
+    rr.token = 'token1'
+    rbs = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbs)
+    resp = qrm_client.new_request(rr.as_json())
+    new_token1 = resp.get('token')
+
+    # send new request, active in queue:
+    rr.token = 'token2'
+    resp = qrm_client.new_request(rr.as_json())
+    new_token2 = resp.get('token')
+
+    # send again same request as request 2:
+    rr.token = new_token2
+    resp = qrm_client.new_request(rr.as_json())
+    assert new_token2 == resp.get('token')
+
+
 @pytest.mark.skip
 async def test_basic_recovery(mgmt_client_pending, redis_db_object):
     # send new request -> pending

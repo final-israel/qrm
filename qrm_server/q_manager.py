@@ -340,6 +340,12 @@ class QueueManagerBackEnd(QrmIfc):
             )
             return await self.handle_token_request_for_valid_token(requested_token, resources_token_list)
 
+        if await self.is_request_active(token=resources_request.token):
+            return ResourcesRequestResponse(
+                token=resources_request.token,
+                message='request in progress'
+            )
+
         active_token = generate_token_from_seed(requested_token)
         resources_request.token = active_token
         await self.redis.set_active_token_for_user_token(
