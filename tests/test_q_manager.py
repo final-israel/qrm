@@ -908,6 +908,34 @@ async def test_new_req_same_req_waiting_get_active_token(redis_db_object, qrm_ba
     assert new_token_2 == await qrm_backend_with_db.get_new_token(new_token_2)
 
 
+@pytest.mark.asyncio
+async def test_new_req_on_cancelled_token(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    job2 = {'token': 'job_2_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+
+    # send new request:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    await qrm_backend_with_db.new_request(user_request)
+    new_token_1 = await qrm_backend_with_db.get_new_token(token=job1['token'])
+
+    # send new request (different token) -> waiting in queue:
+    user_request.add_request_by_token(token=job2['token'])
+    asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    new_token_2 = await qrm_backend_with_db.get_new_token(job2['token'])
+
+    # cancel token_2:
+    await qrm_backend_with_db.cancel_request(new_token_2)
+
+    # verify token_2 is no longer valid:
+    rrr = await qrm_backend_with_db.get_resource_req_resp(new_token_2)
+    assert not rrr.is_valid
+    assert rrr.token == new_token_2
+
+
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
                                                  redis, token_job_2: str):
     await asyncio.sleep(timeout_sec)

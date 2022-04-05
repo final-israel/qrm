@@ -259,6 +259,11 @@ class QueueManagerBackEnd(QrmIfc):
         :return: None, just remove the request and handle resources cleanup (pending)
         """
 
+        rrr = await self.redis.get_req_resp_for_token(token)
+        if not rrr.is_token_active_in_queue:
+            rrr.is_valid = False
+            await self.redis.set_req_resp(rrr)
+
         if self.use_pending_logic:
             await self.move_resources_to_pending(token, reason_cancel=True)
 
