@@ -345,6 +345,7 @@ class QueueManagerBackEnd(QrmIfc):
                 user_token=resources_request.token,
                 active_token=resources_request.token
             )
+
             return ResourcesRequestResponse(
                 token=resources_request.token,
                 message='request in progress'
