@@ -20,7 +20,7 @@ jobs:
   #  uses: ./.github/workflows/coverage-report.yml
 
   docker:
-    needs: [run_tests, coverage]
+    needs: [run_tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
