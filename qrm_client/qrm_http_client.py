@@ -248,15 +248,19 @@ class ManagementClient(object):
 
     # noinspection HttpUrlsUsage
     def get_resource_status(self, resource_name: str):  # #type:  str:
-        full_url = f'http://{self.server_ip}:{self.server_port}{MGMT_STATUS_API}'
-        _resp = get_from_url(full_url=full_url)
-        status_dict = _resp.json()
+        status_dict = self.get_status_api()
         res_status = status_dict.get('resources_status').get(resource_name).get('status')
         if not res_status:
             logging.error(f'can\'t find status for resource {resource_name}')
             return ''
         logging.info(f'resource {resource_name} is in status {res_status}')
         return res_status
+
+    def get_status_api(self) -> dict:  # #type:  dict:
+        full_url = f'http://{self.server_ip}:{self.server_port}{MGMT_STATUS_API}'
+        _resp = get_from_url(full_url=full_url)
+        status_dict = _resp.json()
+        return status_dict
 
     # noinspection HttpUrlsUsage
     def set_resource_status(self, resource_name, resource_status):  # #type:  requests.Response:

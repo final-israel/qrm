@@ -6,8 +6,6 @@ from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ACTI
     generate_token_from_seed, json_to_dict
 
 
-
-
 def test_qrm_http_client_get_root_url_debug(qrm_http_client_with_server_mock_debug_prints: QrmClient):
     resp = qrm_http_client_with_server_mock_debug_prints.get_root_url()
     assert resp.status_code == 200
@@ -104,10 +102,26 @@ def test_qrm_http_client_send_cancel_get_bad_response_400(qrm_server_mock_for_cl
 
 def test_mgmt_client_get_resource_status(mgmt_client, qrm_http_client_with_server_mock):
     qrm_http_client_with_server_mock.wait_for_server_up()
-
     # r1 starts with active status:
     r1_status = mgmt_client.get_resource_status('r1')
     assert r1_status == ACTIVE_STATUS
+
+
+def test_mgmt_client_get_all_resources_status(mgmt_client, qrm_http_client_with_server_mock):
+    qrm_http_client_with_server_mock.wait_for_server_up()
+    all_resourses_status_dict = mgmt_client.get_status_api()
+    assert all_resourses_status_dict.get('resources_status')
+    assert all_resourses_status_dict.get('resources_status').get('r1').get('status') == ACTIVE_STATUS
+
+
+def test_mgmt_client_get_all_resources_with_status_panding(mgmt_client, qrm_http_client_with_server_mock):
+    qrm_http_client_with_server_mock.wait_for_server_up()
+    mgmt_client.set_resource_status('r1', PENDING_STATUS)
+    mgmt_client.set_resource_status('r2', PENDING_STATUS)
+    all_resourses_status_dict = mgmt_client.get_status_api()
+    assert all_resourses_status_dict.get('resources_status')
+    assert PENDING_STATUS == all_resourses_status_dict.get('resources_status').get('r1').get('status')
+    assert PENDING_STATUS == all_resourses_status_dict.get('resources_status').get('r2').get('status')
 
 
 def test_mgmt_client_set_resource_status(mgmt_client, qrm_http_client_with_server_mock):
