@@ -187,6 +187,11 @@ class RedisDB(QrmBaseDB):
         resource_obj = resource_definition.resource_from_json(resource_json)
         return resource_obj.status
 
+    async def get_resource_type(self, resource: Resource) -> str:
+        resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
+        resource_obj = resource_definition.resource_from_json(resource_json)
+        return resource_obj.type
+
     async def add_job_to_resource(self, resource: Resource, job: dict) -> bool:
         return await self.redis.lpush(resource.db_name(), json.dumps(job))
 

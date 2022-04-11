@@ -96,6 +96,7 @@ async def build_status_dict():
                 # resource_1:
                 #   {
                 #       status: str,
+                #       type: str
                 #       active_job: token1
                 #       jobs: [
                 #           {}, # first in queue
@@ -119,6 +120,7 @@ async def build_status_dict():
         jobs.reverse()
         status_dict['resources_status'][resource.name] = {}
         status_dict['resources_status'][resource.name]['status'] = await redis.get_resource_status(resource)
+        status_dict['resources_status'][resource.name]['type'] = await redis.get_resource_type(resource)
         status_dict['resources_status'][resource.name]['active_job'] = await redis.get_active_job(resource)
         status_dict['resources_status'][resource.name]['jobs'] = jobs
         status_dict['resources_status'][resource.name]['tags'] = resource.tags

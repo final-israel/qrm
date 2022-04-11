@@ -37,6 +37,10 @@ class QrmBaseDB(ABC):
         pass
 
     @abstractmethod
+    async def get_resource_type(self, resource: Resource) -> str:
+        pass
+
+    @abstractmethod
     async def add_job_to_resource(self, resource: Resource, job: dict) -> bool:
         pass
 
