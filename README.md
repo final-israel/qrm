@@ -40,6 +40,18 @@ Remove job from resources:
 curl --header "Content-Type: application/json" --request POST --data '{"token": 1, "resources": ["resource_1"]}'  http://localhost:8080/remove_job
 ```
 
+Add tag to resource:
+
+```bash
+curl --header "Content-Type: application/json" --request POST --data '{"resource_name": "resource_1", "tag": "foo"}'  http://localhost:8080/add_tag_to_resource
+```
+
+Remove tag from resource:
+
+```bash
+curl --header "Content-Type: application/json" --request POST --data '{"resource_name": "resource_1", "tag": "foo"}'  http://localhost:8080/remove_tag_from_resource
+```
+
 
 Set server status (control the global qrm state):
 
