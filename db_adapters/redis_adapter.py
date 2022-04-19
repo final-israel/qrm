@@ -120,7 +120,7 @@ class RedisDB(QrmBaseDB):
                 return False
         await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
         await self.redis.rpush(resource.db_name(), json.dumps({}))
-        await self.add_tags_for_resource(resource)
+        await self.add_tags_to_map(resource)
         await self.init_event_for_resource(resource)
         return True
 
@@ -392,11 +392,40 @@ class RedisDB(QrmBaseDB):
                 ret_list.extend(json.loads(resources_names_json))
         return list(set(ret_list))  # find unique resources names
 
-    async def add_tags_for_resource(self, resource: Resource) -> None:
+    async def add_tag_to_resource(self, resource: Resource, tag: str) -> bool:
+        if tag not in resource.tags:
+            resource.tags.append(tag)
+            await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
+            await self.add_tags_to_map(resource)
+            return True
+        else:
+            return False
+
+    async def remove_tag_from_resource(self, resource: Resource, tag: str) -> bool:
+        if tag in resource.tags:
+            resource.tags.remove(tag)
+            await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
+            await self.remove_tags_from_map(resource, tag)
+            return True
+        else:
+            return False
+
+    async def remove_tags_from_map(self, resource: Resource, tag: str) -> None:
+        tags_res_name_map = await self.redis.hget(TAGS_RES_NAME_MAP, tag)
+        if tags_res_name_map:
+            tags_res_name_list = json.loads(tags_res_name_map)
+            try:
+                tags_res_name_list.remove(resource.name)
+                await self.redis.hset(TAGS_RES_NAME_MAP, tag, json.dumps(tags_res_name_list))
+            except ValueError:
+                pass
+
+    async def add_tags_to_map(self, resource: Resource) -> None:
         for tag in resource.tags:
             resources_for_tag = await self.get_resources_names_by_tags([tag])
-            resources_for_tag.append(resource.name)
-            await self.redis.hset(TAGS_RES_NAME_MAP, tag, json.dumps(resources_for_tag))
+            if resource.name not in resources_for_tag:
+                resources_for_tag.append(resource.name)
+                await self.redis.hset(TAGS_RES_NAME_MAP, tag, json.dumps(resources_for_tag))
 
     async def close(self) -> None:
         self.is_running = False

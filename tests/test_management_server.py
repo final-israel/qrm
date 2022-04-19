@@ -225,3 +225,60 @@ async def test_basic_token_grouping(post_to_mgmt_server, redis_db_object, resour
     assert res1_with_token['name'] in qrm_status_dict['tokens_resources_group']['token1'][res1_with_token['type']]
     assert res2_with_token['name'] in qrm_status_dict['tokens_resources_group']['token1'][res2_with_token['type']]
     assert res3_with_token['name'] in qrm_status_dict['tokens_resources_group']['token2'][res3_with_token['type']]
+
+
+async def test_add_resource_with_token_and_no_type(post_to_mgmt_server, redis_db_object, resource_dict_1):
+    res1_with_token = copy.deepcopy(resource_dict_1)
+    res1_with_token['token'] = 'token1'
+    res1_with_token['type'] = None
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_RESOURCES, data=json.dumps([res1_with_token]))
+    assert resp.status == 200
+    assert 'added the following resources' in await resp.text()
+
+
+async def test_add_tag_to_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_RESOURCES, data=json.dumps([resource_dict_1]))
+    assert resp.status == 200
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_TAG_TO_RESOURCE,
+                                          data=json.dumps({'resource_name': resource_dict_1.get('name'),
+                                                           'tag': 'tag1'}))
+    assert resp.status == 200
+    qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
+    qrm_status_dict = await qrm_status.json()
+    assert resp.status == 200
+    assert qrm_status_dict['resources_status']['resource_1']['tags'] == ['tag1']
+
+
+async def test_add_tag_to_resource_with_no_resource(post_to_mgmt_server, redis_db_object):
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_TAG_TO_RESOURCE,
+                                          data=json.dumps({'resource_name': 'resource_1',
+                                                           'tag': 'tag1'}))
+    assert resp.status == 400
+    assert await resp.text() == 'Error: resource resource_1 does not exist\n'
+
+
+async def test_add_tag_to_resource_with_no_tag(post_to_mgmt_server, redis_db_object, resource_dict_1):
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_RESOURCES, data=json.dumps([resource_dict_1]))
+    assert resp.status == 200
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_TAG_TO_RESOURCE,
+                                          data=json.dumps({'resource_name': resource_dict_1.get('name'),
+                                                           'tag': None}))
+    assert resp.status == 400
+    assert await resp.text() == 'Error: tag is not specified\n'
+
+
+async def test_remove_tag_from_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
+    await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_RESOURCES, data=json.dumps([resource_dict_1]))
+
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_TAG_TO_RESOURCE,
+                                          data=json.dumps({'resource_name': resource_dict_1.get('name'),
+                                                           'tag': 'tag1'}))
+    assert resp.status == 200
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.REMOVE_TAG_FROM_RESOURCE,
+                                          data=json.dumps({'resource_name': resource_dict_1.get('name'),
+                                                           'tag': 'tag1'}))
+    assert resp.status == 200
+    qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
+    qrm_status_dict = await qrm_status.json()
+    assert resp.status == 200
+    assert qrm_status_dict['resources_status']['resource_1']['tags'] == []

@@ -12,6 +12,7 @@ ALLOWED_SERVER_STATUSES = [ACTIVE_STATUS, DISABLED_STATUS, PENDING_STATUS]
 DATE_FMT = '%Y_%m_%d_%H_%M_%S'
 RESOURCES_REQUEST_RESPONSE_VERSION = 1
 
+
 def json_to_dict(json_str: str or dict) -> dict:
     if isinstance(json_str, str):
         return json.loads(json_str)

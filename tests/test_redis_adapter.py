@@ -474,3 +474,24 @@ async def test_get_res_by_multi_tags(redis_db_object):
     assert [res_1.name] not in await redis_db_object.get_resources_names_by_tags(['high_perf'])
     assert [res_3.name] == await redis_db_object.get_resources_names_by_tags(['vlan'])
 
+
+@pytest.mark.asyncio
+async def test_remove_tag_from_resource(redis_db_object):
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server', 'high_perf'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.remove_tag_from_resource(res_1, 'high_perf')
+    resource = await redis_db_object.get_resource_by_name(res_1.name)
+    assert resource.tags == ['server']
+    high_perf_res = await redis_db_object.get_resources_names_by_tags(['high_perf'])
+    assert [] == high_perf_res
+
+
+@pytest.mark.asyncio
+async def test_add_tag_to_resource(redis_db_object):
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server', 'high_perf'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_tag_to_resource(res_1, 'low_perf')
+    resource = await redis_db_object.get_resource_by_name(res_1.name)
+    assert resource.tags == ['server', 'high_perf', 'low_perf']
+    low_perf_res = await redis_db_object.get_resources_names_by_tags(['low_perf'])
+    assert [res_1.name] == low_perf_res

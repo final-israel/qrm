@@ -219,6 +219,8 @@ def post_to_mgmt_server(event_loop, aiohttp_client):
     app.router.add_post(qrm_defs.qrm_urls.SET_RESOURCE_STATUS, management_server.set_resource_status)
     app.router.add_post(qrm_defs.qrm_urls.ADD_JOB_TO_RESOURCE, management_server.add_job_to_resource)
     app.router.add_post(qrm_defs.qrm_urls.REMOVE_JOB, management_server.remove_job)
+    app.router.add_post(qrm_defs.qrm_urls.ADD_TAG_TO_RESOURCE, management_server.add_tag_to_resource)
+    app.router.add_post(qrm_defs.qrm_urls.REMOVE_TAG_FROM_RESOURCE, management_server.remove_tag_from_resource)
     app.on_shutdown.append(management_server.close_redis)
     yield event_loop.run_until_complete(aiohttp_client(app))
 
