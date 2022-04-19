@@ -151,3 +151,11 @@ class QrmBaseDB(ABC):
     @abstractmethod
     async def get_resources_names_by_tags(self, tags: List[str]) -> List[str]:
         pass
+
+    @abstractmethod
+    async def add_tag_to_resource(self, resource: Resource, tag: str) -> bool:
+        pass
+
+    @abstractmethod
+    async def remove_tag_from_resource(self, resource: Resource, tag: str) -> bool:
+        pass
