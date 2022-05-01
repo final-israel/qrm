@@ -227,6 +227,8 @@ class QueueManagerBackEnd(QrmIfc):
             if active_job.get('token') == token and \
                     resource.status != DISABLED_STATUS \
                     and resources_list_request.count > 0:
+                if resource.token:
+                    await self.cancel_request(resource.token)
                 await self.redis.partial_fill_request(token, resource)
                 matched_resources.append(resource_name)
                 resources_list_request.count -= 1

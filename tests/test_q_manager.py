@@ -579,7 +579,7 @@ async def test_new_move_to_pending_state(redis_db_object, qrm_backend_with_db):
 
     job1 = {'token': 'job_1_token'}
     res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, token='old_token')
-    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, token=job1['token'])
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, token='old_token')
     await redis_db_object.add_resource(res_1)
     await redis_db_object.add_resource(res_2)
 
@@ -590,9 +590,48 @@ async def test_new_move_to_pending_state(redis_db_object, qrm_backend_with_db):
     task = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
     await qrm_backend_with_db.get_new_token(job1['token'])
 
-    # since res_1 has different token than the requested token, it should be move to PENDING state:
+    # since res_1 and res_2 has different token than the requested token, it should be move to PENDING state:
     assert await redis_db_object.get_resource_status(res_1) == PENDING_STATUS
+    assert await redis_db_object.get_resource_status(res_2) == PENDING_STATUS
+
     await cancel_all_open_tasks([task])
+
+
+@pytest.mark.asyncio
+async def test_new_move_to_pending_state_all_token_resources(redis_db_object, qrm_backend_with_db):
+    # use the pending logic:
+    qrm_backend_with_db.use_pending_logic = True
+
+    job1 = {'token': 'job_1_token'}
+    job2 = {'token': 'job_2_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, token='old_token')
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, token='old_token')
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    # add job1 to res_1 queue and res_2 queue:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_names([res_1.name, res_2.name], count=2)
+    task = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    new_token_job_1 = await qrm_backend_with_db.get_new_token(job1['token'])
+
+    await redis_db_object.set_resource_status(res_1, ACTIVE_STATUS)
+    await redis_db_object.set_resource_status(res_2, ACTIVE_STATUS)
+
+    # cancel the token and send another request with new token only for one resource,
+    # both resources should move to pending:
+    await qrm_backend_with_db.cancel_request(new_token_job_1)
+
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job2["token"])
+    user_request.add_request_by_names([res_1.name], count=1)
+    task = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+
+    new_token_job_2 = await qrm_backend_with_db.get_new_token(job2['token'])
+
+    assert await redis_db_object.get_resource_status(res_1) == PENDING_STATUS
+    assert await redis_db_object.get_resource_status(res_2) == PENDING_STATUS
 
 
 @pytest.mark.asyncio
