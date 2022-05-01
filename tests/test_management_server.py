@@ -161,35 +161,6 @@ async def test_set_resource_status_missing_key(post_to_mgmt_server, redis_db_obj
     assert await resp.text() == f'Error: must specify both status and resource_name in your request: {req_dict}\n'
 
 
-async def test_add_job_to_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
-    await redis_db_object.add_resource(Resource(**resource_dict_1))
-    req_dict = {'resource_name': 'resource_1', 'job': {'token': '1', 'job_name': 'foo'}}
-    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_JOB_TO_RESOURCE,
-                                          data=json.dumps(req_dict))
-    qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
-    qrm_status_dict = await qrm_status.json()
-    assert resp.status == 200
-    assert qrm_status_dict['resources_status']['resource_1']['jobs'] == [req_dict['job']]
-
-
-async def test_remove_job_from_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
-    await redis_db_object.add_resource(Resource(**resource_dict_1))
-    req_dict = {'resource_name': 'resource_1', 'job': {'token': '1', 'job_name': 'foo'}}
-    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_JOB_TO_RESOURCE,
-                                          data=json.dumps(req_dict))
-    assert resp.status == 200
-    qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
-    qrm_status_dict = await qrm_status.json()
-    assert resp.status == 200
-    assert qrm_status_dict['resources_status']['resource_1']['jobs'] == [req_dict['job']]
-    await post_to_mgmt_server.post(qrm_defs.qrm_urls.REMOVE_JOB,
-                                   data=json.dumps({'token': '1', 'resources': ['resource_1']}))
-    qrm_status = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
-    qrm_status_dict = await qrm_status.json()
-    assert resp.status == 200
-    assert qrm_status_dict['resources_status']['resource_1']['jobs'] == []
-
-
 async def test_add_existing_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
     resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_RESOURCES, data=json.dumps([resource_dict_1]))
     assert resp.status == 200

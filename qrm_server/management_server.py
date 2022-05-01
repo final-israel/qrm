@@ -4,8 +4,8 @@ import logging
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
-from qrm_defs.qrm_urls import REMOVE_JOB, MGMT_STATUS_API, SET_SERVER_STATUS, REMOVE_RESOURCES, ADD_RESOURCES, \
-    SET_RESOURCE_STATUS, ADD_JOB_TO_RESOURCE, ADD_TAG_TO_RESOURCE, REMOVE_TAG_FROM_RESOURCE
+from qrm_defs.qrm_urls import MGMT_STATUS_API, SET_SERVER_STATUS, REMOVE_RESOURCES, ADD_RESOURCES, \
+    SET_RESOURCE_STATUS, ADD_TAG_TO_RESOURCE, REMOVE_TAG_FROM_RESOURCE
 from qrm_defs.resource_definition import Resource
 from pathlib import Path
 LISTEN_PORT = 8080
@@ -141,25 +141,6 @@ def add_resource_to_token_list(resource, status_dict):
         status_dict['tokens_resources_group'][resource.token][resource.type].append(resource.name)
 
 
-async def remove_job(request):
-    # remove the requested job from the tasks queue
-    global redis
-    req_dict = await request.json()
-    try:
-        token = req_dict['token']
-        resources_list = req_dict.get('resources')
-        all_resources_dict = await redis.get_all_resources_dict()
-        resources_list_obj = []
-        for resource_name in resources_list:
-            resource = all_resources_dict.get(resource_name)
-            resources_list_obj.append(resource)
-        await redis.remove_job(token, resources_list_obj)
-        return web.Response(status=HTTPStatus.OK, text=f'removed job: {req_dict}\n')
-    except KeyError as e:
-        return web.Response(status=HTTPStatus.BAD_REQUEST,
-                            text=f'Error: "token" is a mandatory key: {req_dict}\n')
-
-
 async def set_resource_status(request):
     # to enable: {resource_name: str, status: 'active'}
     # to disable: {resource_name: str, status: 'disabled'}
@@ -183,24 +164,6 @@ async def set_resource_status(request):
     except KeyError as e:
         return web.Response(status=HTTPStatus.BAD_REQUEST,
                             text=f'Error: must specify both status and resource_name in your request: {req_dict}\n')
-
-
-async def add_job_to_resource(request):
-    global redis
-    req_dict = await request.json()
-    try:
-        resource_name = req_dict['resource_name']
-        all_resources_dict = await redis.get_all_resources_dict()
-        resource = all_resources_dict.get(resource_name)
-        job = req_dict['job']
-        if await redis.add_job_to_resource(resource=resource, job=job):
-            return web.Response(status=HTTPStatus.OK, text=f'added job: {job} to resource: {resource_name}\n')
-        else:
-            return web.Response(status=HTTPStatus.BAD_REQUEST,
-                                text=f'Error: resource {resource_name} does not exist or job is not dict: {job}\n')
-    except KeyError as e:
-        return web.Response(status=HTTPStatus.BAD_REQUEST,
-                            text=f'Error: must specify both job and resource_name in your request: {req_dict}\n')
 
 
 async def add_tag_to_resource(request):
@@ -278,9 +241,7 @@ def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT, path_to_l
                     web.post(f'{SET_SERVER_STATUS}', set_server_status),
                     web.get(f'{MGMT_STATUS_API}', status),
                     web.get(f'/', status),
-                    web.post(f'{REMOVE_JOB}', remove_job),
                     web.post(f'{SET_RESOURCE_STATUS}', set_resource_status),
-                    web.post(f'{ADD_JOB_TO_RESOURCE}', add_job_to_resource),
                     web.post(f'{ADD_TAG_TO_RESOURCE}', add_tag_to_resource),
                     web.post(f'{REMOVE_TAG_FROM_RESOURCE}', remove_tag_from_resource)])
     app.on_shutdown.append(close_redis)
