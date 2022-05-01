@@ -554,10 +554,18 @@ async def test_cancel_move_pending_status(redis_db_object, qrm_backend_with_db):
     # enforce waiting for new request to be active (got new token):
     await qrm_backend_with_db.get_new_token(job2["token"])
 
+    assert await redis_db_object.get_resource_status(res_1) == ACTIVE_STATUS
+    assert await redis_db_object.get_resource_status(res_2) == ACTIVE_STATUS
+
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    res_2_jobs = await redis_db_object.get_resource_jobs(res_2)
+
     # res_1: [job_2_token, job_1_token],  res_2: [job_1_token]
     # cancel the job, res_1 and res_2 should be in pending state since there is a job waiting in queue:
     active_token_job_1 = await qrm_backend_with_db.get_new_token(job1['token'])
     await qrm_backend_with_db.cancel_request(active_token_job_1)
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    res_2_jobs = await redis_db_object.get_resource_jobs(res_2)
     assert await redis_db_object.get_resource_status(res_1) == PENDING_STATUS
     assert await redis_db_object.get_resource_status(res_2) == PENDING_STATUS
 

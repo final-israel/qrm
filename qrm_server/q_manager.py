@@ -285,7 +285,7 @@ class QueueManagerBackEnd(QrmIfc):
 
     async def move_resources_to_pending(self, token: str, reason_cancel: bool) -> None:
         """
-        if the all queues are empty, doesn't move the resources to pending,
+        if all the queues are empty, doesn't move the resources to pending,
         else, move all token active resources to pending.
         :param token: request token
         :param reason_cancel: set True, if the resources should move to pending due to cancel
@@ -303,7 +303,7 @@ class QueueManagerBackEnd(QrmIfc):
                     logging.info(f'since {resource.name} has more than one job in queue, move '
                                  f'all token {token} to {PENDING_STATUS} state')
                     await self.move_all_token_resources_to_pending(token)
-                return
+                    return
             else:  # new request
                 await self.move_all_token_resources_to_pending(token)
 
