@@ -1,6 +1,9 @@
+import logging
+
 import pytest
 import time
 
+from typing import List
 from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, PENDING_STATUS, ACTIVE_STATUS, \
     ResourcesRequestResponse
 
@@ -204,6 +207,9 @@ def test_resource_block_on_pending(qrm_client_pending, default_test_token, mgmt_
     # resource active
     # send new request -> resource move to pending
     # send cancel -> resource is still pending
+
+    load_db_with_resources_and_token(qrm_client_pending, ['r1'])
+
     rr = ResourcesRequest()
     rr.token = default_test_token
     rbn = ResourcesByName(names=['r1'], count=1)
@@ -231,6 +237,9 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
     # send token_2 -> waiting in queue
     # cancel token_1 -> resource move to pending, token_2 still waiting in queue
     # move resource to active -> token_2 filled
+
+    load_db_with_resources_and_token(qrm_client_pending, ['r1'])
+
     rr = ResourcesRequest()
     rr.token = default_test_token
     rbn = ResourcesByName(names=['r1'], count=1)
@@ -238,11 +247,11 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
     # r1 is now with active job:
     resp = qrm_client_pending.new_request(rr.as_json())
     token_1 = resp.get('token')
-    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
+    assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS, timeout=2)
 
     # move r1 to active, token_1 filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
-    assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
+    assert wait_for_status(mgmt_client_pending, 'r1', ACTIVE_STATUS, timeout=2)
     qrm_client_pending.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client_pending.get_token_status(token_1)
     assert resp.get('request_complete')
@@ -258,7 +267,7 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
 
     # cancel token_1 -> resource move to pending, token_2 still waiting in queue
     qrm_client_pending.send_cancel(token_1)
-    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
+    assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS)
     resp_2 = qrm_client_pending.get_token_status(token_2)
     assert not resp_2.get('request_complete')
 
@@ -275,6 +284,9 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, mgmt_client_pend
     # send token_2 -> verify waiting in queue
     # send cancel -> resource move to pending
     # move resource to active -> job2 filled
+
+    load_db_with_resources_and_token(qrm_client_pending, ['r1'])
+
     rr = ResourcesRequest()
     rr.token = 'token_1'
     rbn = ResourcesByName(names=['r1'], count=1)
@@ -282,7 +294,7 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, mgmt_client_pend
     # r1 is now with active job:
     resp = qrm_client_pending.new_request(rr.as_json())
     token_1 = resp.get('token')
-    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
+    assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS)
 
     # move r1 to active, request filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
@@ -306,7 +318,7 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, mgmt_client_pend
 
     # send cancel on token_1 -> resource move to pending
     qrm_client_pending.send_cancel(token_1)
-    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
+    assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS)
 
     # move resource to active -> job2 filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
@@ -332,6 +344,8 @@ def test_new_token_accepted_not_move_to_pending(qrm_client_pending, mgmt_client_
     # cancel the new token -> resource is active
     # resend the new token -> accepted and resource active
 
+    load_db_with_resources_and_token(qrm_client_pending, ['r1'])
+
     rr = ResourcesRequest()
     rr.token = 'token_1'
     rbn = ResourcesByName(names=['r1'], count=1)
@@ -339,11 +353,11 @@ def test_new_token_accepted_not_move_to_pending(qrm_client_pending, mgmt_client_
     # r1 is now with active job:
     resp = qrm_client_pending.new_request(rr.as_json())
     token_1 = resp.get('token')
-    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
+    assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS)
 
     # move r1 to active, request filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
-    assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
+    assert wait_for_status(mgmt_client_pending, 'r1', ACTIVE_STATUS)
     qrm_client_pending.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client_pending.get_token_status(token_1)
     assert resp.get('request_complete')
@@ -351,7 +365,7 @@ def test_new_token_accepted_not_move_to_pending(qrm_client_pending, mgmt_client_
 
     # cancel the new token -> resource is active:
     qrm_client_pending.send_cancel(token_1)
-    assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
+    assert wait_for_status(mgmt_client_pending, 'r1', ACTIVE_STATUS)
 
     # resend the new token -> accepted and resource active:
     rr = ResourcesRequest()
@@ -364,10 +378,13 @@ def test_new_token_accepted_not_move_to_pending(qrm_client_pending, mgmt_client_
 
 
 def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, mgmt_client_pending):
-    # send new request 1 res from 2 res -> 1 res is pending
+    # send new request 1 res from 2 res -> one res in pending
     # send same request -> the second res is pending
     # move res_1 to active -> req_1 filled
     # move res_2 to active -> req_2 filled
+
+    load_db_with_resources_and_token(qrm_client_pending, ['r1'])
+    load_db_with_resources_and_token(qrm_client_pending, ['r2'], token='old_token_2')
 
     rr = ResourcesRequest()
     rr.token = 'token_1'
@@ -376,10 +393,7 @@ def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, m
     # send new request 1 res from 2 res -> 1 res is pending:
     resp = qrm_client_pending.new_request(rr.as_json())
     token_1 = resp.get('token')
-    # only one resource is in pending state:
-    res_statuses = [mgmt_client_pending.get_resource_status('r1'), mgmt_client_pending.get_resource_status('r2')]
-    assert PENDING_STATUS in res_statuses
-    assert ACTIVE_STATUS in res_statuses
+    assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS)
 
     # send same request -> the second res is pending:
     rr = ResourcesRequest()
@@ -390,24 +404,21 @@ def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, m
     resp = qrm_client_pending.new_request(rr.as_json())
     token_2 = resp.get('token')
     # both resources are pending:
-    assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
-    assert mgmt_client_pending.get_resource_status('r2') == PENDING_STATUS
+    assert wait_for_status(mgmt_client_pending, 'r2', PENDING_STATUS)
 
     # move res_1 to active -> req_1 filled:
     mgmt_client_pending.set_resource_status('r1', ACTIVE_STATUS)
     qrm_client_pending.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client_pending.get_token_status(token_1)
     assert resp.get('request_complete')
-    assert len(resp.get('names')) == 1
-    assert 'r1' or 'r2' in resp.get('names')
+    assert resp.get('names') == ['r1']
 
     # move res_2 to active -> req_2 filled:
     mgmt_client_pending.set_resource_status('r2', ACTIVE_STATUS)
     qrm_client_pending.wait_for_token_ready(token_2, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client_pending.get_token_status(token_2)
     assert resp.get('request_complete')
-    assert len(resp.get('names')) == 1
-    assert 'r1' or 'r2' in resp.get('names')
+    assert resp.get('names') == ['r2']
 
 
 def test_new_unknown_token(qrm_client):
@@ -451,3 +462,25 @@ def test_token_status_unknown_token(qrm_client):
     resp = qrm_client.get_token_status('unknown_token')
     assert 'unknown token in qrm' in resp.get('message')
     assert not resp.get('is_valid')
+
+
+def load_db_with_resources_and_token(qrm_client, resources_names: List[str], token: str = 'old_token'):
+    rr = ResourcesRequest()
+    rr.token = token
+    for resource_name in resources_names:
+        rbn = ResourcesByName(names=[resource_name], count=1)
+        rr.names.append(rbn)
+    resp = qrm_client.new_request(rr.as_json())
+    old_token = resp.get('token')
+    qrm_client.wait_for_token_ready(old_token, timeout=2, polling_sleep_time=0.1)
+    qrm_client.send_cancel(old_token)
+
+
+def wait_for_status(mgmt_client, resource_name, status, timeout=1, polling_sleep_time=0.1) -> bool:
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if mgmt_client.get_resource_status(resource_name) == status:
+            return True
+        time.sleep(polling_sleep_time)
+    logging.error(f'{resource_name} not in {status} state after {timeout} seconds')
+    return False

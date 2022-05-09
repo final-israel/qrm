@@ -256,6 +256,7 @@ class RedisDB(QrmBaseDB):
         resource_from_db = await self.get_resource_by_name(resource.name)
         if resource_from_db:
             resource_from_db.token = token
+            logging.info(f'setting token {token} for resource {resource.name}')
             await self.redis.hset(ALL_RESOURCES, resource.name, resource_from_db.as_json())
         else:
             logging.error(f'resource {resource.name} is not in DB, so can\'t add token to it')

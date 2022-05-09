@@ -142,7 +142,7 @@ class QueueManagerBackEnd(QrmIfc):
         logging.info(f'done handling token: {token}')
 
         if self.use_pending_logic:
-            await self.move_resources_to_pending(token=token, reason_cancel=False)
+            await self.move_resources_to_pending(token=token)
 
         return await self.finalize_filled_request(token)
 
@@ -266,9 +266,6 @@ class QueueManagerBackEnd(QrmIfc):
             rrr.is_valid = False
             await self.redis.set_req_resp(rrr)
 
-        if self.use_pending_logic:
-            await self.move_resources_to_pending(token, reason_cancel=True)
-
         affected_resources = await self.redis.remove_job(token=token)
         logging.info(f'resources {affected_resources} were affected by cancel on token {token}')
 
@@ -285,29 +282,27 @@ class QueueManagerBackEnd(QrmIfc):
         except KeyError as e:
             logging.error(f'got request to cancel unknown token {token}')
 
-    async def move_resources_to_pending(self, token: str, reason_cancel: bool) -> None:
+    async def move_resources_to_pending(self, token: str) -> None:
         """
         if all the queues are empty, doesn't move the resources to pending,
         else, move all token active resources to pending.
         :param token: request token
-        :param reason_cancel: set True, if the resources should move to pending due to cancel
         :return: None
         """
 
         resources_for_token = await self.redis.get_partial_fill(token)
 
-        for resource_name in resources_for_token.names:
-            resource = await self.redis.get_resource_by_name(resource_name)
+        affected_tokens = set()
 
-            if reason_cancel:  # preserve the token in case there aren't any other jobs in queue
-                if await self.is_more_than_one_job_waiting_in_queue(resource):
-                    # move all token resources to pending only if there is another job in queue
-                    logging.info(f'since {resource.name} has more than one job in queue, move '
-                                 f'all token {token} to {PENDING_STATUS} state')
-                    await self.move_all_token_resources_to_pending(token)
-                    return
-            else:  # new request
-                await self.move_all_token_resources_to_pending(token)
+        for resource in resources_for_token.names:
+            resource = await self.redis.get_resource_by_name(resource)
+            affected_tokens.add(resource.token)
+
+        logging.info(f'affected tokens by new request on token {token} are {affected_tokens}')
+        logging.info(f'will move all resources of tokens {affected_tokens} to pending')
+
+        for affected_token in affected_tokens:
+            await self.move_all_token_resources_to_pending(affected_token)
 
     async def move_all_token_resources_to_pending(self, token: str) -> None:
         """
@@ -321,11 +316,7 @@ class QueueManagerBackEnd(QrmIfc):
 
         for resource_name in resources_for_token.names:
             resource = await self.redis.get_resource_by_name(resource_name)
-            resource_active_job = await self.redis.get_active_job(resource)
-
-            if resource_active_job.get('token') == token:
-                await self.redis.set_resource_status(resource, PENDING_STATUS)
-                await self.redis.set_token_for_resource(token='', resource=resource)
+            await self.redis.set_resource_status(resource, PENDING_STATUS)
 
     async def is_more_than_one_job_waiting_in_queue(self, resource) -> bool:
         """

@@ -341,4 +341,3 @@ async def qrm_backend_with_db(redis_my) -> QueueManagerBackEnd:
     qrm_be = QueueManagerBackEnd(redis_port=REDIS_PORT)
     yield qrm_be
     await qrm_be.stop_backend()
-
