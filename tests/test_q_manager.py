@@ -1013,6 +1013,81 @@ async def test_new_req_on_cancelled_token(redis_db_object, qrm_backend_with_db):
     assert rrr.token == new_token_2
 
 
+async def test_move_res_to_disabled_after_active_job(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    job2 = {'token': 'job_2_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    # send new request:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=2)
+    await qrm_backend_with_db.new_request(user_request)
+    new_token_1 = await qrm_backend_with_db.get_new_token(token=job1['token'])
+
+    # send new request (different token) -> waiting in queue:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(token=job2['token'])
+    user_request.add_request_by_tags(['server'], count=1)
+    new_request_2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    new_token_2 = await qrm_backend_with_db.get_new_token(job2['token'])
+
+    # disable resource_1:
+    await redis_db_object.set_resource_status(res_1, DISABLED_STATUS)
+
+    # cancel request_1:
+    await qrm_backend_with_db.cancel_request(new_token_1)
+
+    # request_2 should be filled:
+    await new_request_2
+    rrr = await qrm_backend_with_db.get_resource_req_resp(new_token_2)
+    assert rrr.is_valid
+    assert rrr.names == ['res2']
+
+
+async def test_cancel_unusued_resources_for_each_rbn_async(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    job2 = {'token': 'job_2_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, tags=['vlan'])
+    res_3 = Resource(name='res3', type='type1', status=ACTIVE_STATUS, tags=['vlan'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+
+    # send new request:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    user_request.add_request_by_names(['res2'], count=1)
+    await qrm_backend_with_db.new_request(user_request)
+    new_token_1 = await qrm_backend_with_db.get_new_token(token=job1['token'])
+
+    # send new request (different token) -> waiting in queue:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(token=job2['token'])
+    user_request.add_request_by_tags(['server'], count=1)
+    user_request.add_request_by_tags(['vlan'], count=1)
+    new_request_2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    new_token_2 = await qrm_backend_with_db.get_new_token(job2['token'])
+
+    # queues should be like this:
+    # res_1: [token_1, token_2]
+    # res_2: [token_1]
+    # res_3: [token_2]
+
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    assert {'token': new_token_1} and {'token': new_token_2} in res_1_jobs
+    res_2_jobs = await redis_db_object.get_resource_jobs(res_2)
+    assert {'token': new_token_1} in res_2_jobs
+    res_3_jobs = await redis_db_object.get_resource_jobs(res_3)
+    assert {'token': new_token_2} in res_3_jobs
+    assert {'token': new_token_2} not in res_2_jobs  # token_2 already got filled for vlan in res_3
+
+
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
                                                  redis, token_job_2: str):
     await asyncio.sleep(timeout_sec)
