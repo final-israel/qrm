@@ -25,8 +25,8 @@ async def test_resource_added_to_db(post_to_mgmt_server, redis_db_object, resour
     assert len(all_resources) == 1
 
 
-async def test_remove_resource(post_to_mgmt_server, redis_db_object, resource_foo, resource_dict_2):
-    await redis_db_object.add_resource(resource_foo)
+async def test_remove_resource(post_to_mgmt_server, redis_db_object, resource_dict_2):
+    await redis_db_object.add_resource(Resource(**resource_dict_2))
     resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.REMOVE_RESOURCES, data=json.dumps([resource_dict_2]))
     assert resp.status == 200
 
@@ -253,3 +253,16 @@ async def test_remove_tag_from_resource(post_to_mgmt_server, redis_db_object, re
     qrm_status_dict = await qrm_status.json()
     assert resp.status == 200
     assert qrm_status_dict['resources_status']['resource_1']['tags'] == []
+
+
+async def test_remove_tag_from_resource_with_no_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_RESOURCES, data=json.dumps([resource_dict_1]))
+    assert resp.status == 200
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.ADD_TAG_TO_RESOURCE,
+                                          data=json.dumps({'resource_name': resource_dict_1.get('name'),
+                                                           'tag': 'tag1'}))
+    assert resp.status == 200
+    resp = await post_to_mgmt_server.post(qrm_defs.qrm_urls.REMOVE_RESOURCES, data=json.dumps([resource_dict_1]))
+    assert resp.status == 200
+    resorces_list = await redis_db_object.get_resources_names_by_tags(['tag1'])
+    assert resorces_list == []

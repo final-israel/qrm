@@ -55,11 +55,13 @@ async def get_token_status(request) -> web.json_response:
         rrr_obj = await qrm_back_end.get_resource_req_resp(token=token)
         rrr_obj.request_complete = False
         rrr_json = rrr_obj.as_json()
+        logging.debug(f'sending to client: {rrr_json}')
         return web.json_response(rrr_json, status=HTTPStatus.OK)
     else:
         rrr_obj = await qrm_back_end.get_resource_req_resp(token=token)
         rrr_obj.request_complete = True
         rrr_json = rrr_obj.as_json()
+        logging.debug(f'sending to client: {rrr_json}')
         return web.json_response(rrr_json, status=HTTPStatus.OK)
 
 

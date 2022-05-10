@@ -141,9 +141,16 @@ class RedisDB(QrmBaseDB):
         return ret_list
 
     async def remove_resource(self, resource: Resource) -> bool:
-        if await self.redis.delete(resource.db_name()) and await self.redis.hdel(ALL_RESOURCES, resource.name):
+        remove_step1 = await self.remove_all_tags_from_resource(resource)
+        remove_step2 = await self.redis.delete(resource.db_name())
+        remove_step3 = await self.redis.hdel(ALL_RESOURCES, resource.name)
+
+        if remove_step1 and remove_step2 and remove_step3:
             return True
-        logging.error(f'resource: {resource.name} doesn\'t exists in db')
+        logging.error(f'failed to remove resource {resource.name}, reasons:'
+                      f'remove_all_tags_from_resource: {remove_step1}, '
+                      f'delete resource from DB: {remove_step2}, '
+                      f'delete resource from ALL_RESOURCES: {remove_step3}')
         return False
 
     async def set_resource_status(self, resource: Resource, status: str) -> bool:
@@ -400,7 +407,20 @@ class RedisDB(QrmBaseDB):
         else:
             return False
 
+    async def remove_all_tags_from_resource(self, resource: Resource) -> bool:
+        resource_in_db = await self.get_resource_by_name(resource.name)
+        if not resource_in_db:  # handle the case when deleting non existent resource
+            return True
+        for tag in resource_in_db.tags:
+            logging.info(f'removing tag {tag} from resource {resource_in_db.name}')
+            await self.remove_tags_from_map(resource_in_db, tag)
+        return True
+
     async def remove_tag_from_resource(self, resource: Resource, tag: str) -> bool:
+        """
+        this method removes tag from resource and all other relevant maps.
+        It saves the resource in the updated database.
+        """
         if tag in resource.tags:
             resource.tags.remove(tag)
             await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
@@ -410,6 +430,9 @@ class RedisDB(QrmBaseDB):
             return False
 
     async def remove_tags_from_map(self, resource: Resource, tag: str) -> None:
+        """
+        This method removes tag from the tags_res_name_map.
+        """
         tags_res_name_map = await self.redis.hget(TAGS_RES_NAME_MAP, tag)
         if tags_res_name_map:
             tags_res_name_list = json.loads(tags_res_name_map)
@@ -424,6 +447,7 @@ class RedisDB(QrmBaseDB):
             resources_for_tag = await self.get_resources_names_by_tags([tag])
             if resource.name not in resources_for_tag:
                 resources_for_tag.append(resource.name)
+                resources_for_tag = list(set(resources_for_tag))
                 await self.redis.hset(TAGS_RES_NAME_MAP, tag, json.dumps(resources_for_tag))
 
     async def close(self) -> None:
