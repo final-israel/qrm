@@ -133,6 +133,7 @@ class QueueManagerBackEnd(QrmIfc):
                     if reason == CANCELED:
                         return ResourcesRequestResponse()
                     if reason == NOT_VALID:
+                        logging.error(f'request {token} is not valid')
                         rrr = ResourcesRequestResponse(token=token, message='request not valid')
                         await self.redis.set_req_resp(rrr)
                         return rrr
@@ -498,6 +499,7 @@ class QueueManagerBackEnd(QrmIfc):
                 is_valid=False
             )
             await self.redis.set_req_resp(rrr)
+            logging.error(f'request for token {resources_request.token} is not valid: {msg}')
             self.tokens_change_event[resources_request.token].set()
             self.tokens_change_event[resources_request.token].reason = NOT_VALID
             return False

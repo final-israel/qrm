@@ -351,8 +351,6 @@ class RedisDB(QrmBaseDB):
     async def is_request_filled(self, token: str) -> bool:
         token_in_map = await self.redis.hget(TOKEN_RESOURCES_MAP, token)
         token_in_open_req = await self.redis.hget(OPEN_REQUESTS, token)
-        all_tokens = await self.redis.hgetall(TOKEN_RESOURCES_MAP)
-        logging.debug(f'all tokens are: {all_tokens}')
         logging.debug(f'token_in_map: {token_in_map}, token_in_open_req: {token_in_open_req}')
         if token_in_map and not token_in_open_req:
             return True
