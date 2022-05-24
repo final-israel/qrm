@@ -327,7 +327,8 @@ class QueueManagerBackEnd(QrmIfc):
 
         for resource_name in resources_for_token.names:
             resource = await self.redis.get_resource_by_name(resource_name)
-            await self.redis.set_resource_status(resource, PENDING_STATUS)
+            if resource.status != DISABLED_STATUS:
+                await self.redis.set_resource_status(resource, PENDING_STATUS)
 
     async def is_more_than_one_job_waiting_in_queue(self, resource) -> bool:
         """
