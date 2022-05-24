@@ -1013,6 +1013,38 @@ async def test_new_req_on_cancelled_token(redis_db_object, qrm_backend_with_db):
     assert rrr.token == new_token_2
 
 
+@pytest.mark.asyncio
+async def test_dont_use_disabled_resource(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    job2 = {'token': 'job_2_token'}
+    qrm_backend_with_db.use_pending_logic = True
+
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    res_2 = Resource(name='res2', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+
+    # send new request:
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job1['token'])
+    user_request.add_request_by_tags(['server'], count=2)
+    await qrm_backend_with_db.new_request(user_request)
+    new_token_1 = await qrm_backend_with_db.get_new_token(token=job1['token'])
+
+    await qrm_backend_with_db.cancel_request(new_token_1)
+
+    # set res_1 to disabled and send new request:
+    await redis_db_object.set_resource_status(res_1, DISABLED_STATUS)
+    user_request = ResourcesRequest()
+    user_request.add_request_by_token(job2['token'])
+    user_request.add_request_by_tags(['server'], count=1)
+    asyncio.ensure_future(qrm_backend_with_db.new_request(user_request))
+    new_token_2 = await qrm_backend_with_db.get_new_token(token=job2['token'])
+
+    assert await redis_db_object.get_resource_status(res_1) == DISABLED_STATUS
+    assert await redis_db_object.get_resource_status(res_2) == PENDING_STATUS
+
+
 async def remove_job_and_set_event_after_timeout(timeout_sec: float, token_job_1: str, qrm_be: QueueManagerBackEnd,
                                                  redis, token_job_2: str):
     await asyncio.sleep(timeout_sec)
