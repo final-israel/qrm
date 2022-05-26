@@ -1,6 +1,7 @@
 import argparse
 import logging
-
+import datetime
+from logging.handlers import TimedRotatingFileHandler
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
@@ -224,16 +225,26 @@ async def remove_tag_from_resource(request):
                             text=f'Error: must specify both tag and resource_name in your request: {req_dict}\n')
 
 
-def config_log(path_to_log_file: str = LOG_FILE_PATH):
+def config_log(path_to_log_file: str = LOG_FILE_PATH, loglevel=None):
     print(f'log file path is: {path_to_log_file}')
+    if loglevel is None:
+        loglevel = logging.INFO
     Path(path_to_log_file).parent.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(filename=path_to_log_file, level=logging.DEBUG, format=
-    '[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+    logging.basicConfig(level=loglevel,
+                        format='[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+    handler = TimedRotatingFileHandler(path_to_log_file, when='midnight', backupCount=365,
+                                       encoding='utf-8')
+    logging.getLogger('').addHandler(handler)
+    logging.info('************************************************************************************')
+    logging.info(f'new server started at: {str(datetime.datetime.now())}')
     logging.info(f'log file path is: {path_to_log_file}')
 
 
-def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT, path_to_log_file: str = LOG_FILE_PATH ):
-    config_log(path_to_log_file=path_to_log_file)
+def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT, path_to_log_file: str = LOG_FILE_PATH,
+         loglevel: int = None):
+    if loglevel is None:
+        loglevel = logging.INFO
+    config_log(path_to_log_file=path_to_log_file, loglevel=loglevel)
     init_redis(redis_port)
     app = web.Application()
     app.add_routes([web.post(f'{ADD_RESOURCES}', add_resources),
@@ -259,6 +270,10 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
     parser.add_argument('--log_file_path',
                         help='path to text log file',
                         default=LOG_FILE_PATH)
+    parser.add_argument('-d', '--debug',
+                        help="Print lots of debugging statements",
+                        action="store_const", dest="loglevel", const=logging.DEBUG,
+                        default=logging.INFO)
     return parser.parse_args()
 
 
@@ -273,5 +288,12 @@ async def close_redis(request):
 
 
 if __name__ == '__main__':
-    args = create_parser()
-    main(args.redis_port, args.listen_port, args.log_file_path)
+    try:
+        args = create_parser()
+        main(args)
+    except KeyboardInterrupt:
+        print('\n\nProgram terminated by user. Exiting...')
+        try:
+            logging.info('\n\nProgram terminated by user. Exiting...')
+        except Exception:
+            pass

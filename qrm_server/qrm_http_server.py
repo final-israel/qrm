@@ -5,6 +5,7 @@ import datetime
 import asyncio
 import aiohttp_jinja2
 import jinja2
+from logging.handlers import TimedRotatingFileHandler
 from aiohttp import web
 from http import HTTPStatus
 from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
@@ -151,27 +152,26 @@ async def main(use_pending_logic: bool = False):
     return app
 
 
-def config_log(path_to_log_file: str = LOG_FILE_PATH):
+def config_log(path_to_log_file: str = LOG_FILE_PATH, loglevel: int = None):
+    if loglevel is None:
+        loglevel = logging.INFO
     print(f'log file path is: {path_to_log_file}')
     Path(path_to_log_file).parent.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(filename=path_to_log_file, level=logging.DEBUG, format=
-    '[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
-
-    # set up logging to console
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    # set a format which is simpler for console use
-    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
-    console.setFormatter(formatter)
-    # add the handler to the root logger
-    logging.getLogger('').addHandler(console)
-    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=loglevel,
+                        format='[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+    handler = TimedRotatingFileHandler(path_to_log_file, when='midnight', backupCount=365,
+                                       encoding='utf-8')
+    logging.getLogger('').addHandler(handler)
+    logging.info('************************************************************************************')
+    logging.info(f'new server started at: {str(datetime.datetime.now())}')
     logging.info(f'log file path is: {path_to_log_file}')
 
 
 def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = False,
-               path_to_log_file: str = LOG_FILE_PATH) -> None:
-    config_log(path_to_log_file=path_to_log_file)
+               path_to_log_file: str = LOG_FILE_PATH, loglevel=None) -> None:
+    if loglevel is None:
+        loglevel = logging.INFO
+    config_log(path_to_log_file=path_to_log_file, loglevel=loglevel)
     logging.info(f'listening on port {listen_port}')
     logging.info(f'use_pending_logic: {use_pending_logic}')
     web.run_app(main(use_pending_logic), port=listen_port)
@@ -191,12 +191,22 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
                         help='path to text log file',
                         default=LOG_FILE_PATH)
 
+    parser.add_argument('-d', '--debug',
+                        help="Print lots of debugging statements",
+                        action="store_const", dest="loglevel", const=logging.DEBUG,
+                        default=logging.INFO)
+
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     try:
         run_args = create_parser()
-        run_server(run_args.listen_port, run_args.use_pending_logic, path_to_log_file=run_args.log_file_path)
-    except KeyboardInterrupt as e:
-        logging.error(f'got keyboard interrupt: {e}')
+        run_server(run_args.listen_port, run_args.use_pending_logic, path_to_log_file=run_args.log_file_path,
+                   loglevel=run_args.loglevel)
+    except KeyboardInterrupt:
+        print('\n\nProgram terminated by user. Exiting...')
+        try:
+            logging.info('\n\nProgram terminated by user. Exiting...')
+        except Exception:
+            pass
