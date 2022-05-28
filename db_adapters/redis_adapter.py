@@ -282,6 +282,13 @@ class RedisDB(QrmBaseDB):
         logging.info(f'generate token {token} with {resources_list}')
         return await self.redis.hset(TOKEN_RESOURCES_MAP, token, json.dumps(resources_list))
 
+    async def destroy_token(self, token: str) -> None:
+        if not await self.redis.hget(TOKEN_RESOURCES_MAP, token):
+            logging.error(f'token {token} does not exists in DB, can\'t destory it')
+            return
+        logging.info(f'destroying token: {token}')
+        await self.redis.hdel(TOKEN_RESOURCES_MAP, token)
+
     async def get_token_resources(self, token: str) -> List[Resource]:
         resources_list = []
         token_json = await self.redis.hget(TOKEN_RESOURCES_MAP, token)

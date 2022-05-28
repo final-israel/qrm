@@ -304,6 +304,7 @@ class QueueManagerBackEnd(QrmIfc):
 
         for affected_token in affected_tokens:
             await self.move_all_token_resources_to_pending(affected_token)
+            await self.redis.destroy_token(affected_token)
 
     async def move_all_token_resources_to_pending(self, token: str) -> None:
         """
@@ -311,6 +312,10 @@ class QueueManagerBackEnd(QrmIfc):
         :param token: request token
         :return: None
         """
+
+        if not await self.redis.get_token_resources(token):
+            logging.info(f'token {token} already destroyed, won\'t move it\'s resources to pending')
+            return
 
         resources_for_token = await self.redis.get_partial_fill(token)
         logging.info(f'will move resources: {resources_for_token} to PENDING state')
