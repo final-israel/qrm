@@ -1,6 +1,7 @@
 import argparse
 import logging
 import datetime
+import os
 from logging.handlers import TimedRotatingFileHandler
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
@@ -14,7 +15,7 @@ LISTEN_PORT = 8080
 REDIS_PORT = 6379
 
 LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_mgmt_server.txt'
-
+VERSION_FILE_PATH = 'qrm_mgmt_server_ver.yaml'
 
 async def add_resources(request) -> web.Response:
     # add resource to the active resources list
@@ -240,11 +241,31 @@ def config_log(path_to_log_file: str = LOG_FILE_PATH, loglevel=None):
     logging.info(f'log file path is: {path_to_log_file}')
 
 
+def get_version_str() -> str:
+    try:
+        with open(VERSION_FILE_PATH, 'r') as fid:
+            version_str = ''.join(fid.readlines())
+        return version_str
+    except FileNotFoundError:
+        with open(f'_{VERSION_FILE_PATH}', 'r') as fid:
+            version_str = ''.join(fid.readlines())
+        return version_str
+
+
+def full_version_str() -> str:
+    return '\nthe app version is:\n' + get_version_str()
+
+
+def print_version_str():
+    logging.info(full_version_str())
+
+
 def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT, path_to_log_file: str = LOG_FILE_PATH,
          loglevel: int = None):
     if loglevel is None:
         loglevel = logging.INFO
     config_log(path_to_log_file=path_to_log_file, loglevel=loglevel)
+    print_version_str()
     init_redis(redis_port)
     app = web.Application()
     app.add_routes([web.post(f'{ADD_RESOURCES}', add_resources),
@@ -265,7 +286,7 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
                         help='redis server listen port',
                         default=REDIS_PORT)
     parser.add_argument('--listen_port',
-                        help='http listen port',
+                            help='http listen port',
                         default=LISTEN_PORT)
     parser.add_argument('--log_file_path',
                         help='path to text log file',
@@ -274,7 +295,15 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
                         help="Print lots of debugging statements",
                         action="store_const", dest="loglevel", const=logging.DEBUG,
                         default=logging.INFO)
-    return parser.parse_args()
+    parser.add_argument('--version',
+                        action='store_true',
+                        default=False,
+                        help='print version and exit')
+    args = parser.parse_args()
+    if args.version:
+        print(full_version_str())
+        sys.exit(0)
+    return args
 
 
 def init_redis(redis_port: int = REDIS_PORT):
@@ -290,7 +319,10 @@ async def close_redis(request):
 if __name__ == '__main__':
     try:
         args = create_parser()
-        main(args)
+        main(redis_port=args.redis_port,
+             listen_port=args.listen_port,
+             path_to_log_file=args.log_file_path,
+             loglevel=args.loglevel)
     except KeyboardInterrupt:
         print('\n\nProgram terminated by user. Exiting...')
         try:

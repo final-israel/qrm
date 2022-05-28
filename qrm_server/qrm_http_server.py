@@ -5,6 +5,7 @@ import datetime
 import asyncio
 import aiohttp_jinja2
 import jinja2
+import sys
 from logging.handlers import TimedRotatingFileHandler
 from aiohttp import web
 from http import HTTPStatus
@@ -15,6 +16,7 @@ from qrm_defs.resource_definition import resource_request_from_json, ResourcesRe
 from pathlib import Path
 
 LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_server.txt'
+VERSION_FILE_PATH = 'qrm_server_ver.yaml'
 HTTP_LISTEN_PORT = 5555
 global qrm_back_end
 global_number: int = 0
@@ -172,9 +174,29 @@ def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = Fa
     if loglevel is None:
         loglevel = logging.INFO
     config_log(path_to_log_file=path_to_log_file, loglevel=loglevel)
+    print_version_str()
     logging.info(f'listening on port {listen_port}')
     logging.info(f'use_pending_logic: {use_pending_logic}')
     web.run_app(main(use_pending_logic), port=listen_port)
+
+
+def get_version_str() -> str:
+    try:
+        with open(VERSION_FILE_PATH, 'r') as fid:
+            version_str = ''.join(fid.readlines())
+        return version_str
+    except FileNotFoundError:
+        with open(f'_{VERSION_FILE_PATH}', 'r') as fid:
+            version_str = ''.join(fid.readlines())
+        return version_str
+
+
+def full_version_str() -> str:
+    return '\nthe app version is:\n' + get_version_str()
+
+
+def print_version_str():
+    logging.info(full_version_str())
 
 
 def create_parser() -> argparse.ArgumentParser.parse_args:
@@ -196,7 +218,15 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
                         action="store_const", dest="loglevel", const=logging.DEBUG,
                         default=logging.INFO)
 
-    return parser.parse_args()
+    parser.add_argument('--version',
+                        action='store_true',
+                        default=False,
+                        help='print version and exit')
+    args = parser.parse_args()
+    if args.version:
+        print(full_version_str())
+        sys.exit(0)
+    return args
 
 
 if __name__ == "__main__":

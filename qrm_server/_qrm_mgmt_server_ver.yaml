@@ -1,0 +1,18 @@
+_version: 0.0.0
+changesets:
+  .:
+    hash: null
+    remote: https://github.com/final-israel/qrm
+    vcs_type: git
+dirty: !!set
+  modified: null
+  pending: null
+info: {}
+name: qrm_mgmt_server
+
+prerelease_count: {}
+previous_version: 0.0.0
+release_mode: patch
+stamped_on_branch: main
+version: 0.0.0
+
