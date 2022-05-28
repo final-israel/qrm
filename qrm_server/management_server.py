@@ -1,7 +1,7 @@
 import argparse
 import logging
 import datetime
-import os
+import sys
 from logging.handlers import TimedRotatingFileHandler
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
@@ -15,7 +15,8 @@ LISTEN_PORT = 8080
 REDIS_PORT = 6379
 
 LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_mgmt_server.txt'
-VERSION_FILE_PATH = 'qrm_mgmt_server_ver.yaml'
+VERSION_FILE_NAME = 'qrm_mgmt_server_ver.yaml'
+here = Path(__file__).resolve().parent
 
 async def add_resources(request) -> web.Response:
     # add resource to the active resources list
@@ -243,11 +244,11 @@ def config_log(path_to_log_file: str = LOG_FILE_PATH, loglevel=None):
 
 def get_version_str() -> str:
     try:
-        with open(VERSION_FILE_PATH, 'r') as fid:
+        with open(f'{here}/VERSION_FILE_PATH', 'r') as fid:
             version_str = ''.join(fid.readlines())
         return version_str
     except FileNotFoundError:
-        with open(f'_{VERSION_FILE_PATH}', 'r') as fid:
+        with open(f'{here}/_{VERSION_FILE_NAME}', 'r') as fid:
             version_str = ''.join(fid.readlines())
         return version_str
 
@@ -286,7 +287,7 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
                         help='redis server listen port',
                         default=REDIS_PORT)
     parser.add_argument('--listen_port',
-                            help='http listen port',
+                        help='http listen port',
                         default=LISTEN_PORT)
     parser.add_argument('--log_file_path',
                         help='path to text log file',

@@ -16,7 +16,7 @@ from qrm_defs.resource_definition import resource_request_from_json, ResourcesRe
 from pathlib import Path
 
 LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_server.txt'
-VERSION_FILE_PATH = 'qrm_server_ver.yaml'
+VERSION_FILE_NAME = 'qrm_server_ver.yaml'
 HTTP_LISTEN_PORT = 5555
 global qrm_back_end
 global_number: int = 0
@@ -182,11 +182,11 @@ def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = Fa
 
 def get_version_str() -> str:
     try:
-        with open(VERSION_FILE_PATH, 'r') as fid:
+        with open(f'{here}/{VERSION_FILE_NAME}', 'r') as fid:
             version_str = ''.join(fid.readlines())
         return version_str
     except FileNotFoundError:
-        with open(f'_{VERSION_FILE_PATH}', 'r') as fid:
+        with open(f'{here}/_{VERSION_FILE_NAME}', 'r') as fid:
             version_str = ''.join(fid.readlines())
         return version_str
 
