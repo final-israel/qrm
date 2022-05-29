@@ -19,10 +19,8 @@ from qrm_client.qrm_http_client import QrmClient, ManagementClient
 from werkzeug.wrappers import Request, Response
 from multiprocessing import Process
 
-
 TEST_TOKEN = 'token1234'
 REDIS_PORT = 6379
-
 
 here = Path(__file__).resolve().parent.parent
 sys.path.append(f'{here}')
@@ -30,6 +28,12 @@ logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
 wait_for_test_call_times = 0
+
+
+def pytest_addoption(parser):
+    parser.addoption('--post_build', action='store_true', dest="post_build",
+                     default=False, help="enable longrundecorated tests")
+
 
 def json_to_dict(json_str: str or dict) -> dict:
     if isinstance(json_str, str):
@@ -123,6 +127,7 @@ def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer, default_test_to
         res = Response(rrr_json, status=200, content_type="application/json")
         wait_for_test_call_times += 1
         return res
+
     httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_GET_ROOT}').respond_with_handler(handler)
     httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN}').respond_with_handler(handler)
     httpserver.expect_request(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS).respond_with_handler(handler_for_wait_for_test)

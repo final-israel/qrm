@@ -5,3 +5,4 @@ pytest-aiohttp
 pytest-httpserver
 pytest-rerunfailures
 pytest-timeout
+docker
