@@ -1,6 +1,8 @@
 import argparse
 import logging
-
+import datetime
+import sys
+from logging.handlers import TimedRotatingFileHandler
 from aiohttp import web
 from db_adapters.redis_adapter import RedisDB
 from http import HTTPStatus
@@ -12,8 +14,9 @@ LISTEN_PORT = 8080
 
 REDIS_PORT = 6379
 
-LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_server.txt'
-
+LOG_FILE_PATH = '/tmp/log/qrm-server/qrm_mgmt_server.txt'
+VERSION_FILE_NAME = 'qrm_mgmt_server_ver.yaml'
+here = Path(__file__).resolve().parent
 
 async def add_resources(request) -> web.Response:
     # add resource to the active resources list
@@ -224,16 +227,46 @@ async def remove_tag_from_resource(request):
                             text=f'Error: must specify both tag and resource_name in your request: {req_dict}\n')
 
 
-def config_log(path_to_log_file: str = LOG_FILE_PATH):
+def config_log(path_to_log_file: str = LOG_FILE_PATH, loglevel=None):
     print(f'log file path is: {path_to_log_file}')
+    if loglevel is None:
+        loglevel = logging.INFO
     Path(path_to_log_file).parent.mkdir(parents=True, exist_ok=True)
-    logging.basicConfig(filename=path_to_log_file, level=logging.DEBUG, format=
-    '[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+    logging.basicConfig(level=loglevel,
+                        format='[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+    handler = TimedRotatingFileHandler(path_to_log_file, when='midnight', backupCount=365,
+                                       encoding='utf-8')
+    logging.getLogger('').addHandler(handler)
+    logging.info('************************************************************************************')
+    logging.info(f'new server started at: {str(datetime.datetime.now())}')
     logging.info(f'log file path is: {path_to_log_file}')
 
 
-def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT, path_to_log_file: str = LOG_FILE_PATH ):
-    config_log(path_to_log_file=path_to_log_file)
+def get_version_str() -> str:
+    try:
+        with open(f'{here}/VERSION_FILE_PATH', 'r') as fid:
+            version_str = ''.join(fid.readlines())
+        return version_str
+    except FileNotFoundError:
+        with open(f'{here}/_{VERSION_FILE_NAME}', 'r') as fid:
+            version_str = ''.join(fid.readlines())
+        return version_str
+
+
+def full_version_str() -> str:
+    return '\nthe app version is:\n' + get_version_str()
+
+
+def print_version_str():
+    logging.info(full_version_str())
+
+
+def main(redis_port: int = REDIS_PORT, listen_port: int = LISTEN_PORT, path_to_log_file: str = LOG_FILE_PATH,
+         loglevel: int = None):
+    if loglevel is None:
+        loglevel = logging.INFO
+    config_log(path_to_log_file=path_to_log_file, loglevel=loglevel)
+    print_version_str()
     init_redis(redis_port)
     app = web.Application()
     app.add_routes([web.post(f'{ADD_RESOURCES}', add_resources),
@@ -259,7 +292,19 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
     parser.add_argument('--log_file_path',
                         help='path to text log file',
                         default=LOG_FILE_PATH)
-    return parser.parse_args()
+    parser.add_argument('-d', '--debug',
+                        help="Print lots of debugging statements",
+                        action="store_const", dest="loglevel", const=logging.DEBUG,
+                        default=logging.INFO)
+    parser.add_argument('--version',
+                        action='store_true',
+                        default=False,
+                        help='print version and exit')
+    args = parser.parse_args()
+    if args.version:
+        print(full_version_str())
+        sys.exit(0)
+    return args
 
 
 def init_redis(redis_port: int = REDIS_PORT):
@@ -273,5 +318,15 @@ async def close_redis(request):
 
 
 if __name__ == '__main__':
-    args = create_parser()
-    main(args.redis_port, args.listen_port, args.log_file_path)
+    try:
+        args = create_parser()
+        main(redis_port=args.redis_port,
+             listen_port=args.listen_port,
+             path_to_log_file=args.log_file_path,
+             loglevel=args.loglevel)
+    except KeyboardInterrupt:
+        print('\n\nProgram terminated by user. Exiting...')
+        try:
+            logging.info('\n\nProgram terminated by user. Exiting...')
+        except Exception:
+            pass
