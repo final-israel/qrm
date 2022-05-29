@@ -46,9 +46,7 @@ jobs:
       - name: Stamp with vmn
         run: |
           vmn stamp -r ${{ github.event.inputs.version_type }} qrm_server
-          vmn show qrm_server --verbose > ./qrm_server/ver.yaml
-          echo "cat ./qrm_server/ver.yaml"
-          cat ./qrm_server/ver.yaml
+          make -f Makefile_qrmserver get_ver
 
       - name: "Set version from Commit"
         id: get_version
