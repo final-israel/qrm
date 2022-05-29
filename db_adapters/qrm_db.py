@@ -159,3 +159,7 @@ class QrmBaseDB(ABC):
     @abstractmethod
     async def remove_tag_from_resource(self, resource: Resource, tag: str) -> bool:
         pass
+
+    @abstractmethod
+    async def destroy_token(self, token: str) -> None:
+        pass
