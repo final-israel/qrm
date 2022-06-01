@@ -161,8 +161,10 @@ def config_log(path_to_log_file: str = LOG_FILE_PATH, loglevel: int = None):
     Path(path_to_log_file).parent.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(level=loglevel,
                         format='[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
+    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [%(module)s] [%(message)s]')
     handler = TimedRotatingFileHandler(path_to_log_file, when='midnight', backupCount=365,
                                        encoding='utf-8')
+    handler.setFormatter(formatter)
     logging.getLogger('').addHandler(handler)
     logging.info('************************************************************************************')
     logging.info(f'new server started at: {str(datetime.datetime.now())}')
@@ -182,11 +184,15 @@ def run_server(listen_port: int = HTTP_LISTEN_PORT, use_pending_logic: bool = Fa
 
 def get_version_str() -> str:
     try:
-        with open(f'{here}/{VERSION_FILE_NAME}', 'r') as fid:
+        file_path = f'{here}/{VERSION_FILE_NAME}'
+        logging.info(f'open file at : {file_path}')
+        with open(file_path, 'r') as fid:
             version_str = ''.join(fid.readlines())
         return version_str
     except FileNotFoundError:
-        with open(f'{here}/_{VERSION_FILE_NAME}', 'r') as fid:
+        file_path = f'{here}/_{VERSION_FILE_NAME}'
+        logging.info(f'open file at : {file_path}')
+        with open(file_path, 'r') as fid:
             version_str = ''.join(fid.readlines())
         return version_str
 
