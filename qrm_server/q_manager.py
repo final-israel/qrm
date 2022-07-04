@@ -483,6 +483,14 @@ class QueueManagerBackEnd(QrmIfc):
         for resource_name in rrr.names:
             resource = await self.redis.get_resource_by_name(resource_name)
             res_job = await self.redis.get_active_job(resource)
+            all_resources_dict = await self.redis.get_all_resources_dict()
+            resources_token_list = await self.redis.get_token_resources(token)
+
+            if self.is_token_valid(token=token,
+                                   resources_dict=all_resources_dict,
+                                   original_resources_token_list=resources_token_list):
+                rrr.is_valid = True
+
             if res_job.get('token') != token:
                 rrr.is_token_active_in_queue = False
                 return rrr
@@ -554,4 +562,5 @@ class QueueManagerBackEnd(QrmIfc):
                              f'{token} is not valid')
                 return False
 
+        logging.info(f'token {token} is still valid')
         return True

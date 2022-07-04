@@ -464,6 +464,54 @@ def test_token_status_unknown_token(qrm_client):
     assert not resp.get('is_valid')
 
 
+async def test_new_req_on_cancelled_token(redis_db_object, qrm_client):
+    # new request:
+    rr = ResourcesRequest()
+    rr.token = 'token1'
+    rbn = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbn)
+    resp = qrm_client.new_request(rr.as_json())
+    new_token1 = resp.get('token')
+
+    # cancel the token:
+    qrm_client.send_cancel(new_token1)
+
+    # check the token status:
+    status_req = qrm_client.get_token_status(token=new_token1)
+    print(status_req)
+    assert status_req['is_valid']
+
+
+def test_token_no_longer_valid_is_valid_false(redis_db_object, qrm_client):
+    # new request:
+    rr = ResourcesRequest()
+    rr.token = 'token1'
+    rbn = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbn)
+    resp = qrm_client.new_request(rr.as_json())
+    new_token1 = resp.get('token')
+
+    # cancel the token:
+    qrm_client.send_cancel(new_token1)
+
+    # new request with other token:
+    rr2 = ResourcesRequest()
+    rr.token = 'token2'
+    rbn = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbn)
+    resp = qrm_client.new_request(rr.as_json())
+    new_token2 = resp.get('token')
+
+    qrm_client.wait_for_token_ready(new_token2)
+    resp = qrm_client.get_token_status(new_token2)
+    assert 'r1' in resp['names']
+    assert resp['is_valid']
+
+    # in this point token1 is no longer valid
+    resp = qrm_client.get_token_status(new_token1)
+    assert not resp['is_valid']
+
+
 def load_db_with_resources_and_token(qrm_client, resources_names: List[str], token: str = 'old_token'):
     rr = ResourcesRequest()
     rr.token = token
