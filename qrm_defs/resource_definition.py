@@ -1,5 +1,7 @@
 import json
 import pickle
+import string
+import random
 from dataclasses import dataclass, asdict, field
 from typing import List
 from datetime import datetime
@@ -31,15 +33,17 @@ def resource_from_pickle(resource_as_pickle: pickle):
 def generate_token_from_seed(seed: str) -> str:
     # replace the datetime of the token if exists, or add datetime in case it's a seed token
     if is_token_format(seed):
-        seed_as_list = seed.split('_')[0:-6]
+        seed_as_list = seed.split('_')[0:-7]
         seed = '_'.join(seed_as_list)
-    return f'{seed}_{datetime.now().strftime(DATE_FMT)}'
+    letters = string.ascii_letters
+    magic_str = ''.join(random.choice(letters) for i in range(3))
+    return f'{seed}_{datetime.now().strftime(DATE_FMT)}_{magic_str}'
 
 
 def is_token_format(token: str) -> bool:
     # token format is: seed_DATE_FMT
     try:
-        date_str = '_'.join(token.split('_')[-6:])
+        date_str = '_'.join(token.split('_')[-7:-1])
         datetime.strptime(date_str, DATE_FMT)
         return True
     except Exception as e:
