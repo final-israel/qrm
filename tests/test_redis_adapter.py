@@ -405,20 +405,20 @@ async def test_is_request_filled(redis_db_object, resource_foo):
 def test_generate_seed_basic():
     seed = 'basic_token'
     token = generate_token_from_seed(seed)
-    assert len(token.split('_')) == 9
+    assert len(token.split('_')) == 8
 
 
 def test_generate_token_from_existing_one():
-    token = 'basic_token_2022_01_14_07_53_28_tes'
+    token = 'basic_token_2022_01_14_07_53_28'
     new_token = generate_token_from_seed(token)
-    assert len(new_token.split('_')) == 9
+    assert len(new_token.split('_')) == 8
     assert token != new_token
 
 
 def test_generate_token_long_name_special_chars():
-    token = 'just-a-long_name-with$pecial*chars&_2022_01_14_07_53_28_tes'
+    token = 'just-a-long_name-with$pecial*chars&_2022_01_14_07_53_28'
     new_token = generate_token_from_seed(token)
-    assert len(new_token.split('_')) == 9
+    assert len(new_token.split('_')) == 8
     assert token != new_token
 
 
