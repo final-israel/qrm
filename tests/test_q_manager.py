@@ -49,7 +49,6 @@ async def test_qbackend_2_requests_same_time(redis_db_object, qrm_backend_with_d
     await redis_db_object.add_resource(res_4)
     await redis_db_object.add_resource(res_5)
     await redis_db_object.add_resource(res_6)
-    # await redis_db_object.generate_token(req_token, [res_1, res_2, res_3])
 
     user_request1 = ResourcesRequest(token='test1')
     user_request1.add_request_by_tags(tags=['vlan'], count=1)
@@ -62,7 +61,16 @@ async def test_qbackend_2_requests_same_time(redis_db_object, qrm_backend_with_d
     response = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request1))
     response2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request2))
 
-    await asyncio.sleep(100000)
+    token1 = await qrm_backend_with_db.get_new_token('test1')
+    token2 = await qrm_backend_with_db.get_new_token('test2')
+    await asyncio.sleep(0.1)
+
+    resp1 = await qrm_backend_with_db.get_resource_req_resp(token1)
+    resp2 = await qrm_backend_with_db.get_resource_req_resp(token1)
+
+    assert len(resp1.names) == 2
+    assert len(resp2.names) == 2
+
     await redis_db_object.close()
 
 

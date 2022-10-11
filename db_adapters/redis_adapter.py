@@ -12,7 +12,6 @@ from qrm_defs import resource_definition
 from qrm_defs.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest, ResourcesRequestResponse
 from db_adapters.qrm_db import QrmBaseDB
 from typing import Dict, List
-from aioredis_lock import RedisLock
 
 
 CHANNEL_RES_CHANGE_EVENT = 'channel:res_change_event'
@@ -194,8 +193,6 @@ class RedisDB(QrmBaseDB):
             await self.res_status_change_event[resource.name].wait()
 
     async def get_resource_status(self, resource: Resource) -> str:
-        lock = self.redis.lock(name=ALL_RESOURCES)
-        lock.locked()
         resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
         resource_obj = resource_definition.resource_from_json(resource_json)
         return resource_obj.status
