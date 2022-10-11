@@ -35,6 +35,38 @@ async def test_qbackend_new_request_by_token_only(redis_db_object, qrm_backend_w
 
 
 @pytest.mark.asyncio
+async def test_qbackend_2_requests_same_time(redis_db_object, qrm_backend_with_db, qrm_management_server):
+    req_token = 'my_req_token'
+    res_1 = Resource(name='server1', type='server', token='old_token1', status=ACTIVE_STATUS, tags=['server'])
+    res_2 = Resource(name='server2', type='server', token='old_token2', status=ACTIVE_STATUS, tags=['server'])
+    res_3 = Resource(name='server3', type='server', token='old_token3', status=ACTIVE_STATUS, tags=['server'])
+    res_4 = Resource(name='vlan1', type='vlan', token='old_token1', status=ACTIVE_STATUS, tags=['vlan'])
+    res_5 = Resource(name='vlan2', type='vlan', token='old_token2', status=ACTIVE_STATUS, tags=['vlan'])
+    res_6 = Resource(name='vlan3', type='vlan', token='old_token3', status=ACTIVE_STATUS, tags=['vlan'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+    await redis_db_object.add_resource(res_4)
+    await redis_db_object.add_resource(res_5)
+    await redis_db_object.add_resource(res_6)
+    # await redis_db_object.generate_token(req_token, [res_1, res_2, res_3])
+
+    user_request1 = ResourcesRequest(token='test1')
+    user_request1.add_request_by_tags(tags=['vlan'], count=1)
+    user_request1.add_request_by_tags(tags=['server'], count=1)
+
+    user_request2 = ResourcesRequest(token='test2')
+    user_request2.add_request_by_tags(tags=['vlan'], count=1)
+    user_request2.add_request_by_tags(tags=['server'], count=1)
+
+    response = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request1))
+    response2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request2))
+
+    await asyncio.sleep(100000)
+    await redis_db_object.close()
+
+
+@pytest.mark.asyncio
 async def test_request_by_token_not_valid(redis_db_object, qrm_backend_with_db):
     req_token = 'other_token'
     res_1 = Resource(name='res1', type='type1', token=req_token)

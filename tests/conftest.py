@@ -18,7 +18,7 @@ from pytest_httpserver import HTTPServer
 from qrm_client.qrm_http_client import QrmClient, ManagementClient
 from werkzeug.wrappers import Request, Response
 from multiprocessing import Process
-
+from typing import Tuple
 
 TEST_TOKEN = 'token1234'
 REDIS_PORT = 6379
@@ -30,6 +30,7 @@ logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
 wait_for_test_call_times = 0
+
 
 def json_to_dict(json_str: str or dict) -> dict:
     if isinstance(json_str, str):
@@ -304,6 +305,20 @@ def qrm_client_pending(full_qrm_servers_ports_pending_logic: dict) -> QrmClient:
 
 
 @pytest.fixture(scope='function')
+def qrm_2_clients_pending(full_qrm_servers_ports_pending_logic: dict) -> Tuple[QrmClient, QrmClient]:
+    client1 = QrmClient(server_ip='127.0.0.1',
+                       server_port=full_qrm_servers_ports_pending_logic['http_port'],
+                       user_name='test_user')
+
+    client2 = QrmClient(server_ip='127.0.0.1',
+                       server_port=full_qrm_servers_ports_pending_logic['http_port'],
+                       user_name='test_user')
+
+    client1.wait_for_server_up()
+    return client1, client2
+
+
+@pytest.fixture(scope='function')
 def mgmt_client(full_qrm_servers_ports: dict) -> ManagementClient:
     client = ManagementClient(server_ip='127.0.0.1',
                               server_port=full_qrm_servers_ports['management_port'],
@@ -324,13 +339,21 @@ def full_qrm_servers_ports_pending_logic(unused_tcp_port_factory, qrm_http_serve
                                          qrm_management_server, redis_db_object) -> dict:
     ports_dict = {}
 
-    r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server', status=ACTIVE_STATUS)))
-    r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server', status=ACTIVE_STATUS)))
-    r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server', status=ACTIVE_STATUS)))
+    r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server', status=ACTIVE_STATUS, tags=['server'])))
+    r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server', status=ACTIVE_STATUS, tags=['server'])))
+    r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server', status=ACTIVE_STATUS, tags=['server'])))
+    r4 = asyncio.gather(redis_db_object.add_resource(Resource(name='v1', type='vlan', status=ACTIVE_STATUS, tags=['vlan'])))
+    r5 = asyncio.gather(redis_db_object.add_resource(Resource(name='v2', type='vlan', status=ACTIVE_STATUS, tags=['vlan'])))
+    r6 = asyncio.gather(redis_db_object.add_resource(Resource(name='v3', type='vlan', status=ACTIVE_STATUS, tags=['vlan'])))
+
+
     loop = asyncio.get_event_loop()
     loop.run_until_complete(r1)
     loop.run_until_complete(r2)
     loop.run_until_complete(r3)
+    loop.run_until_complete(r4)
+    loop.run_until_complete(r5)
+    loop.run_until_complete(r6)
     ports_dict.update(qrm_management_server)
     ports_dict.update(qrm_http_server_for_system_pending)
     return ports_dict

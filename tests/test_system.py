@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import pytest
@@ -5,7 +6,7 @@ import time
 
 from typing import List
 from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, PENDING_STATUS, ACTIVE_STATUS, \
-    ResourcesRequestResponse
+    ResourcesRequestResponse, ResourcesByTags
 
 
 def test_http_server_and_client_get_root_url(qrm_client, redis_db_object):
@@ -21,6 +22,31 @@ def test_client_new_request(qrm_client, default_test_token):
     resp = qrm_client.new_request(rr.as_json())
     assert default_test_token in resp.get('token')
     assert resp.get('is_valid')
+
+
+async def test_with_2_client_new_request_at_same_time(qrm_2_clients_pending, default_test_token):
+    rr = ResourcesRequest()
+    rr.token = default_test_token
+    rbt = ResourcesByTags(tags=['server'], count=1)
+    rbt2 = ResourcesByTags(tags=['vlan'], count=1)
+    rr.tags.append(rbt)
+    rr.tags.append(rbt2)
+
+    rr2 = ResourcesRequest()
+    rr2.token = f'bad_token'
+    rr2.tags.append(rbt)
+    rr2.tags.append(rbt2)
+
+    loop = asyncio.get_event_loop()
+    qrm_client_1, qrm_client_2 = qrm_2_clients_pending
+    print(1)
+    resp = loop.run_in_executor(None, qrm_client_1.new_request(rr.as_json()))
+    print(2)
+    resp2 = loop.run_in_executor(None, qrm_client_2.new_request(rr2.as_json()))
+    print(3)
+    # assert default_test_token in resp.get('token')
+    # assert resp.get('is_valid')
+    await asyncio.sleep(100000)
 
 
 def test_client_new_requested_resource_does_not_exist(qrm_client, default_test_token):
