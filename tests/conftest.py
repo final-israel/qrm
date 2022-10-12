@@ -18,11 +18,9 @@ from pytest_httpserver import HTTPServer
 from qrm_client.qrm_http_client import QrmClient, ManagementClient
 from werkzeug.wrappers import Request, Response
 from multiprocessing import Process
-from typing import Tuple
 
 TEST_TOKEN = 'token1234'
 REDIS_PORT = 6379
-
 
 here = Path(__file__).resolve().parent.parent
 sys.path.append(f'{here}')
@@ -83,6 +81,7 @@ def default_test_token() -> str:
 
 @pytest.fixture(scope='function')
 def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) -> HTTPServer:
+    # noinspection PyShadowingNames
     def new_request_handler(request: Request):
         req_json = request.json
         req_json = json_to_dict(req_json)
@@ -124,6 +123,7 @@ def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer, default_test_to
         res = Response(rrr_json, status=200, content_type="application/json")
         wait_for_test_call_times += 1
         return res
+
     httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_GET_ROOT}').respond_with_handler(handler)
     httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN}').respond_with_handler(handler)
     httpserver.expect_request(qrm_defs.qrm_urls.URL_GET_TOKEN_STATUS).respond_with_handler(handler_for_wait_for_test)
@@ -305,20 +305,6 @@ def qrm_client_pending(full_qrm_servers_ports_pending_logic: dict) -> QrmClient:
 
 
 @pytest.fixture(scope='function')
-def qrm_2_clients_pending(full_qrm_servers_ports_pending_logic: dict) -> Tuple[QrmClient, QrmClient]:
-    client1 = QrmClient(server_ip='127.0.0.1',
-                       server_port=full_qrm_servers_ports_pending_logic['http_port'],
-                       user_name='test_user')
-
-    client2 = QrmClient(server_ip='127.0.0.1',
-                       server_port=full_qrm_servers_ports_pending_logic['http_port'],
-                       user_name='test_user')
-
-    client1.wait_for_server_up()
-    return client1, client2
-
-
-@pytest.fixture(scope='function')
 def mgmt_client(full_qrm_servers_ports: dict) -> ManagementClient:
     client = ManagementClient(server_ip='127.0.0.1',
                               server_port=full_qrm_servers_ports['management_port'],
@@ -339,13 +325,18 @@ def full_qrm_servers_ports_pending_logic(unused_tcp_port_factory, qrm_http_serve
                                          qrm_management_server, redis_db_object) -> dict:
     ports_dict = {}
 
-    r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server', status=ACTIVE_STATUS, tags=['server'])))
-    r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server', status=ACTIVE_STATUS, tags=['server'])))
-    r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server', status=ACTIVE_STATUS, tags=['server'])))
-    r4 = asyncio.gather(redis_db_object.add_resource(Resource(name='v1', type='vlan', status=ACTIVE_STATUS, tags=['vlan'])))
-    r5 = asyncio.gather(redis_db_object.add_resource(Resource(name='v2', type='vlan', status=ACTIVE_STATUS, tags=['vlan'])))
-    r6 = asyncio.gather(redis_db_object.add_resource(Resource(name='v3', type='vlan', status=ACTIVE_STATUS, tags=['vlan'])))
-
+    r1 = asyncio.gather(redis_db_object.add_resource(Resource(name='r1', type='server',
+                                                              status=ACTIVE_STATUS, tags=['server'])))
+    r2 = asyncio.gather(redis_db_object.add_resource(Resource(name='r2', type='server',
+                                                              status=ACTIVE_STATUS, tags=['server'])))
+    r3 = asyncio.gather(redis_db_object.add_resource(Resource(name='r3', type='server',
+                                                              status=ACTIVE_STATUS, tags=['server'])))
+    r4 = asyncio.gather(redis_db_object.add_resource(Resource(name='v1', type='vlan',
+                                                              status=ACTIVE_STATUS, tags=['vlan'])))
+    r5 = asyncio.gather(redis_db_object.add_resource(Resource(name='v2', type='vlan',
+                                                              status=ACTIVE_STATUS, tags=['vlan'])))
+    r6 = asyncio.gather(redis_db_object.add_resource(Resource(name='v3', type='vlan',
+                                                              status=ACTIVE_STATUS, tags=['vlan'])))
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(r1)
