@@ -6,8 +6,6 @@ import async_timeout
 import json
 import logging
 
-import redis.lock
-
 from qrm_defs import resource_definition
 from qrm_defs.resource_definition import Resource, ALLOWED_SERVER_STATUSES, ResourcesRequest, ResourcesRequestResponse
 from db_adapters.qrm_db import QrmBaseDB
