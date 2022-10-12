@@ -130,6 +130,7 @@ class QueueManagerBackEnd(QrmIfc):
                 if resources_list_request.count != 0:
                     logging.info(f'waiting for signal on token: {token}')
                     reason = await self.worker_wait_for_continue_event(token)
+                    logging.info(f'received signal for {token}')
                     if reason == CANCELED:
                         return ResourcesRequestResponse()
                     if reason == NOT_VALID:
@@ -159,6 +160,14 @@ class QueueManagerBackEnd(QrmIfc):
         for res_name in resources_names:
             resource = await self.redis.get_resource_by_name(res_name)
             await self.redis.remove_job(token, [resource])
+            await self.signal_due_to_job_removal(resource)
+
+    async def signal_due_to_job_removal(self, resource):
+        active_job = await self.redis.get_active_job(resource)
+        try:
+            self.tokens_change_event[active_job['token']].set()
+        except KeyError:
+            pass
 
     async def finalize_filled_request(self, token: str):
         """
@@ -231,6 +240,7 @@ class QueueManagerBackEnd(QrmIfc):
                 if resource.token:
                     await self.cancel_request(resource.token)
                 await self.redis.partial_fill_request(token, resource)
+                logging.debug(f'resource {resource.name} is now belongs to token {token}')
                 matched_resources.append(resource_name)
                 resources_list_request.count -= 1
 
@@ -279,6 +289,7 @@ class QueueManagerBackEnd(QrmIfc):
             # release coros
             self.tokens_change_event[affected_token].set()
         try:
+            logging.debug(f'setting token change event for {token}')
             self.tokens_change_event[token].set(reason=CANCELED)
         except KeyError as e:
             logging.error(f'got request to cancel unknown token {token}')

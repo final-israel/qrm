@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import pytest
@@ -5,7 +6,7 @@ import time
 
 from typing import List
 from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, PENDING_STATUS, ACTIVE_STATUS, \
-    ResourcesRequestResponse
+    ResourcesRequestResponse, ResourcesByTags
 
 
 def test_http_server_and_client_get_root_url(qrm_client, redis_db_object):
