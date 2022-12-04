@@ -57,14 +57,9 @@ jobs:
           echo "cat ./qrm_server/ver.yaml"
           cat ./qrm_server/ver.yaml
 
-      - name: "Set version from Commit"
-        id: get_version
-        run: |
-          echo "${{steps.vmn_version.outputs.verstr}}" >> $GITHUB_ENV
-
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
           file: DockerfileQrmServer
           push: true
-          tags: finalil/qrm_server:${{ env.version }},finalil/qrm_server:latest
+          tags: finalil/qrm_server:${{ steps.vmn_version.outputs.verstr }},finalil/qrm_server:latest
