@@ -7,6 +7,7 @@ Queue Resources Manager
 ![](https://img.shields.io/badge/Maintained%3F-yes-green.svg)
 ![](https://img.shields.io/github/issues/final-israel/qrm.svg)
 [![PyPI](https://img.shields.io/pypi/v/qrm-client?color=blue&label=qrm-client%20pypi)](https://pypi.org/project/qrm-client/)
+[![vmn: automatic versioning](https://img.shields.io/badge/vmn-automatic%20versioning-blue)](https://github.com/final-israel/vmn)
 ## management server
 Add resource to qrm:
 
