@@ -42,10 +42,16 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
+      
       - name: Stamp with vmn
+        uses: progovoy/vmn-action@vmna_0.1.8
+        with:
+          release-mode: ${{ github.event.inputs.version_type }}
+          app-name: qrm_server
+          
+      - name: show version vmn
         run: |
-          vmn stamp -r ${{ github.event.inputs.version_type }} qrm_server
+          # vmn stamp -r ${{ github.event.inputs.version_type }} qrm_server
           vmn show qrm_server --verbose > ./qrm_server/ver.yaml
           echo "cat ./qrm_server/ver.yaml"
           cat ./qrm_server/ver.yaml
