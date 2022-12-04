@@ -44,6 +44,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       
       - name: Stamp with vmn
+        id: vmn_version
         uses: progovoy/vmn-action@vmna_0.1.8
         with:
           release-mode: ${{ github.event.inputs.version_type }}
@@ -59,7 +60,7 @@ jobs:
       - name: "Set version from Commit"
         id: get_version
         run: |
-          echo "version=$(vmn show qrm_server --ignore-dirty)" >> $GITHUB_ENV
+          echo "${{steps.vmn_version.outputs.verstr}}" >> $GITHUB_ENV
 
       - name: Build and push
         uses: docker/build-push-action@v2
