@@ -4,5 +4,5 @@ conf:
   deps: {}
   extra_info: false
   hide_zero_hotfix: true
-  template: '[{major}][.{minor}][.{patch}][.{hotfix}][-{prerelease}][+{buildmetadata}] '
+  template: '[{major}][.{minor}][.{patch}][.{hotfix}][-{prerelease}][+{buildmetadata}]'
   version_backends: {}
