@@ -266,3 +266,22 @@ async def test_remove_tag_from_resource_with_no_resource(post_to_mgmt_server, re
     assert resp.status == 200
     resorces_list = await redis_db_object.get_resources_names_by_tags(['tag1'])
     assert resorces_list == []
+
+
+async def test_get_token_last_update(redis_db_object, post_to_mgmt_server):
+    token = 'test_token'
+    last_update = '05/12/2022 16:00:00'
+    await redis_db_object.update_token_last_update_time(token, last_update)
+    resp = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
+    qrm_status_dict = await resp.json()
+    assert qrm_status_dict['token_last_update_time'][token] == last_update
+
+
+async def test_get_all_managed_tokens(redis_db_object, post_to_mgmt_server):
+    token1 = 'test_token1'
+    token2 = 'test_token2'
+    await redis_db_object.add_auto_managed_token(token1)
+    await redis_db_object.add_auto_managed_token(token2)
+    resp = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
+    qrm_status_dict = await resp.json()
+    assert token1 and token2 in qrm_status_dict['auto_managed_tokens']

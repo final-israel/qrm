@@ -22,6 +22,8 @@ TOKEN_RESOURCES_MAP = 'token_dict'
 ACTIVE_TOKEN_DICT = 'active_token_dict'
 LAST_REQ_RESP = 'last_req_resp'
 TAGS_RES_NAME_MAP = 'tag_res_name_map'
+TOKEN_LAST_UPDATE = 'token_last_update_time'
+MANAGED_TOKENS = 'managed_tokens_list'
 PUBSUB_POLLING_TIME = 0.1
 
 
@@ -436,6 +438,27 @@ class RedisDB(QrmBaseDB):
             return True
         else:
             return False
+
+    async def update_token_last_update_time(self, token: str, last_update: str) -> None:
+        await self.redis.hset(TOKEN_LAST_UPDATE, token, last_update)
+
+    async def get_token_last_update(self, token: str) -> str:
+        return await self.redis.hget(TOKEN_LAST_UPDATE, token)
+
+    async def delete_token_last_update_time(self, token: str) -> None:
+        await self.redis.hdel(TOKEN_LAST_UPDATE, token)
+
+    async def get_all_tokens_last_update(self) -> dict:
+        return await self.redis.hgetall(TOKEN_LAST_UPDATE)
+
+    async def add_auto_managed_token(self, token: str) -> None:
+        await self.redis.lpush(MANAGED_TOKENS, token)
+
+    async def get_all_auto_managed_tokens(self) -> List[str]:
+        return await self.redis.lrange(MANAGED_TOKENS, 0, -1)
+
+    async def delete_auto_managed_token(self, token: str) -> None:
+        await self.redis.lrem(name=MANAGED_TOKENS, count=1, value=token)
 
     async def remove_tags_from_map(self, resource: Resource, tag: str) -> None:
         """

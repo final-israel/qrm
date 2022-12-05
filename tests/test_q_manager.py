@@ -1171,3 +1171,20 @@ async def add_token_to_resources(qrm_backend_with_db, resources: List[Resource])
     await qrm_backend_with_db.new_request(user_request)
     new_token = await qrm_backend_with_db.get_new_token('old_token')
     await qrm_backend_with_db.cancel_request(new_token)
+
+
+async def test_managed_token(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    user_request = ResourcesRequest(auto_managed=True)
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name in result.names
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    assert len(res_1_jobs) == 2  # [job1, {}]
+    assert len(await redis_db_object.get_all_auto_managed_tokens()) == 1
+    new_token = await qrm_backend_with_db.get_new_token(job1['token'])
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    assert new_token in token_last_update_dict

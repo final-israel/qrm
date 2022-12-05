@@ -114,7 +114,12 @@ async def build_status_dict():
                 #   type2: [res3]
                 #   }
                 # token2: ...
-            }
+            },
+        'token_last_update_time':
+            await redis.get_all_tokens_last_update(),
+
+        'auto_managed_tokens':
+            await redis.get_all_auto_managed_tokens()
     }
 
     for resource in await redis.get_all_resources():
@@ -128,6 +133,8 @@ async def build_status_dict():
         status_dict['resources_status'][resource.name]['jobs'] = jobs
         status_dict['resources_status'][resource.name]['tags'] = resource.tags
         add_resource_to_token_list(resource, status_dict)
+
+
     return status_dict
 
 
@@ -160,7 +167,7 @@ async def set_resource_status(request):
                                 text=f'Error: resource {resource_name} does not exist or status is not allowed\n')
         if await redis.set_resource_status(resource=resource, status=req_status):
             return web.Response(status=HTTPStatus.OK,
-                                text=f'mew resource status is: {req_status}\n')
+                                text=f'new resource status is: {req_status}\n')
         else:
             return web.Response(status=HTTPStatus.INTERNAL_SERVER_ERROR,
                                 text=f'couldn\'t update resource status for: {resource_name}, check server logs')

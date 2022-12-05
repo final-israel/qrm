@@ -163,3 +163,31 @@ class QrmBaseDB(ABC):
     @abstractmethod
     async def destroy_token(self, token: str) -> None:
         pass
+
+    @abstractmethod
+    async def update_token_last_update_time(self, token: str, last_update: str) -> None:
+        pass
+
+    @abstractmethod
+    async def get_token_last_update(self, token: str) -> str:
+        pass
+
+    @abstractmethod
+    async def delete_token_last_update_time(self, token: str) -> str:
+        pass
+
+    @abstractmethod
+    async def get_all_tokens_last_update(self) -> dict:
+        pass
+
+    @abstractmethod
+    async def add_auto_managed_token(self, token: str) -> None:
+        pass
+
+    @abstractmethod
+    async def get_all_auto_managed_tokens(self) -> List[str]:
+        pass
+
+    @abstractmethod
+    async def delete_auto_managed_token(self, token: str) -> None:
+        pass
