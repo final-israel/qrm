@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 import pickle
 from dataclasses import dataclass, asdict, field
@@ -44,18 +45,6 @@ def is_token_format(token: str) -> bool:
         return True
     except Exception as e:
         return False
-
-
-def resource_request_from_json(resource_req_as_json: str):  # type:  ResourcesRequest
-
-    res_req = ResourcesRequest()
-    res_dict = json_to_dict(resource_req_as_json)
-    res_req.add_request_by_token(res_dict.get('token'))
-    for name_req in res_dict['names']:
-        res_req.add_request_by_names(**name_req)
-    for tags_req in res_dict['tags']:
-        res_req.add_request_by_tags(**tags_req)
-    return res_req
 
 
 @dataclass
@@ -116,7 +105,7 @@ class ResourcesRequestResponse:
         return json.dumps(self.as_dict())
 
     @classmethod
-    def from_json(cls, json_str: str):  # type: ResourcesRequestResponse
+    def from_json(cls, json_str: str):
         json_as_dict = json.loads(json_str)
         return ResourcesRequestResponse(**json_as_dict)
 
@@ -126,6 +115,7 @@ class ResourcesRequest:
     names: List[ResourcesByName] = field(default_factory=list)
     tags: List[ResourcesByTags] = field(default_factory=list)
     token: str = ''
+    auto_managed: bool = False
 
     def validate(self) -> None:
         self.validate_not_empty()
@@ -171,3 +161,14 @@ class ResourceStatus:
 
     def as_json(self) -> str:
         return json.dumps(self.as_dict())
+
+
+def resource_request_from_json(resource_req_as_json: str) -> ResourcesRequest:
+    res_req = ResourcesRequest()
+    res_dict = json_to_dict(resource_req_as_json)
+    res_req.add_request_by_token(res_dict.get('token'))
+    for name_req in res_dict['names']:
+        res_req.add_request_by_names(**name_req)
+    for tags_req in res_dict['tags']:
+        res_req.add_request_by_tags(**tags_req)
+    return res_req
