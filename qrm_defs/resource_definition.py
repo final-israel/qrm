@@ -1,4 +1,3 @@
-from __future__ import annotations
 import json
 import pickle
 from dataclasses import dataclass, asdict, field
