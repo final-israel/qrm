@@ -379,6 +379,8 @@ class QueueManagerBackEnd(QrmIfc):
         if resources_request.auto_managed:
             await self.redis.add_auto_managed_token(active_token)
 
+        await self.update_last_token_req_time(active_token)
+
         await self.init_event_for_token(active_token)
 
         await self.convert_tags_to_names(resources_request)

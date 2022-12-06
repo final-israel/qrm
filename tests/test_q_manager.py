@@ -1183,8 +1183,10 @@ async def test_managed_token(redis_db_object, qrm_backend_with_db):
     result = await qrm_backend_with_db.new_request(user_request)
     assert res_1.name in result.names
     res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    auto_managed_tokens = await redis_db_object.get_all_auto_managed_tokens()
     assert len(res_1_jobs) == 2  # [job1, {}]
-    assert len(await redis_db_object.get_all_auto_managed_tokens()) == 1
+    assert len(auto_managed_tokens) == 1
     new_token = await qrm_backend_with_db.get_new_token(job1['token'])
     token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    assert new_token in auto_managed_tokens
     assert new_token in token_last_update_dict
