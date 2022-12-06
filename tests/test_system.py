@@ -8,6 +8,7 @@ import time
 from typing import List
 from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, PENDING_STATUS, ACTIVE_STATUS, \
     ResourcesRequestResponse, ResourcesByTags
+from qrm_server.management_server import LAST_UPDATE_TIME, AUTO_MANAGED_TOKENS
 
 
 def test_http_server_and_client_get_root_url(qrm_client, redis_db_object):
@@ -532,9 +533,9 @@ async def test_token_last_update_time_auto_managed_token(redis_db_object, qrm_cl
     new_token1 = resp.get('token')
     new_token_2 = resp2.get('token')
     status_api = mgmt_client.get_status_api()
-    assert new_token1 in status_api['auto_managed_tokens']
-    assert new_token_2 not in status_api['auto_managed_tokens']
-    assert new_token_2 and new_token1 in status_api['token_last_update_time']
+    assert new_token1 in status_api[AUTO_MANAGED_TOKENS]
+    assert new_token_2 not in status_api[AUTO_MANAGED_TOKENS]
+    assert new_token_2 and new_token1 in status_api[LAST_UPDATE_TIME]
 
 
 async def test_auto_managed_token_backward_compatible(redis_db_object, qrm_client, mgmt_client):
@@ -550,8 +551,8 @@ async def test_auto_managed_token_backward_compatible(redis_db_object, qrm_clien
     resp = qrm_client.new_request(rr_json)
     new_token1 = resp.get('token')
     status_api = mgmt_client.get_status_api()
-    assert new_token1 not in status_api['auto_managed_tokens']
-    assert new_token1 in status_api['token_last_update_time']
+    assert new_token1 not in status_api[AUTO_MANAGED_TOKENS]
+    assert new_token1 in status_api[LAST_UPDATE_TIME]
 
 
 def load_db_with_resources_and_token(qrm_client, resources_names: List[str], token: str = 'old_token'):

@@ -5,6 +5,7 @@ import pytest
 import qrm_defs.qrm_urls
 
 from qrm_defs.resource_definition import Resource
+from qrm_server.management_server import LAST_UPDATE_TIME, AUTO_MANAGED_TOKENS
 
 
 async def test_add_resource(post_to_mgmt_server, redis_db_object, resource_dict_1):
@@ -274,7 +275,7 @@ async def test_get_token_last_update(redis_db_object, post_to_mgmt_server):
     await redis_db_object.update_token_last_update_time(token, last_update)
     resp = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
     qrm_status_dict = await resp.json()
-    assert qrm_status_dict['token_last_update_time'][token] == last_update
+    assert qrm_status_dict[LAST_UPDATE_TIME][token] == last_update
 
 
 async def test_get_all_managed_tokens(redis_db_object, post_to_mgmt_server):
@@ -284,4 +285,4 @@ async def test_get_all_managed_tokens(redis_db_object, post_to_mgmt_server):
     await redis_db_object.add_auto_managed_token(token2)
     resp = await post_to_mgmt_server.get(qrm_defs.qrm_urls.MGMT_STATUS_API)
     qrm_status_dict = await resp.json()
-    assert token1 and token2 in qrm_status_dict['auto_managed_tokens']
+    assert token1 and token2 in qrm_status_dict[AUTO_MANAGED_TOKENS]

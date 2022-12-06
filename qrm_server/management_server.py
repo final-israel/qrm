@@ -10,6 +10,10 @@ from qrm_defs.qrm_urls import MGMT_STATUS_API, SET_SERVER_STATUS, REMOVE_RESOURC
     SET_RESOURCE_STATUS, ADD_TAG_TO_RESOURCE, REMOVE_TAG_FROM_RESOURCE
 from qrm_defs.resource_definition import Resource
 from pathlib import Path
+
+AUTO_MANAGED_TOKENS = 'auto_managed_tokens'
+
+LAST_UPDATE_TIME = 'token_last_update_time'
 LISTEN_PORT = 8080
 
 REDIS_PORT = 6379
@@ -115,10 +119,10 @@ async def build_status_dict():
                 #   }
                 # token2: ...
             },
-        'token_last_update_time':
+        LAST_UPDATE_TIME:
             await redis.get_all_tokens_last_update(),
 
-        'auto_managed_tokens':
+        AUTO_MANAGED_TOKENS:
             await redis.get_all_auto_managed_tokens()
     }
 
