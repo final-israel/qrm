@@ -10,6 +10,10 @@ from qrm_defs.qrm_urls import MGMT_STATUS_API, SET_SERVER_STATUS, REMOVE_RESOURC
     SET_RESOURCE_STATUS, ADD_TAG_TO_RESOURCE, REMOVE_TAG_FROM_RESOURCE
 from qrm_defs.resource_definition import Resource
 from pathlib import Path
+
+AUTO_MANAGED_TOKENS = 'auto_managed_tokens'
+
+LAST_UPDATE_TIME = 'token_last_update_time'
 LISTEN_PORT = 8080
 
 REDIS_PORT = 6379
@@ -114,7 +118,12 @@ async def build_status_dict():
                 #   type2: [res3]
                 #   }
                 # token2: ...
-            }
+            },
+        LAST_UPDATE_TIME:
+            await redis.get_all_tokens_last_update(),
+
+        AUTO_MANAGED_TOKENS:
+            await redis.get_all_auto_managed_tokens()
     }
 
     for resource in await redis.get_all_resources():
@@ -128,6 +137,8 @@ async def build_status_dict():
         status_dict['resources_status'][resource.name]['jobs'] = jobs
         status_dict['resources_status'][resource.name]['tags'] = resource.tags
         add_resource_to_token_list(resource, status_dict)
+
+
     return status_dict
 
 
@@ -160,7 +171,7 @@ async def set_resource_status(request):
                                 text=f'Error: resource {resource_name} does not exist or status is not allowed\n')
         if await redis.set_resource_status(resource=resource, status=req_status):
             return web.Response(status=HTTPStatus.OK,
-                                text=f'mew resource status is: {req_status}\n')
+                                text=f'new resource status is: {req_status}\n')
         else:
             return web.Response(status=HTTPStatus.INTERNAL_SERVER_ERROR,
                                 text=f'couldn\'t update resource status for: {resource_name}, check server logs')

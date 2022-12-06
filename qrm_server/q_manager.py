@@ -1,5 +1,6 @@
 import asyncio
 import copy
+import datetime
 import logging
 from db_adapters.redis_adapter import RedisDB
 from qrm_defs.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
@@ -272,6 +273,8 @@ class QueueManagerBackEnd(QrmIfc):
         :return: None, just remove the request and handle resources cleanup (pending)
         """
 
+        await self.redis.delete_token_last_update_time(token)
+        await self.redis.delete_auto_managed_token(token)
         rrr = await self.redis.get_req_resp_for_token(token)
         if not rrr.is_token_active_in_queue:
             rrr.is_valid = False
@@ -373,6 +376,11 @@ class QueueManagerBackEnd(QrmIfc):
             requested_token, active_token
         )
 
+        if resources_request.auto_managed:
+            await self.redis.add_auto_managed_token(active_token)
+
+        await self.update_last_token_req_time(active_token)
+
         await self.init_event_for_token(active_token)
 
         await self.convert_tags_to_names(resources_request)
@@ -450,6 +458,7 @@ class QueueManagerBackEnd(QrmIfc):
             if not active_job:
                 await self.generate_job(resource, token)
             resources_request_resp.names.append(resource.name)
+        await self.update_last_token_req_time(token)
         return resources_request_resp
 
     async def generate_job(self, resource, token):
@@ -464,6 +473,7 @@ class QueueManagerBackEnd(QrmIfc):
             is_not_valid = self.tokens_change_event[token].reason == NOT_VALID
             logging.info(f'request for token: {token} cancelled: {is_cancelled}, '
                          f'filled: {is_filled}, not_valid: {is_not_valid}')
+            await self.update_last_token_req_time(token)
             return not (is_filled or is_cancelled or is_not_valid)
         except KeyError as e:
             logging.info(f'got request for unknown token {token}')
@@ -473,6 +483,10 @@ class QueueManagerBackEnd(QrmIfc):
             rrr.message = f'unknown token in qrm {token}'
             await self.redis.set_req_resp(rrr)
             return False
+
+    async def update_last_token_req_time(self, token: str) -> None:
+        request_time = datetime.datetime.now().strftime('%m/%d/%Y, %H:%M:%S')
+        await self.redis.update_token_last_update_time(token, last_update=request_time)
 
     async def get_new_token(self, token: str) -> str:
         new_token = await self.redis.get_active_token_from_user_token(token)

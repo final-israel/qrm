@@ -1171,3 +1171,77 @@ async def add_token_to_resources(qrm_backend_with_db, resources: List[Resource])
     await qrm_backend_with_db.new_request(user_request)
     new_token = await qrm_backend_with_db.get_new_token('old_token')
     await qrm_backend_with_db.cancel_request(new_token)
+
+
+async def test_managed_token(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    user_request = ResourcesRequest(auto_managed=True)
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name in result.names
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    auto_managed_tokens = await redis_db_object.get_all_auto_managed_tokens()
+    assert len(res_1_jobs) == 2  # [job1, {}]
+    assert len(auto_managed_tokens) == 1
+    new_token = await qrm_backend_with_db.get_new_token(job1['token'])
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    assert new_token in auto_managed_tokens
+    assert new_token in token_last_update_dict
+
+
+async def test_managed_token_last_update_time(redis_db_object, qrm_backend_with_db):
+    # validate that last_update time is updated after is_request_active called
+
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    user_request = ResourcesRequest(auto_managed=True)
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    await qrm_backend_with_db.new_request(user_request)
+    new_token = await qrm_backend_with_db.get_new_token(job1['token'])
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+
+    old_update_time = token_last_update_dict[new_token]
+
+    await asyncio.sleep(1.01)  # this sleep is bc out time resolution is 1 second
+    await qrm_backend_with_db.is_request_active(new_token)
+    # after is_request_active called, the update_time must be changed:
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    new_update_time = token_last_update_dict[new_token]
+    assert new_update_time != old_update_time
+
+    await asyncio.sleep(1.01)  # this sleep is bc out time resolution is 1 second
+    await qrm_backend_with_db.is_request_active(new_token)
+
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    assert new_update_time != token_last_update_dict[new_token]
+
+
+async def test_cancel_request_remove_token_last_update_and_managed(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    user_request = ResourcesRequest(auto_managed=True)
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+    assert res_1.name in result.names
+    res_1_jobs = await redis_db_object.get_resource_jobs(res_1)
+    auto_managed_tokens = await redis_db_object.get_all_auto_managed_tokens()
+    assert len(res_1_jobs) == 2  # [job1, {}]
+    assert len(auto_managed_tokens) == 1
+    new_token = await qrm_backend_with_db.get_new_token(job1['token'])
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    assert new_token in auto_managed_tokens
+    assert new_token in token_last_update_dict
+
+    # cancel request should remove the token from last_update and from auto_managed:
+    await qrm_backend_with_db.cancel_request(new_token)
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    auto_managed_tokens = await redis_db_object.get_all_auto_managed_tokens()
+    assert not token_last_update_dict
+    assert not auto_managed_tokens

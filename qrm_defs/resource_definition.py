@@ -1,4 +1,3 @@
-from __future__ import annotations
 import json
 import pickle
 from dataclasses import dataclass, asdict, field
@@ -166,6 +165,8 @@ class ResourceStatus:
 def resource_request_from_json(resource_req_as_json: str) -> ResourcesRequest:
     res_req = ResourcesRequest()
     res_dict = json_to_dict(resource_req_as_json)
+    if res_dict.get('auto_managed'):
+        res_req.auto_managed = True
     res_req.add_request_by_token(res_dict.get('token'))
     for name_req in res_dict['names']:
         res_req.add_request_by_names(**name_req)
