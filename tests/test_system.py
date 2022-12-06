@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 
 import pytest
@@ -511,6 +512,46 @@ def test_token_no_longer_valid_is_valid_false(redis_db_object, qrm_client):
     # in this point token1 is no longer valid
     resp = qrm_client.get_token_status(new_token1)
     assert not resp['is_valid']
+
+
+async def test_token_last_update_time_auto_managed_token(redis_db_object, qrm_client, mgmt_client):
+    # send new request -> validate token in mgmt_client
+
+    rr = ResourcesRequest(auto_managed=True)
+    rr.token = 'token1'
+    rbn = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbn)
+    resp = qrm_client.new_request(rr.as_json())
+
+    rr2 = ResourcesRequest(auto_managed=False)
+    rr2.token = 'token2'
+    rbn = ResourcesByName(names=['r2'], count=1)
+    rr2.names.append(rbn)
+    resp2 = qrm_client.new_request(rr2.as_json())
+
+    new_token1 = resp.get('token')
+    new_token_2 = resp2.get('token')
+    status_api = mgmt_client.get_status_api()
+    assert new_token1 in status_api['auto_managed_tokens']
+    assert new_token_2 not in status_api['auto_managed_tokens']
+    assert new_token_2 and new_token1 in status_api['token_last_update_time']
+
+
+async def test_auto_managed_token_backward_compatible(redis_db_object, qrm_client, mgmt_client):
+    # send old request (without auto_managed) structure to new server
+
+    rr = ResourcesRequest(auto_managed=True)
+    rr.token = 'token1'
+    rbn = ResourcesByName(names=['r1'], count=1)
+    rr.names.append(rbn)
+    rr_dict = rr.as_dict()
+    rr_dict.pop('auto_managed')
+    rr_json = json.dumps(rr_dict)
+    resp = qrm_client.new_request(rr_json)
+    new_token1 = resp.get('token')
+    status_api = mgmt_client.get_status_api()
+    assert new_token1 not in status_api['auto_managed_tokens']
+    assert new_token1 in status_api['token_last_update_time']
 
 
 def load_db_with_resources_and_token(qrm_client, resources_names: List[str], token: str = 'old_token'):

@@ -526,6 +526,12 @@ async def test_delete_token_last_update_time(redis_db_object):
     assert resp is None
 
 
+async def test_delete_token_last_update_unkonwn_token(redis_db_object):
+    token = 'unknown'
+    resp = await redis_db_object.delete_token_last_update_time(token)
+    assert resp is None
+
+
 async def test_get_all_tokens_last_update(redis_db_object):
     token1 = 'test_token1'
     token2 = 'test_token2'
@@ -543,8 +549,8 @@ async def test_add_auto_managed_token(redis_db_object):
     token2 = 'test_token2'
     await redis_db_object.add_auto_managed_token(token1)
     await redis_db_object.add_auto_managed_token(token2)
-    assert token1 in await redis_db_object.get_all_auto_managed_tokens()
-    assert token2 in await redis_db_object.get_all_auto_managed_tokens()
+    assert token1 and token2 in await redis_db_object.get_all_auto_managed_tokens()
+    assert len(await redis_db_object.get_all_auto_managed_tokens()) == 2
 
 
 async def test_delete_auto_managed_token(redis_db_object):
@@ -552,8 +558,7 @@ async def test_delete_auto_managed_token(redis_db_object):
     token2 = 'test_token2'
     await redis_db_object.add_auto_managed_token(token1)
     await redis_db_object.add_auto_managed_token(token2)
-    assert token1 in await redis_db_object.get_all_auto_managed_tokens()
-    assert token2 in await redis_db_object.get_all_auto_managed_tokens()
+    assert token1 and token2 in await redis_db_object.get_all_auto_managed_tokens()
     await redis_db_object.delete_auto_managed_token(token2)
     assert token2 not in await redis_db_object.get_all_auto_managed_tokens()
     assert token1 in await redis_db_object.get_all_auto_managed_tokens()
