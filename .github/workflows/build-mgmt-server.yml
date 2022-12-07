@@ -42,22 +42,23 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
+      
       - name: Stamp with vmn
+        id: vmn_version
+        uses: progovoy/vmn-action@vmna_0.1.8
+        with:
+          release-mode: ${{ github.event.inputs.version_type }}
+          app-name: qrm_server
+
+      - name: show version vmn
         run: |
-          vmn stamp -r ${{ github.event.inputs.version_type }} qrm_mgmt_server
           vmn show qrm_mgmt_server --verbose > ./qrm_server/mgmt_ver.yaml
           echo "cat ./qrm_server/mgmt_ver.yaml"
           cat ./qrm_server/mgmt_ver.yaml
-
-      - name: "Set version from Commit"
-        id: get_version
-        run: |
-          echo "version=$(vmn show qrm_mgmt_server --ignore-dirty)" >> $GITHUB_ENV
 
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
           file: DockerfileMgmtServer
           push: true
-          tags: finalil/qrm_mgmt_server:${{ env.version }},finalil/qrm_mgmt_server:latest
+          tags: finalil/qrm_mgmt_server:${{ steps.vmn_version.outputs.verstr }},finalil/qrm_mgmt_server:latest
