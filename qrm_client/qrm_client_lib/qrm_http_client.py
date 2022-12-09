@@ -2,7 +2,7 @@ import logging
 import json
 import requests
 import time
-
+from abc import ABC, abstractmethod
 from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus, is_token_format, \
     generate_token_from_seed
 from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
@@ -69,7 +69,13 @@ def return_response(res: requests.Response, *args, **kwargs) -> requests.Respons
         return res
 
 
-class QrmClient(object):
+class QrmClientIfc(ABC):
+    @abstractmethod
+    def send_cancel(self, token:str, *args, **kwargs):
+        pass
+
+
+class QrmClient(QrmClientIfc):
     def __init__(self, server_ip: str,
                  server_port: str,
                  user_name: str,
@@ -227,7 +233,13 @@ class QrmClient(object):
         return resp_data
 
 
-class ManagementClient(object):
+class ManagementClientIfc(ABC):
+    @abstractmethod
+    def get_status_api(self) -> dict:
+        pass
+
+
+class ManagementClient(ManagementClientIfc):
     def __init__(self, server_ip: str,
                  server_port: str,
                  user_name: str,

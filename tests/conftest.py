@@ -15,7 +15,7 @@ from qrm_defs.resource_definition import Resource, ACTIVE_STATUS
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
 from pytest_httpserver import HTTPServer
-from qrm_client.qrm_client_lib.qrm_http_client import QrmClient, ManagementClient
+from qrm_client.qrm_client_lib.qrm_http_client import QrmClient, ManagementClient, QrmClientIfc, ManagementClientIfc
 from werkzeug.wrappers import Request, Response
 from multiprocessing import Process
 
@@ -28,6 +28,14 @@ logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
 wait_for_test_call_times = 0
+
+
+class ManagementClientMock(ManagementClientIfc):
+    def __init__(self):
+        pass
+
+    def get_status_api(self):
+        return {'qrm_server_status': 'active', 'resources_status': {'r1': {'status': 'active', 'type': 'server', 'active_job': {}, 'jobs': [], 'tags': []}, 'r2': {'status': 'active', 'type': 'server', 'active_job': {}, 'jobs': [], 'tags': []}, 'r3': {'status': 'active', 'type': 'server', 'active_job': {}, 'jobs': [], 'tags': []}}, 'tokens_resources_group': {}, 'token_last_update_time': {}, 'auto_managed_tokens': []}
 
 
 def json_to_dict(json_str: str or dict) -> dict:
@@ -78,6 +86,10 @@ def event_loop():
 def default_test_token() -> str:
     return TEST_TOKEN
 
+
+@pytest.fixture(scope='function')
+def mgmt_client_mock() -> ManagementClientMock:
+    return ManagementClientMock()
 
 @pytest.fixture(scope='function')
 def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) -> HTTPServer:
