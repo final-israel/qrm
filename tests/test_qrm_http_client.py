@@ -1,9 +1,9 @@
+import asyncio
 import json
-
+import time
 from qrm_server import qrm_http_server
-from qrm_client.qrm_http_client import QrmClient
-from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ACTIVE_STATUS, PENDING_STATUS, \
-    generate_token_from_seed, json_to_dict
+from qrm_client.qrm_client_lib.qrm_http_client import QrmClient
+from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ACTIVE_STATUS, PENDING_STATUS
 
 
 def test_qrm_http_client_get_root_url_debug(qrm_http_client_with_server_mock_debug_prints: QrmClient):
@@ -119,6 +119,7 @@ def test_mgmt_client_get_all_resources_with_status_panding(mgmt_client, qrm_http
     mgmt_client.set_resource_status('r1', PENDING_STATUS)
     mgmt_client.set_resource_status('r2', PENDING_STATUS)
     all_resourses_status_dict = mgmt_client.get_status_api()
+    time.sleep(1)
     assert all_resourses_status_dict.get('resources_status')
     assert PENDING_STATUS == all_resourses_status_dict.get('resources_status').get('r1').get('status')
     assert PENDING_STATUS == all_resourses_status_dict.get('resources_status').get('r2').get('status')

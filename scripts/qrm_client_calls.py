@@ -1,5 +1,5 @@
-from qrm_client.qrm_http_client import QrmClient, ManagementClient
-from qrm_defs.resource_definition import ResourcesByTags, ResourcesRequest, ResourcesRequestResponse
+from qrm_client.qrm_client_lib.qrm_http_client import QrmClient
+from qrm_defs.resource_definition import ResourcesByTags, ResourcesRequest
 
 
 def send_new(qrm_client_obj: QrmClient):
