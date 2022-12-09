@@ -2,7 +2,7 @@ import setuptools
 import yaml
 
 name = 'qrm_client'
-file_path = 'qrm_client'
+file_path = ''
 
 with open(f'{file_path}/requirements.txt') as fid:
     install_requires = fid.readlines()

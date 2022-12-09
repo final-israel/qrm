@@ -15,7 +15,7 @@ from qrm_defs.resource_definition import Resource, ACTIVE_STATUS
 from qrm_server.q_manager import QueueManagerBackEnd, QrmIfc, \
     ResourcesRequest, ResourcesRequestResponse
 from pytest_httpserver import HTTPServer
-from qrm_client.qrm_http_client import QrmClient, ManagementClient
+from qrm_client.qrm_client_lib.qrm_http_client import QrmClient, ManagementClient
 from werkzeug.wrappers import Request, Response
 from multiprocessing import Process
 
