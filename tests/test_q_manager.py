@@ -1245,3 +1245,27 @@ async def test_cancel_request_remove_token_last_update_and_managed(redis_db_obje
     auto_managed_tokens = await redis_db_object.get_all_auto_managed_tokens()
     assert not token_last_update_dict
     assert not auto_managed_tokens
+
+
+async def test_token_status_cancelled_token(redis_db_object, qrm_backend_with_db):
+    job1 = {'token': 'job_1_token'}
+    res_1 = Resource(name='res1', type='type1', status=ACTIVE_STATUS, tags=['server'])
+    await redis_db_object.add_resource(res_1)
+    user_request = ResourcesRequest(auto_managed=True)
+    user_request.add_request_by_token(job1["token"])
+    user_request.add_request_by_tags(['server'], count=1)
+    result = await qrm_backend_with_db.new_request(user_request)
+
+    new_token = await qrm_backend_with_db.get_new_token(job1['token'])
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    assert new_token in token_last_update_dict
+
+    # cancel request should remove the token from last_update
+    await qrm_backend_with_db.cancel_request(new_token)
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    assert not token_last_update_dict
+
+    # send status request on cancelled token and verify that the last_update doesn't exist:
+    await qrm_backend_with_db.is_request_active(new_token)
+    token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
+    assert not token_last_update_dict

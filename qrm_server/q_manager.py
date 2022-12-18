@@ -470,10 +470,11 @@ class QueueManagerBackEnd(QrmIfc):
         try:
             is_filled = await self.redis.is_request_filled(token)
             is_cancelled = self.tokens_change_event[token].reason == CANCELED
+            if not is_cancelled:  # don't update last_seen for cancelled tokens
+                await self.update_last_token_req_time(token)
             is_not_valid = self.tokens_change_event[token].reason == NOT_VALID
             logging.info(f'request for token: {token} cancelled: {is_cancelled}, '
                          f'filled: {is_filled}, not_valid: {is_not_valid}')
-            await self.update_last_token_req_time(token)
             return not (is_filled or is_cancelled or is_not_valid)
         except KeyError as e:
             logging.info(f'got request for unknown token {token}')
