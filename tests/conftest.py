@@ -5,6 +5,7 @@ import sys
 import qrm_server.qrm_http_server
 import qrm_defs.qrm_urls
 import json
+import os
 from aiohttp import web
 from pathlib import Path
 from db_adapters import redis_adapter
@@ -28,6 +29,28 @@ logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] [%(levelname)s] [
 redis_my_proc = factories.redis_proc(port=REDIS_PORT)
 redis_my = factories.redisdb('redis_my_proc')
 wait_for_test_call_times = 0
+
+
+
+def test_if_redis_server_is_up():
+    stat = os.system('service redis-server status')
+    if not stat:
+        logging.error(f'"service redis-server status" return is = {stat}, test cant run with redis, run: "service redis-server stop"')
+        try:
+            stat = os.system('service redis-server stop')
+        except Exception as e:
+            logging.error(e)
+
+
+test_if_redis_server_is_up()
+
+
+class ManagementClientMock(ManagementClientIfc):
+    def __init__(self):
+        pass
+
+    def get_status_api(self):
+        return {'qrm_server_status': 'active', 'resources_status': {'r1': {'status': 'active', 'type': 'server', 'active_job': {}, 'jobs': [], 'tags': []}, 'r2': {'status': 'active', 'type': 'server', 'active_job': {}, 'jobs': [], 'tags': []}, 'r3': {'status': 'active', 'type': 'server', 'active_job': {}, 'jobs': [], 'tags': []}}, 'tokens_resources_group': {}, 'token_last_update_time': {}, 'auto_managed_tokens': []}
 
 
 def json_to_dict(json_str: str or dict) -> dict:
@@ -78,6 +101,10 @@ def event_loop():
 def default_test_token() -> str:
     return TEST_TOKEN
 
+
+@pytest.fixture(scope='function')
+def mgmt_client_mock() -> ManagementClientMock:
+    return ManagementClientMock()
 
 @pytest.fixture(scope='function')
 def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) -> HTTPServer:
