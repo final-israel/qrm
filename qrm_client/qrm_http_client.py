@@ -98,7 +98,7 @@ class QrmClient(object):
         res_req = ResourcesRequest()
         res_req.token = token
         full_url = self.full_url(URL_POST_CANCEL_TOKEN)
-        logging.info(f'send cancel on token = {self.token} to url {full_url}')
+        logging.info(f'send cancel on token = {token} to url {full_url}')
         json_as_dict = res_req.as_dict()
         _resp = post_to_url(full_url=full_url, data_json=json_as_dict)
         return _resp
