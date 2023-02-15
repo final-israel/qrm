@@ -10,7 +10,7 @@ async def test_http_server_cancel_token(post_to_http_server):
     user_request = ResourcesRequest()
     user_request.add_request_by_token(token)
     resp = await post_to_http_server.post(qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN,
-                                          data=json.dumps(user_request.as_json()))
+                                          data=json.dumps(user_request.to_json()))
 
     resp_json = await resp.json()
     resp_dict = json.loads(resp_json)
@@ -29,7 +29,7 @@ async def test_http_server_new_request_new_token(post_to_http_server):
     print(post_to_http_server.host)
     print(post_to_http_server.port)
     resp = await post_to_http_server.post(qrm_defs.qrm_urls.URL_POST_NEW_REQUEST,
-                                          data=json.dumps(user_request.as_json()))
+                                          data=json.dumps(user_request.to_json()))
     resp_json = await resp.json()
     resp_dict = json.loads(resp_json)
     expected_token = f'{token}_new'

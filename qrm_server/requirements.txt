@@ -4,3 +4,4 @@ dataclass-type-validator
 requests
 aiohttp-jinja2
 pyyaml
+dataclasses-json==0.5.7

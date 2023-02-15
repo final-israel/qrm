@@ -101,13 +101,13 @@ def qrm_server_mock_for_client(httpserver: HTTPServer, default_test_token: str) 
         req_json = request.json
         req_json = json_to_dict(req_json)
         rrr_obj = ResourcesRequestResponse(token=req_json['token'])
-        rrr_json = rrr_obj.as_json()
+        rrr_json = rrr_obj.to_json()
         res = Response(rrr_json, status=200, content_type="application/json")
         return res
 
     rrr_obj = ResourcesRequestResponse()
     rrr_obj.token = default_test_token
-    rrr_json = rrr_obj.as_json()
+    rrr_json = rrr_obj.to_json()
     httpserver.expect_request(f'{qrm_defs.qrm_urls.URL_GET_ROOT}').respond_with_data("1")
     httpserver.expect_request(
         f'{qrm_defs.qrm_urls.URL_POST_CANCEL_TOKEN}').respond_with_data(qrm_http_server.canceled_token_msg(TEST_TOKEN))
@@ -134,7 +134,7 @@ def qrm_server_mock_for_client_for_debug(httpserver: HTTPServer, default_test_to
         if wait_for_test_call_times > 1:
             rrr_obj.request_complete = True
             rrr_obj.names.append('res1')
-        rrr_json = rrr_obj.as_json()
+        rrr_json = rrr_obj.to_json()
         res = Response(rrr_json, status=200, content_type="application/json")
         wait_for_test_call_times += 1
         return res

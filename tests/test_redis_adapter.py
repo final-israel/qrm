@@ -177,9 +177,9 @@ def test_resources_request():
     # two from a,b or c, and one from f, which is actually f:
     req = ResourcesRequest()
     req.add_request_by_tags(tags=['a', 'b'], count=2)
-    assert len(req.as_dict()['tags']) == 1
+    assert len(req.to_dict()['tags']) == 1
     req.add_request_by_names(names=['name1', 'name2'], count=1)
-    assert len(req.as_dict()['names']) == 1
+    assert len(req.to_dict()['names']) == 1
 
 
 @pytest.mark.asyncio

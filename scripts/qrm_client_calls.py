@@ -5,7 +5,7 @@ from qrm_defs.resource_definition import ResourcesByTags, ResourcesRequest, Reso
 def send_new(qrm_client_obj: QrmClient):
     token = 'my_test_token'
     rr = ResourcesRequest(token=token, tags=[ResourcesByTags(tags=['server'], count=1)])
-    out = qrm_client_obj.new_request(data_json=rr.as_json())
+    out = qrm_client_obj.new_request(data_json=rr.to_json())
     print(out)
 
 

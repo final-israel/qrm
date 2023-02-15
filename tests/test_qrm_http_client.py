@@ -32,7 +32,7 @@ def test_qrm_http_client__new_request_with_seed(qrm_http_client_with_server_mock
     qrm_http_client_with_server_mock.token = default_test_token
     rr = ResourcesRequest()
     rr.token = default_test_token
-    resp = qrm_http_client_with_server_mock._new_request(data_json=rr.as_json())
+    resp = qrm_http_client_with_server_mock._new_request(data_json=rr.to_json())
     resp_json = resp.json()
     if isinstance(resp_json, str):
         resp_data = json.loads(resp_json)
@@ -46,7 +46,7 @@ def test_qrm_http_client_new_request_with_seed(qrm_http_client_with_server_mock,
     qrm_http_client_with_server_mock.token = default_test_token
     rr = ResourcesRequest()
     rr.token = default_test_token
-    result = qrm_http_client_with_server_mock.new_request(data_json=rr.as_json())
+    result = qrm_http_client_with_server_mock.new_request(data_json=rr.to_json())
     assert default_test_token in result.get('token')
 
 

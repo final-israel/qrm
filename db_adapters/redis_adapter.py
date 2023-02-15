@@ -97,7 +97,7 @@ class RedisDB(QrmBaseDB):
         try:
             all_db_resources = await self.redis.hgetall(ALL_RESOURCES)
             for resource in all_db_resources.values():
-                resources_list.append(resource_definition.resource_from_json(resource))
+                resources_list.append(Resource.from_json(resource))
         except ValueError as e:
             if 'too many values to unpack' in e.args[0]:
                 pass
@@ -112,7 +112,7 @@ class RedisDB(QrmBaseDB):
         ret_dict = {}
         all_resources = await self.redis.hgetall(ALL_RESOURCES)
         for res_name, res_json in all_resources.items():
-            ret_dict[res_name] = resource_definition.resource_from_json(res_json)
+            ret_dict[res_name] = Resource.from_json(res_json)
         return ret_dict
 
     async def add_resource(self, resource: Resource) -> bool:
@@ -121,7 +121,7 @@ class RedisDB(QrmBaseDB):
             if resource in all_resources:
                 logging.warning(f'resource {resource.name} already exists')
                 return False
-        await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
+        await self.redis.hset(ALL_RESOURCES, resource.name, resource.to_json())
         await self.redis.rpush(resource.db_name(), json.dumps({}))
         await self.add_tags_to_map(resource)
         await self.init_event_for_resource(resource)
@@ -130,7 +130,7 @@ class RedisDB(QrmBaseDB):
     async def get_resource_by_name(self, resource_name: str) -> Resource or None:
         resource_as_json = await self.redis.hget(ALL_RESOURCES, resource_name)
         if resource_as_json:
-            return resource_definition.resource_from_json(resource_as_json)
+            return Resource.from_json(resource_as_json)
         return None
 
     async def get_resources_by_names(self, resources_names: List[str]) -> List[Resource]:
@@ -160,9 +160,9 @@ class RedisDB(QrmBaseDB):
         all_resources_dict = await self.get_all_resources_dict()
         if all_resources_dict.get(resource.name):
             resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
-            resource_obj = resource_definition.resource_from_json(resource_json)
+            resource_obj = Resource.from_json(resource_json)
             resource_obj.status = status
-            ret = await self.redis.hset(ALL_RESOURCES, resource.name, resource_obj.as_json())
+            ret = await self.redis.hset(ALL_RESOURCES, resource.name, resource_obj.to_json())
             await self.set_event_for_resource(resource, status)
             return not ret
         else:
@@ -194,12 +194,12 @@ class RedisDB(QrmBaseDB):
 
     async def get_resource_status(self, resource: Resource) -> str:
         resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
-        resource_obj = resource_definition.resource_from_json(resource_json)
+        resource_obj = Resource.from_json(resource_json)
         return resource_obj.status
 
     async def get_resource_type(self, resource: Resource) -> str:
         resource_json = await self.redis.hget(ALL_RESOURCES, resource.name)
-        resource_obj = resource_definition.resource_from_json(resource_json)
+        resource_obj = Resource.from_json(resource_json)
         return resource_obj.type
 
     async def add_job_to_resource(self, resource: Resource, job: dict) -> bool:
@@ -267,7 +267,7 @@ class RedisDB(QrmBaseDB):
         if resource_from_db:
             resource_from_db.token = token
             logging.info(f'setting token {token} for resource {resource.name}')
-            await self.redis.hset(ALL_RESOURCES, resource.name, resource_from_db.as_json())
+            await self.redis.hset(ALL_RESOURCES, resource.name, resource_from_db.to_json())
         else:
             logging.error(f'resource {resource.name} is not in DB, so can\'t add token to it')
 
@@ -280,7 +280,7 @@ class RedisDB(QrmBaseDB):
             return False
         resources_list = []
         for resource in resources:
-            resources_list.append(resource.as_json())
+            resources_list.append(resource.to_json())
             await self.set_token_for_resource(token, resource)
         logging.info(f'generate token {token} with {resources_list}')
         return await self.redis.hset(TOKEN_RESOURCES_MAP, token, json.dumps(resources_list))
@@ -299,11 +299,11 @@ class RedisDB(QrmBaseDB):
             logging.warning(f'token {token} does not exists in db')
             return []
         for resource_json in json.loads(token_json):
-            resources_list.append(resource_definition.resource_from_json(resource_json))
+            resources_list.append(Resource.from_json(resource_json))
         return resources_list
 
     async def add_resources_request(self, resources_req: ResourcesRequest) -> None:
-        await self.redis.hset(OPEN_REQUESTS, resources_req.token, resources_req.as_json())
+        await self.redis.hset(OPEN_REQUESTS, resources_req.token, resources_req.to_json())
 
     async def get_open_requests(self) -> Dict[str, ResourcesRequest]:
         open_requests = await self.redis.hgetall(OPEN_REQUESTS)
@@ -322,7 +322,7 @@ class RedisDB(QrmBaseDB):
 
     async def update_open_request(self, token: str, updated_request: ResourcesRequest) -> bool:
         if await self.redis.hget(OPEN_REQUESTS, token):
-            await self.redis.hset(OPEN_REQUESTS, token, updated_request.as_json())
+            await self.redis.hset(OPEN_REQUESTS, token, updated_request.to_json())
             return True
         else:
             logging.error(f'request with token {token} is not in DB!')
@@ -381,7 +381,7 @@ class RedisDB(QrmBaseDB):
         return resp
 
     async def set_req_resp(self, rrr: ResourcesRequestResponse) -> None:
-        await self.redis.hset(LAST_REQ_RESP, rrr.token, rrr.as_json())
+        await self.redis.hset(LAST_REQ_RESP, rrr.token, rrr.to_json())
 
     async def get_all_open_tokens(self) -> List[str]:
         # these are the tokens used for recovery.
@@ -411,7 +411,7 @@ class RedisDB(QrmBaseDB):
     async def add_tag_to_resource(self, resource: Resource, tag: str) -> bool:
         if tag not in resource.tags:
             resource.tags.append(tag)
-            await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
+            await self.redis.hset(ALL_RESOURCES, resource.name, resource.to_json())
             await self.add_tags_to_map(resource)
             return True
         else:
@@ -433,7 +433,7 @@ class RedisDB(QrmBaseDB):
         """
         if tag in resource.tags:
             resource.tags.remove(tag)
-            await self.redis.hset(ALL_RESOURCES, resource.name, resource.as_json())
+            await self.redis.hset(ALL_RESOURCES, resource.name, resource.to_json())
             await self.remove_tags_from_map(resource, tag)
             return True
         else:

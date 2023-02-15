@@ -21,7 +21,7 @@ def test_client_new_request(qrm_client, default_test_token):
     rr.token = default_test_token
     rbs = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbs)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     assert default_test_token in resp.get('token')
     assert resp.get('is_valid')
 
@@ -32,7 +32,7 @@ def test_client_new_requested_resource_does_not_exist(qrm_client, default_test_t
     # no_resource does not exist in DB:
     rbn = ResourcesByName(names=['no_resource'], count=1)
     rr.names.append(rbn)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token = resp['token']
     qrm_client.wait_for_token_ready(new_token, timeout=2)
     resp = qrm_client.get_token_status(new_token)
@@ -48,7 +48,7 @@ def test_http_server_and_client_new_request_token_not_valid_and_no_servers(qrm_c
     # server should return relevant meesage and is_valid = False
     rr = ResourcesRequest()
     rr.token = default_test_token
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token = resp['token']
     qrm_client.wait_for_token_ready(new_token, timeout=2)
     resp = qrm_client.get_token_status(new_token)
@@ -61,7 +61,7 @@ def test_http_server_and_client_status_done(qrm_client, default_test_token):
     rr.token = default_test_token
     rbs = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbs)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token = resp.get('token')
     qrm_client.wait_for_token_ready(new_token, timeout=2)
     resp_2 = qrm_client.get_token_status(new_token)
@@ -75,7 +75,7 @@ def test_full_request_two_resources(qrm_client, default_test_token):
     rr.token = default_test_token
     rbn = ResourcesByName(names=['r1', 'r2'], count=2)
     rr.names.append(rbn)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token = resp.get('token')
     qrm_client.wait_for_token_ready(new_token, timeout=2)
     resp = qrm_client.get_token_status(new_token)
@@ -90,7 +90,7 @@ def test_full_request_job_blocking_in_queue_release_by_cancel(qrm_client, defaul
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
     # r1 is now with active job:
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     token_1 = resp.get('token')
     qrm_client.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client.get_token_status(token_1)
@@ -101,7 +101,7 @@ def test_full_request_job_blocking_in_queue_release_by_cancel(qrm_client, defaul
     rr.token = 'req_2_token'
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
-    resp_token_2 = qrm_client.new_request(rr.as_json())
+    resp_token_2 = qrm_client.new_request(rr.to_json())
     token_2 = resp_token_2.get('token')
     time.sleep(0.2)  # just sleep to allow the server to handle the request (it shouldn't get filled)
     resp_token_2 = qrm_client.get_token_status(token_2)
@@ -123,7 +123,7 @@ def test_full_req_cancel_after_partial_fill(qrm_client, default_test_token):
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
     # r1 is now with active job:
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     token_1 = resp.get('token')
     qrm_client.wait_for_token_ready(token_1, timeout=2, polling_sleep_time=0.1)
     resp = qrm_client.get_token_status(token_1)
@@ -134,7 +134,7 @@ def test_full_req_cancel_after_partial_fill(qrm_client, default_test_token):
     rr.token = 'req_2_token'
     rbn = ResourcesByName(names=['r1', 'r2'], count=2)
     rr.names.append(rbn)
-    resp_token_2 = qrm_client.new_request(rr.as_json())
+    resp_token_2 = qrm_client.new_request(rr.to_json())
     token_2 = resp_token_2.get('token')
     time.sleep(0.2)  # just sleep to allow the server to handle the request (it shouldn't get filled)
     # token is not ready:
@@ -146,7 +146,7 @@ def test_full_req_cancel_after_partial_fill(qrm_client, default_test_token):
     rr.token = 'req_3_token'
     rbn = ResourcesByName(names=['r2'], count=1)
     rr.names.append(rbn)
-    resp_token_3 = qrm_client.new_request(rr.as_json())
+    resp_token_3 = qrm_client.new_request(rr.to_json())
     token_3 = resp_token_3.get('token')
     time.sleep(0.2)  # just sleep to allow the server to handle the request (it shouldn't get filled)
 
@@ -166,7 +166,7 @@ def test_http_server_and_client_status_done_for_resources_r1_and_r2_resources(qr
     rr.token = default_test_token
     rbs = ResourcesByName(names=['r1', 'r2'], count=2)
     rr.names.append(rbs)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token = resp.get('token')
     qrm_client.wait_for_token_ready(new_token, timeout=2)
     resp_2 = qrm_client.get_token_status(new_token)
@@ -181,7 +181,7 @@ def test_full_request_one_from_two_resources(qrm_client, default_test_token):
     # count is 1:
     rbn = ResourcesByName(names=['r1', 'r2'], count=1)
     rr.names.append(rbn)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token = resp.get('token')
     qrm_client.wait_for_token_ready(new_token, timeout=2)
     resp = qrm_client.get_token_status(new_token)
@@ -196,7 +196,7 @@ def test_http_server_and_client_cancel(qrm_client, default_test_token):
     rr.token = default_test_token
     rbs = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbs)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token = resp.get('token')
     qrm_client.wait_for_token_ready(new_token, timeout=120)
     resp_2 = qrm_client.get_token_status(new_token)
@@ -218,7 +218,7 @@ def test_resource_block_on_pending(qrm_client_pending, default_test_token, mgmt_
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
     # r1 is now with active job:
-    resp = qrm_client_pending.new_request(rr.as_json())
+    resp = qrm_client_pending.new_request(rr.to_json())
     assert mgmt_client_pending.get_resource_status('r1') == PENDING_STATUS
     token_1 = resp.get('token')
     time.sleep(0.2)
@@ -248,7 +248,7 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
     # r1 is now with active job:
-    resp = qrm_client_pending.new_request(rr.as_json())
+    resp = qrm_client_pending.new_request(rr.to_json())
     token_1 = resp.get('token')
     assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS, timeout=2)
 
@@ -265,7 +265,7 @@ def test_new_move_pending_change_to_active_cancel_move_to_pending(qrm_client_pen
     rr.token = 'token_2'
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
-    resp_2 = qrm_client_pending.new_request(rr.as_json())
+    resp_2 = qrm_client_pending.new_request(rr.to_json())
     token_2 = resp_2.get('token')
 
     # cancel token_1 -> resource move to pending, token_2 still waiting in queue
@@ -295,7 +295,7 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, mgmt_client_pend
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
     # r1 is now with active job:
-    resp = qrm_client_pending.new_request(rr.as_json())
+    resp = qrm_client_pending.new_request(rr.to_json())
     token_1 = resp.get('token')
     assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS)
 
@@ -312,7 +312,7 @@ def test_resource_block_on_pending_job_wait(qrm_client_pending, mgmt_client_pend
     rr.token = 'token_2'
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
-    resp2 = qrm_client_pending.new_request(rr.as_json())
+    resp2 = qrm_client_pending.new_request(rr.to_json())
     token_2 = resp2.get('token')
     assert mgmt_client_pending.get_resource_status('r1') == ACTIVE_STATUS
     time.sleep(0.1)  # just to allow the server handle the request
@@ -354,7 +354,7 @@ def test_new_token_accepted_not_move_to_pending(qrm_client_pending, mgmt_client_
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
     # r1 is now with active job:
-    resp = qrm_client_pending.new_request(rr.as_json())
+    resp = qrm_client_pending.new_request(rr.to_json())
     token_1 = resp.get('token')
     assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS)
 
@@ -373,7 +373,7 @@ def test_new_token_accepted_not_move_to_pending(qrm_client_pending, mgmt_client_
     # resend the new token -> accepted and resource active:
     rr = ResourcesRequest()
     rr.token = token_1
-    resp = qrm_client_pending.new_request(rr.as_json())
+    resp = qrm_client_pending.new_request(rr.to_json())
     new_token = resp.get('token')
     assert new_token == token_1
     resp = qrm_client_pending.get_token_status(new_token)
@@ -394,7 +394,7 @@ def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, m
     rbn = ResourcesByName(names=['r1', 'r2'], count=1)
     rr.names.append(rbn)
     # send new request 1 res from 2 res -> 1 res is pending:
-    resp = qrm_client_pending.new_request(rr.as_json())
+    resp = qrm_client_pending.new_request(rr.to_json())
     token_1 = resp.get('token')
     assert wait_for_status(mgmt_client_pending, 'r1', PENDING_STATUS)
 
@@ -404,7 +404,7 @@ def test_pending_request_one_res_from_two_another_same_req(qrm_client_pending, m
     rbn = ResourcesByName(names=['r1', 'r2'], count=1)
     rr.names.append(rbn)
     # send new request 1 res from 2 res -> 1 res is pending:
-    resp = qrm_client_pending.new_request(rr.as_json())
+    resp = qrm_client_pending.new_request(rr.to_json())
     token_2 = resp.get('token')
     # both resources are pending:
     assert wait_for_status(mgmt_client_pending, 'r2', PENDING_STATUS)
@@ -436,17 +436,17 @@ def test_new_req_existing_token_with_active_req_in_queue(qrm_client):
     rr.token = 'token1'
     rbs = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbs)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token1 = resp.get('token')
 
     # send new request, active in queue:
     rr.token = 'token2'
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token2 = resp.get('token')
 
     # send again same request as request 2:
     rr.token = new_token2
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     assert new_token2 == resp.get('token')
 
 
@@ -473,7 +473,7 @@ async def test_new_req_on_cancelled_token(redis_db_object, qrm_client):
     rr.token = 'token1'
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token1 = resp.get('token')
 
     # cancel the token:
@@ -491,7 +491,7 @@ def test_token_no_longer_valid_is_valid_false(redis_db_object, qrm_client):
     rr.token = 'token1'
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token1 = resp.get('token')
 
     # cancel the token:
@@ -502,7 +502,7 @@ def test_token_no_longer_valid_is_valid_false(redis_db_object, qrm_client):
     rr.token = 'token2'
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     new_token2 = resp.get('token')
 
     qrm_client.wait_for_token_ready(new_token2)
@@ -522,13 +522,13 @@ async def test_token_last_update_time_auto_managed_token(redis_db_object, qrm_cl
     rr.token = 'token1'
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
 
     rr2 = ResourcesRequest(auto_managed=False)
     rr2.token = 'token2'
     rbn = ResourcesByName(names=['r2'], count=1)
     rr2.names.append(rbn)
-    resp2 = qrm_client.new_request(rr2.as_json())
+    resp2 = qrm_client.new_request(rr2.to_json())
 
     new_token1 = resp.get('token')
     new_token_2 = resp2.get('token')
@@ -545,7 +545,7 @@ async def test_auto_managed_token_backward_compatible(redis_db_object, qrm_clien
     rr.token = 'token1'
     rbn = ResourcesByName(names=['r1'], count=1)
     rr.names.append(rbn)
-    rr_dict = rr.as_dict()
+    rr_dict = rr.to_dict()
     rr_dict.pop('auto_managed')
     rr_json = json.dumps(rr_dict)
     resp = qrm_client.new_request(rr_json)
@@ -561,7 +561,7 @@ def load_db_with_resources_and_token(qrm_client, resources_names: List[str], tok
     for resource_name in resources_names:
         rbn = ResourcesByName(names=[resource_name], count=1)
         rr.names.append(rbn)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     old_token = resp.get('token')
     qrm_client.wait_for_token_ready(old_token, timeout=2, polling_sleep_time=0.1)
     qrm_client.send_cancel(old_token)

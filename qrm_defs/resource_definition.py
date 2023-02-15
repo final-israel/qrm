@@ -3,6 +3,7 @@ import pickle
 from dataclasses import dataclass, asdict, field
 from typing import List
 from datetime import datetime
+from dataclasses_json import dataclass_json
 
 PENDING_STATUS = 'pending'
 ACTIVE_STATUS = 'active'
@@ -18,10 +19,6 @@ def json_to_dict(json_str: str or dict) -> dict:
         return json.loads(json_str)
     else:
         return json_str
-
-
-def resource_from_json(resource_as_json: json):
-    return Resource(**json.loads(resource_as_json))
 
 
 def resource_from_pickle(resource_as_pickle: pickle):
@@ -46,6 +43,7 @@ def is_token_format(token: str) -> bool:
         return False
 
 
+@dataclass_json
 @dataclass
 class Resource:
     name: str
@@ -57,14 +55,9 @@ class Resource:
     def db_name(self) -> str:
         return f'{RESOURCE_NAME_PREFIX}_{self.name}'
 
-    def as_dict(self) -> dict:
-        return asdict(self)
-
-    def as_json(self) -> str:
-        return json.dumps(self.as_dict())
 
     def as_pickle(self) -> bytes:
-        return pickle.dumps(self.as_dict())
+        return pickle.dumps(self.to_dict())
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Resource):
@@ -86,7 +79,7 @@ class ResourcesByTags:
     tags: List[str]
     count: int
 
-
+@dataclass_json
 @dataclass
 class ResourcesRequestResponse:
     names: List[str] = field(default_factory=list)
@@ -97,18 +90,8 @@ class ResourcesRequestResponse:
     version: int = RESOURCES_REQUEST_RESPONSE_VERSION
     is_token_active_in_queue: bool = False
 
-    def as_dict(self) -> dict:
-        return asdict(self)
 
-    def as_json(self) -> str:
-        return json.dumps(self.as_dict())
-
-    @classmethod
-    def from_json(cls, json_str: str):
-        json_as_dict = json.loads(json_str)
-        return ResourcesRequestResponse(**json_as_dict)
-
-
+@dataclass_json
 @dataclass
 class ResourcesRequest:
     names: List[ResourcesByName] = field(default_factory=list)
@@ -143,23 +126,12 @@ class ResourcesRequest:
     def add_request_by_token(self, token: str) -> None:
         self.token = token
 
-    def as_dict(self) -> dict:
-        return asdict(self)
 
-    def as_json(self) -> str:
-        return json.dumps(self.as_dict())
-
-
+@dataclass_json
 @dataclass
 class ResourceStatus:
     resource_name: str = ''
     status: str = ''
-
-    def as_dict(self) -> dict:
-        return asdict(self)
-
-    def as_json(self) -> str:
-        return json.dumps(self.as_dict())
 
 
 def resource_request_from_json(resource_req_as_json: str) -> ResourcesRequest:

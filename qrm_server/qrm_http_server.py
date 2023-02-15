@@ -44,7 +44,7 @@ async def new_request(request) -> web.json_response:
     logging.info(f'new user active token: {active_token}')
     rrr_obj = ResourcesRequestResponse()
     rrr_obj.token = active_token
-    rrr_json = rrr_obj.as_json()
+    rrr_json = rrr_obj.to_json()
     logging.info(f'sending to client: {rrr_json}')
     return web.json_response(rrr_json, status=HTTPStatus.OK)
 
@@ -57,13 +57,13 @@ async def get_token_status(request) -> web.json_response:
     if await qrm_back_end.is_request_active(token=token):
         rrr_obj = await qrm_back_end.get_resource_req_resp(token=token)
         rrr_obj.request_complete = False
-        rrr_json = rrr_obj.as_json()
+        rrr_json = rrr_obj.to_json()
         logging.debug(f'sending to client: {rrr_json}')
         return web.json_response(rrr_json, status=HTTPStatus.OK)
     else:
         rrr_obj = await qrm_back_end.get_resource_req_resp(token=token)
         rrr_obj.request_complete = True
-        rrr_json = rrr_obj.as_json()
+        rrr_json = rrr_obj.to_json()
         logging.debug(f'sending to client: {rrr_json}')
         return web.json_response(rrr_json, status=HTTPStatus.OK)
 
@@ -90,7 +90,7 @@ async def cancel_token(request) -> web.Response:
     rrr_obj.request_complete = False
     rrr_obj.token = token
     rrr_obj.message = f'canceled token {rrr_obj.token}'
-    rrr_json = rrr_obj.as_json()
+    rrr_json = rrr_obj.to_json()
     return web.json_response(rrr_json, status=HTTPStatus.OK)
 
 

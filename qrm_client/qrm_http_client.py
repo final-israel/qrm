@@ -99,7 +99,7 @@ class QrmClient(object):
         res_req.token = token
         full_url = self.full_url(URL_POST_CANCEL_TOKEN)
         logging.info(f'send cancel on token = {token} to url {full_url}')
-        json_as_dict = res_req.as_dict()
+        json_as_dict = res_req.to_dict()
         _resp = post_to_url(full_url=full_url, data_json=json_as_dict)
         return _resp
 
@@ -138,7 +138,7 @@ class QrmClient(object):
         }
         """
         data_json = self.get_token_from_seed_or_str(data_json)
-        _resp = self._new_request(data_json=data_json)
+        _resp = self._new_request(data_json=json.dumps(data_json))
         resp_json = _resp.json()
         resp_data = json_to_dict(resp_json)
         self.valid_new_request(resp_data)
@@ -269,7 +269,7 @@ class ManagementClient(object):
             resource_name,
             resource_status
         )
-        _resp = post_to_url(full_url, data_json=res_status.as_dict())
+        _resp = post_to_url(full_url, data_json=res_status.to_dict())
         return return_response(_resp)
 
 
@@ -284,7 +284,7 @@ if __name__ == '__main__':
     rr.token = '1234'
     rbs = ResourcesByName(names=['a1'], count=1)
     rr.names.append(rbs)
-    resp = qrm_client.new_request(rr.as_json())
+    resp = qrm_client.new_request(rr.to_json())
     print(resp.get('token'))
     result = qrm_client.get_token_status(resp.get('token'))
     print(result)
