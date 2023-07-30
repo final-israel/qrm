@@ -34,7 +34,13 @@ flake8_check:
 
 tests:
 	@echo "Run tests with pytest"
-	python3 -m pytest -s --reruns 3 tests/
+	python3 -m pytest -s --reruns 3 tests/test_q_manager.py
+	python3 -m pytest -s --reruns 3 tests/test_management_server.py
+	python3 -m pytest -s --reruns 3 tests/test_qrm_http_client.py
+	python3 -m pytest -s --reruns 3 tests/test_qrm_http_server.py
+	python3 -m pytest -s --reruns 3 tests/test_redis_adapter.py
+	python3 -m pytest -s --reruns 3 tests/test_resource_definition.py
+	python3 -m pytest -s --reruns 3 tests/test_system.py
 
 _major:
 	@echo "Major Release"
