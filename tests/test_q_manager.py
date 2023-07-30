@@ -61,12 +61,18 @@ async def test_qbackend_2_requests_same_time(redis_db_object, qrm_backend_with_d
     response = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request1))
     response2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request2))
 
+    await response
+    await response2
+
     token1 = await qrm_backend_with_db.get_new_token('test1')
     token2 = await qrm_backend_with_db.get_new_token('test2')
     await asyncio.sleep(0.1)
 
     resp1 = await qrm_backend_with_db.get_resource_req_resp(token1)
-    resp2 = await qrm_backend_with_db.get_resource_req_resp(token1)
+    resp2 = await qrm_backend_with_db.get_resource_req_resp(token2)
+
+    logging.info(f"resp1: {resp1}")
+    logging.info(f"resp2: {resp2}")
 
     assert len(resp1.names) == 2
     assert len(resp2.names) == 2
@@ -1269,3 +1275,52 @@ async def test_token_status_cancelled_token(redis_db_object, qrm_backend_with_db
     await qrm_backend_with_db.is_request_active(new_token)
     token_last_update_dict = await redis_db_object.get_all_tokens_last_update()
     assert not token_last_update_dict
+
+
+async def test_token_multiple_tags_waiting_for_one_tag(redis_db_object, qrm_backend_with_db):
+    # this test is to validate that if we have a request with multiple tags, and one of them is not available,
+    # the request will be in waiting status until the tag is available but will be in active status for the other tags
+    res_1 = Resource(name='res1', type='res_type1', token='old_token1', status=ACTIVE_STATUS, tags=['res_type1'])
+    res_2 = Resource(name='res2', type='res_type1', token='old_token2', status=ACTIVE_STATUS, tags=['res_type1'])
+    res_3 = Resource(name='res3', type='res_type2', token='old_token1', status=ACTIVE_STATUS, tags=['res_type2'])
+    res_4 = Resource(name='res4', type='res_type2', token='old_token2', status=ACTIVE_STATUS, tags=['res_type2'])
+    res_5 = Resource(name='res5', type='res_type3', token='old_token2', status=ACTIVE_STATUS, tags=['res_type3'])
+    res_6 = Resource(name='res6', type='res_type3', token='old_token2', status=ACTIVE_STATUS, tags=['res_type3'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+    await redis_db_object.add_resource(res_4)
+    await redis_db_object.add_resource(res_5)
+    await redis_db_object.add_resource(res_6)
+
+    user_request1 = ResourcesRequest(token='token1')
+    user_request1.add_request_by_names(names=['res1'], count=1)
+    user_request1.add_request_by_names(names=['res3'], count=1)
+
+    result1 = await qrm_backend_with_db.new_request(user_request1)
+
+    user_request2 = ResourcesRequest(token='token2')
+    user_request2.add_request_by_tags(tags=['res_type1'], count=1)
+    user_request2.add_request_by_tags(tags=['res_type2'], count=2)
+    user_request2.add_request_by_tags(tags=['res_type3'], count=1)
+
+    # res_1 (type1): [token1]
+    # res_2 (type1): [token2]
+    # res_3 (type2): [token1, token2]
+    # res_4 (type2): [token2]
+    # res_5 (type3): [token2]
+    # res_6 (type3): [token2]
+
+    # token2 should be removed from res_5 and res_6 since it needs only one from them even thogh that the request
+    # is not yet completed since token2 is still waiting for resource from type2 (count=2)
+
+    fut2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request2))
+
+    await asyncio.sleep(0.1)
+
+    new_jobs_res_5 = await redis_db_object.get_resource_jobs(res_5)
+    new_jobs_res_6 = await redis_db_object.get_resource_jobs(res_6)
+
+    # validate that the request is now active only in one from the two resources: res5 and res6
+    # since it should be active in one of them and be cancelled in the other:
+    assert len(new_jobs_res_5) != len(new_jobs_res_6)
