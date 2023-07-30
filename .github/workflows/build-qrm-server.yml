@@ -32,6 +32,7 @@ jobs:
 
       - name: prepare env
         run: |
+          export ACTIONS_RUNNER_PRINT_LOG_TO_STDOUT=true
           make -f Makefile_qrmserver install_py_req
 
       - name: Set up Docker Buildx
