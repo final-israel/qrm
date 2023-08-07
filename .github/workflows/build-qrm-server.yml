@@ -11,9 +11,14 @@ on:
         - minor
         - major
         required: true
+      run_tests:
+        type: boolean
+        description: Run tests
+        default: true
 
 jobs:
   run_tests:
+    if: github.event.inputs.run_tests == 'true'
     uses: ./.github/workflows/test-server-and-client.yml
 
   #coverage:
