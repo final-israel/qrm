@@ -25,9 +25,15 @@ jobs:
   #  uses: ./.github/workflows/coverage-report.yml
 
   docker:
-    needs: [run_tests]
     runs-on: ubuntu-latest
     steps:
+      - name: Check run_tests status
+        if: github.event.inputs.run_tests == 'true'
+        run: |
+          if [[ "${{ job.status }}" != "success" ]]; then
+            echo "run_tests job failed or was not run. Exiting."
+            exit 1
+          fi
       - uses: actions/checkout@v3
       
       - name: Set up Python 3.10
