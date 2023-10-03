@@ -42,6 +42,24 @@ def test_client_new_requested_resource_does_not_exist(qrm_client, default_test_t
     assert 'no resources named no_resource' == resp.get('message') or resp.get('message') != ''
     assert resp.get('is_valid') is False
 
+@pytest.mark.asyncio
+async def test_async_client_new_requested_resource_does_not_exist(qrm_client, default_test_token):
+    rr = ResourcesRequest()
+    rr.token = default_test_token
+    # no_resource does not exist in DB:
+    rbn = ResourcesByName(names=['no_resource'], count=1)
+    rr.names.append(rbn)
+    resp = qrm_client.new_request(rr.to_json())
+    new_token = resp['token']
+    await qrm_client.async_wait_for_token_ready(new_token, timeout=2)
+    resp = qrm_client.get_token_status(new_token)
+
+    assert default_test_token in resp.get('token')
+    assert resp.get('message')
+    assert 'no resources named no_resource' == resp.get('message') or resp.get('message') != ''
+    assert resp.get('is_valid') is False
+
+
 
 def test_http_server_and_client_new_request_token_not_valid_and_no_servers(qrm_client, default_test_token):
     # request has only token and no resources, token is not valid.

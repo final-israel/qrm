@@ -1,8 +1,10 @@
+import asyncio
 import logging
 import json
 import requests
 import time
 
+from typing import Union
 from qrm_defs.resource_definition import ResourcesRequest, ResourcesByName, ResourceStatus, is_token_format, \
     generate_token_from_seed
 from qrm_defs.qrm_urls import URL_POST_NEW_REQUEST, URL_GET_TOKEN_STATUS, URL_POST_CANCEL_TOKEN, URL_GET_ROOT, \
@@ -15,6 +17,7 @@ def json_to_dict(json_str: str or dict) -> dict:
         return json.loads(json_str)
     else:
         return json_str
+
 
 def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> requests.Response or None:
     logging.info(f'post {data_json} to url {full_url}')
@@ -73,6 +76,7 @@ class QrmClient(object):
                  server_port: str,
                  user_name: str,
                  user_password: str = '',
+                 loop: Union[asyncio.AbstractEventLoop, None] = None,
                  *args,
                  **kwargs):
         self.server_ip: str = server_ip
@@ -80,6 +84,8 @@ class QrmClient(object):
         self.user_name: str = user_name
         self.token: str = ''
         self.user_password: str = user_password
+        if not loop:
+            self.loop: Union[asyncio.AbstractEventLoop] = asyncio.get_event_loop()
         self.init_log_massage()
 
     def full_url(self, relative_url: str, *args, **kwargs) -> str:
@@ -169,7 +175,6 @@ class QrmClient(object):
         else:
             return data_json
 
-
     def _get_token_status(self, token: str, *args, **kwargs):  # #type:  requests.Response:
         full_url = self.full_url(URL_GET_TOKEN_STATUS)
         logging.info(f'send get token status token= {token} to url {full_url}')
@@ -188,6 +193,28 @@ class QrmClient(object):
         logging.info(f'token ready timeout set to {timeout}')
         resp_data = self.get_token_status(token=token)
         return self.polling_api_status(resp_data, timeout, token, polling_sleep_time=polling_sleep_time)
+
+    async def async_wait_for_token_ready(self, token: str, timeout: float = float('Inf'), polling_sleep_time: float = 5,
+                                         *args, **kwargs):  # #type:  dict:
+        logging.info(f'token ready timeout set to {timeout}')
+        resp_data = self.get_token_status(token=token)
+        return await self.async_polling_api_status(resp_data, timeout, token, polling_sleep_time=polling_sleep_time)
+
+    async def async_polling_api_status(self, resp_data: dict,
+                                       timeout: float, token: str,
+                                       polling_sleep_time: float = 5):  # #type:  dict:
+        start_time = time.time()
+        while not resp_data.get('request_complete'):
+            time_d = int(time.time() - start_time)
+            logging.info(f'waiting for token {token} to be ready. wait for {time_d} sec, {resp_data}')
+            if time_d > timeout:
+                logging.warning(f'TIMEOUT! waiting from QRM server has timed out! timeout was set to {timeout}, '
+                                f'canceling the token {token}')
+                _resp = self.send_cancel(token)  # on timeout cancel the token
+                raise TimeoutError(f'got timeout while waiting for token {token} status complete')
+            await asyncio.sleep(polling_sleep_time)
+            resp_data = self.get_token_status(token=token)
+        return resp_data
 
     def polling_api_status(self, resp_data: dict, timeout: float, token: str,
                            polling_sleep_time: float = 5):  # #type:  dict:
@@ -215,14 +242,14 @@ class QrmClient(object):
                 _resp = get_from_url(full_url)
                 if _resp is not None:
                     break
-                time.sleep(0.1)
+                time.sleep(1)
             except Exception as e:
                 logging.error(f'there is a problem! {e}')
-                time.sleep(0.1)
+                time.sleep(1)
         logging.info(f'call api is server up server is: {_resp}')
         resp_data = _resp.json()
         while not resp_data.get('status'):
-            time.sleep(0.1)
+            time.sleep(1)
         return resp_data
 
 
