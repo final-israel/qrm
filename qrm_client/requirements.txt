@@ -2,3 +2,4 @@ dataclass-type-validator
 dataclasses
 requests
 pyyaml
+dataclasses-json
