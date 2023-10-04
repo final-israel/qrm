@@ -24,8 +24,7 @@ jobs:
 
   build_pkg:
     needs: [run_tests, get_coverage]
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.6.9
