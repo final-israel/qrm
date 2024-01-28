@@ -15,6 +15,7 @@ from typing import Dict, List
 CHANNEL_RES_CHANGE_EVENT = 'channel:res_change_event'
 PARTIAL_FILL_REQUESTS = 'fill_requests'
 OPEN_REQUESTS = 'open_requests'
+ORIG_REQUESTS = 'orig_requests'
 ALL_RESOURCES = 'all_resources'
 SERVER_STATUS_IN_DB = 'qrm_status'
 ACTIVE_STATUS = 'active'
@@ -279,6 +280,7 @@ class RedisDB(QrmBaseDB):
             logging.error(f'token {token} already exists in DB, can\'t generate it again')
             return False
         resources_list = []
+
         for resource in resources:
             resources_list.append(resource.to_json())
             await self.set_token_for_resource(token, resource)
@@ -305,6 +307,9 @@ class RedisDB(QrmBaseDB):
     async def add_resources_request(self, resources_req: ResourcesRequest) -> None:
         await self.redis.hset(OPEN_REQUESTS, resources_req.token, resources_req.to_json())
 
+    async def save_orig_resources_req(self, resources_req: ResourcesRequest) -> None:
+        await self.redis.hset(ORIG_REQUESTS, resources_req.token, resources_req.to_json())
+
     async def get_open_requests(self) -> Dict[str, ResourcesRequest]:
         open_requests = await self.redis.hgetall(OPEN_REQUESTS)
         ret_dict = {}
@@ -315,6 +320,13 @@ class RedisDB(QrmBaseDB):
     async def get_open_request_by_token(self, token: str) -> ResourcesRequest:
         # use this method if you know the token request since it's much faster than get_open_requests
         open_req = await self.redis.hget(OPEN_REQUESTS, token)
+        if open_req:
+            return resource_definition.resource_request_from_json(open_req)
+        else:
+            return ResourcesRequest()
+
+    async def get_orig_request(self, token: str) -> ResourcesRequest:
+        open_req = await self.redis.hget(ORIG_REQUESTS, token)
         if open_req:
             return resource_definition.resource_request_from_json(open_req)
         else:
