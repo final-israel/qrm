@@ -211,10 +211,36 @@ class QueueManagerBackEnd(QrmIfc):
         logging.info(f'resp for token {token} is {resp_for_token}')
         resources_list = await self.redis.get_resources_by_names(response.names)
         await self.wait_for_active_state_on_all_resources(token)
-        await self.redis.remove_open_request(token)
+        await self.reorder_token_with_tags(token, resources_list)
         await self.redis.generate_token(token, resources_list)
         logging.info(f'finalize fill for token {token}')
         return response
+
+
+    async def reorder_token_with_tags(self, token: str, resources_list: List[Resource]) -> None:
+        # this method ensures that the response will be in the same order according to tags request
+        res_list_names = QueueManagerBackEnd.get_resources_names_from_resources_list(resources_list)
+        orig_request = await self.redis.get_orig_request(token)
+        reordered_resources_list = []  # type: List[Resource]
+
+        if orig_request.tags:
+            for rbt in orig_request.tags:
+                all_resources_for_tag = await self.redis.get_resources_names_by_tags(rbt.tags)
+                res_for_tag = set(all_resources_for_tag).intersection(res_list_names)
+                for resource_name in res_for_tag:
+                    resource = await self.redis.get_resource_by_name(resource_name)
+                    reordered_resources_list.append(resource)
+
+            resources_list = reordered_resources_list
+
+            await self.reorder_response_in_db(resources_list, token)
+
+    async def reorder_response_in_db(self, resources_list, token):
+        reordered_names = QueueManagerBackEnd.get_resources_names_from_resources_list(resources_list)
+        rrr = await self.redis.get_req_resp_for_token(token)
+        rrr.names = reordered_names
+        await self.redis.set_req_resp(rrr)
+
 
     async def wait_for_active_state_on_all_resources(self, token: str) -> None:
         """
@@ -410,6 +436,8 @@ class QueueManagerBackEnd(QrmIfc):
         await self.update_last_token_req_time(active_token)
 
         await self.init_event_for_token(active_token)
+
+        await self.redis.save_orig_resources_req(resources_request)
 
         await self.convert_tags_to_names(resources_request)
 
@@ -618,3 +646,10 @@ class QueueManagerBackEnd(QrmIfc):
 
         logging.info(f'token {token} is still valid')
         return True
+
+    @staticmethod
+    def get_resources_names_from_resources_list(resources: List[Resource]) -> List[str]:
+        res_names_list = []
+        for res in resources:
+            res_names_list.append(res.name)
+        return res_names_list

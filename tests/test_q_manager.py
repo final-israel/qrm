@@ -1311,7 +1311,7 @@ async def test_token_multiple_tags_waiting_for_one_tag(redis_db_object, qrm_back
     # res_5 (type3): [token2]
     # res_6 (type3): [token2]
 
-    # token2 should be removed from res_5 and res_6 since it needs only one from them even thogh that the request
+    # token2 should be removed from res_5 and res_6 since it needs only one from them even though that the request
     # is not yet completed since token2 is still waiting for resource from type2 (count=2)
 
     fut2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request2))
@@ -1324,3 +1324,57 @@ async def test_token_multiple_tags_waiting_for_one_tag(redis_db_object, qrm_back
     # validate that the request is now active only in one from the two resources: res5 and res6
     # since it should be active in one of them and be cancelled in the other:
     assert len(new_jobs_res_5) != len(new_jobs_res_6)
+    token2 = await qrm_backend_with_db.get_new_token('token2')
+    orig_req = await redis_db_object.get_orig_request(token2)
+    a = 1
+
+
+async def test_get_response_by_request_order_after_tags_rearrange(redis_db_object, qrm_backend_with_db):
+    # in this test we send new request for multiple resources by tags while the request partially filled for
+    # specific tag.  the other tag is blocking the response, until it is released.
+    # verify that the response order is according to the request order
+    res_1 = Resource(name='res1', type='res_type1', token='old_token1', status=ACTIVE_STATUS, tags=['res_type1'])
+    res_2 = Resource(name='res2', type='res_type2', token='old_token1', status=ACTIVE_STATUS, tags=['res_type2'])
+    res_3 = Resource(name='res3', type='res_type3', token='old_token2', status=ACTIVE_STATUS, tags=['res_type3'])
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+
+
+    user_request1 = ResourcesRequest(token='token1')
+    user_request1.add_request_by_names(names=['res1'], count=1)
+    user_request1.add_request_by_names(names=['res3'], count=1)
+
+    result1 = await qrm_backend_with_db.new_request(user_request1)
+
+    user_request2 = ResourcesRequest(token='token2')
+    user_request2.add_request_by_tags(tags=['res_type1'], count=1)
+    user_request2.add_request_by_tags(tags=['res_type2'], count=1)
+    user_request2.add_request_by_tags(tags=['res_type3'], count=1)
+
+    # res_1 (type1): [token1, token2]
+    # res_2 (type2): [token2]
+    # res_3 (type3): [token1, token2]
+
+    # token2 should be removed from res_5 and res_6 since it needs only one from them even though that the request
+    # is not yet completed since token2 is still waiting for resource from type2 (count=2)
+
+    fut2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request2))
+
+    await asyncio.sleep(0.1)
+
+    new_jobs_res_2 = await redis_db_object.get_resource_jobs(res_2)
+    new_jobs_res_3 = await redis_db_object.get_resource_jobs(res_3)
+
+    new_token_1 = await qrm_backend_with_db.get_new_token('token1')
+    await qrm_backend_with_db.cancel_request(new_token_1)
+
+    # request2 should be filled now, check it's order:
+
+    await fut2
+
+    new_token_2 = await qrm_backend_with_db.get_new_token('token2')
+
+    resp_2 = await qrm_backend_with_db.get_resource_req_resp(new_token_2)
+
+    assert ['res1', 'res2', 'res3'] == resp_2.names  # this is the request order and it must be saved

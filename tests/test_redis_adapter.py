@@ -566,3 +566,19 @@ async def test_delete_auto_managed_token(redis_db_object):
 
 async def test_delete_auto_managed_token_not_exist_token(redis_db_object):
     assert await redis_db_object.delete_auto_managed_token('unknown_token') is None
+
+
+async def test_original_request(redis_db_object, resource_foo, resource_bar):
+    req_token = '123456'
+    await redis_db_object.add_resource(resource_foo)
+    await redis_db_object.add_resource(resource_bar)
+    res_req = ResourcesRequest()
+    res_req.add_request_by_token(req_token)
+    res_req.add_request_by_names(names=[resource_foo.name, resource_bar.name], count=1)
+    await redis_db_object.add_resources_request(res_req)
+    await redis_db_object.save_orig_resources_req(res_req)
+    open_requests = await redis_db_object.get_open_requests()
+    assert req_token in open_requests
+    assert res_req == open_requests[req_token]
+    orig_request = await redis_db_object.get_orig_request(req_token)
+    assert orig_request == res_req
