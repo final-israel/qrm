@@ -61,6 +61,8 @@ jobs:
         with:
           stamp-mode: ${{ github.event.inputs.version_type }}
           app-name: qrm_server
+          show-log-on-error: true
+          debug-mode: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
