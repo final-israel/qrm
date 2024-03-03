@@ -60,6 +60,7 @@ jobs:
         uses: progovoy/vmn-action@vmna_0.1.78
         with:
           stamp-mode: ${{ github.event.inputs.version_type }}
+          do-stamp: true
           app-name: qrm_server
           show-log-on-error: true
           debug-mode: true
