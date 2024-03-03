@@ -65,7 +65,7 @@ jobs:
           show-log-on-error: true
           debug-mode: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           
       - name: show version vmn
         run: |
