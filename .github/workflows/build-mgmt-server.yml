@@ -49,6 +49,8 @@ jobs:
         with:
           release-mode: ${{ github.event.inputs.version_type }}
           app-name: qrm_server
+        env:
+          GITHUB_TOKEN: ${{ github.TOKEN }}
 
       - name: show version vmn
         run: |
