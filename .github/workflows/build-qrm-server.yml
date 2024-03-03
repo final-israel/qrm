@@ -54,6 +54,10 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: git status
+        run: |
+          git status
       
       - name: Stamp with vmn
         id: vmn_version
