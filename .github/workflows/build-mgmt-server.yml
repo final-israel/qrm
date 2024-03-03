@@ -45,7 +45,7 @@ jobs:
       
       - name: Stamp with vmn
         id: vmn_version
-        uses: progovoy/vmn-action@vmna_0.1.8
+        uses: progovoy/vmn-action@vmna_0.1.78
         with:
           release-mode: ${{ github.event.inputs.version_type }}
           app-name: qrm_server
