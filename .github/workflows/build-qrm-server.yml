@@ -59,7 +59,7 @@ jobs:
         id: vmn_version
         uses: progovoy/vmn-action@vmna_0.1.78
         with:
-          release-mode: ${{ github.event.inputs.version_type }}
+          stamp-mode: ${{ github.event.inputs.version_type }}
           app-name: qrm_server
         env:
           GITHUB_TOKEN: ${{ github.TOKEN }}
