@@ -3,12 +3,12 @@
 
 name: test QRM client
 
-#on:
-#  push:
-#    branches: [ main ]
-#  pull_request:
-#    branches: [ main ]
-#  workflow_call:
+on:
+  push:
+    branches: [ foo ]
+  pull_request:
+    branches: [ foo ]
+  workflow_call:
 
 jobs:
   build:
