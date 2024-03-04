@@ -4,7 +4,7 @@ import pytest
 import time
 
 from qrm_defs.resource_definition import Resource, ResourcesRequest, ResourcesRequestResponse, ResourcesByName, \
-    PENDING_STATUS, ACTIVE_STATUS, DISABLED_STATUS
+    PENDING_STATUS, ACTIVE_STATUS, DISABLED_STATUS, ResourcesByTags
 from qrm_server.q_manager import QueueManagerBackEnd
 from db_adapters.redis_adapter import RedisDB
 from typing import List
@@ -1376,3 +1376,52 @@ async def test_get_response_by_request_order_after_tags_rearrange(redis_db_objec
     is_active =  await qrm_backend_with_db.is_request_active(token=new_token_2)
 
     assert not is_active
+
+
+async def test_get_response_by_request_backward_compatible_order(redis_db_object, qrm_backend_with_db):
+    # this test verifies upgrade of qrm_server after the change in response order, since the ORIG_REQUEST in db
+    # is a new field which doesn't exist in older versions of qrm_server
+    res_1 = Resource(name='res1', type='res_type1', token='old_token1', status=ACTIVE_STATUS, tags=['res_type1'])
+    res_2 = Resource(name='res2', type='res_type2', token='old_token1', status=ACTIVE_STATUS, tags=['res_type2'])
+    res_3 = Resource(name='res3', type='res_type3', token='old_token2', status=ACTIVE_STATUS, tags=['res_type3'])
+
+    await redis_db_object.add_resource(res_1)
+    await redis_db_object.add_resource(res_2)
+    await redis_db_object.add_resource(res_3)
+
+    user_request1 = ResourcesRequest(token='token1')
+    user_request1.add_request_by_names(names=['res1'], count=1)
+    user_request1.add_request_by_names(names=['res3'], count=1)
+
+    result1 = await qrm_backend_with_db.new_request(user_request1)
+
+    user_request2 = ResourcesRequest(token='token2')
+    user_request2.add_request_by_tags(tags=['res_type1'], count=1)
+    user_request2.add_request_by_tags(tags=['res_type2'], count=1)
+    user_request2.add_request_by_tags(tags=['res_type3'], count=1)
+
+    fut2 = asyncio.ensure_future(qrm_backend_with_db.new_request(user_request2))
+
+    # res_1 (type1): [token1, token2]
+    # res_2 (type2): [token2]
+    # res_3 (type3): [token1, token2]
+
+    await asyncio.sleep(0.1)
+
+    token_1_new = await qrm_backend_with_db.get_new_token('token1')
+    token_2_new = await qrm_backend_with_db.get_new_token('token2')
+
+    # verify orig request exists:
+    token_2_orig_request = await redis_db_object.get_orig_request(token_2_new)
+    assert ResourcesByTags(tags=['res_type1'], count=1) in token_2_orig_request.tags
+
+    # delete token from orig request:
+    await redis_db_object.redis.hdel('orig_requests', token_2_new)
+    token_2_orig_request = await redis_db_object.get_orig_request(token_2_new)
+    assert token_2_orig_request == ResourcesRequest()
+
+    # now orig_request of token2 does not exist, cancel token1 and verify it filled:
+    await qrm_backend_with_db.cancel_request(token_1_new)
+    await fut2
+    resp2 = await qrm_backend_with_db.get_resource_req_resp(token_2_new)
+    assert 'res1' and 'res2' and 'res3' in resp2.names
