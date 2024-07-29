@@ -238,7 +238,7 @@ def create_parser() -> argparse.ArgumentParser.parse_args:
 if __name__ == "__main__":
     try:
         run_args = create_parser()
-        run_server(run_args.listen_port, run_args.use_pending_logic, path_to_log_file=run_args.log_file_path,
+        run_server(int(run_args.listen_port), run_args.use_pending_logic, path_to_log_file=run_args.log_file_path,
                    loglevel=run_args.loglevel)
     except KeyboardInterrupt:
         print('\n\nProgram terminated by user. Exiting...')
