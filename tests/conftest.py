@@ -20,6 +20,7 @@ from qrm_client.qrm_http_client import QrmClient, ManagementClient
 from werkzeug.wrappers import Request, Response
 from multiprocessing import Process
 
+
 TEST_TOKEN = 'token1234'
 REDIS_PORT = 6379
 
