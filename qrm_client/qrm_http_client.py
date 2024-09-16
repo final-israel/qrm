@@ -20,7 +20,7 @@ def json_to_dict(json_str: str or dict) -> dict:
 
 
 def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> requests.Response or None:
-    logging.info(f'post {data_json} to url {full_url}')
+    logging.debug(f'post {data_json} to url {full_url}')
     data_json = json_to_dict(data_json)
     try:
         _resp = requests.post(url=full_url, json=data_json)
@@ -36,9 +36,9 @@ def post_to_url(full_url: str, data_json: dict or str, *args, **kwargs) -> reque
 def get_from_url(full_url: str, params: dict = None, *args, **kwargs) -> requests.Response or None:
     if params is None:
         params = {}
-        logging.info(f'send to url {full_url}')
+        logging.debug(f'send to url {full_url}')
     else:
-        logging.info(f'send to url {full_url}, params={params}')
+        logging.debug(f'send to url {full_url}, params={params}')
 
     try:
         s = requests.Session()
@@ -48,7 +48,7 @@ def get_from_url(full_url: str, params: dict = None, *args, **kwargs) -> request
         s.mount('http://', HTTPAdapter(max_retries=retries))
 
         _resp = s.get(full_url, params=params)
-        logging.info(f'full url by requests {_resp.url}')
+        logging.debug(f'full url by requests {_resp.url}')
     except Exception as e:
         logging.critical(f'{e}')
         return
@@ -177,7 +177,7 @@ class QrmClient(object):
 
     def _get_token_status(self, token: str, *args, **kwargs):  # #type:  requests.Response:
         full_url = self.full_url(URL_GET_TOKEN_STATUS)
-        logging.info(f'send get token status token= {token} to url {full_url}')
+        logging.debug(f'send get token status token= {token} to url {full_url}')
         _resp = get_from_url(full_url=full_url, params={'token': token})
         return _resp
 
@@ -204,14 +204,23 @@ class QrmClient(object):
                                        timeout: float, token: str,
                                        polling_sleep_time: float = 5):  # #type:  dict:
         start_time = time.time()
+        last_log_time = start_time  # Initialize the last log time
+
         while not resp_data.get('request_complete'):
-            time_d = int(time.time() - start_time)
-            logging.info(f'waiting for token {token} to be ready. wait for {time_d} sec, {resp_data}')
+            current_time = time.time()
+            time_d = int(current_time - start_time)
+
+            # Check if 60 seconds have passed since the last log
+            if current_time - last_log_time >= 60 or last_log_time == start_time:
+                logging.info(f'waiting for token {token} to be ready. wait for {time_d} sec, {resp_data}')
+                last_log_time = current_time  # Update the last log time
+
             if time_d > timeout:
                 logging.warning(f'TIMEOUT! waiting from QRM server has timed out! timeout was set to {timeout}, '
                                 f'canceling the token {token}')
-                _resp = self.send_cancel(token)  # on timeout cancel the token
+                _resp = self.send_cancel(token)  # On timeout, cancel the token
                 raise TimeoutError(f'got timeout while waiting for token {token} status complete')
+
             await asyncio.sleep(polling_sleep_time)
             resp_data = self.get_token_status(token=token)
         return resp_data
@@ -234,7 +243,7 @@ class QrmClient(object):
 
     def wait_for_server_up(self):  # #type:  dict:
         full_url = self.full_url(URL_GET_IS_SERVER_UP)
-        logging.info(f'call api is server up {full_url}')
+        logging.debug(f'call api is server up {full_url}')
         try_again = True
         _resp = None
         while try_again:
@@ -246,7 +255,7 @@ class QrmClient(object):
             except Exception as e:
                 logging.error(f'there is a problem! {e}')
                 time.sleep(1)
-        logging.info(f'call api is server up server is: {_resp}')
+        logging.debug(f'call api is server up server is: {_resp}')
         resp_data = _resp.json()
         while not resp_data.get('status'):
             time.sleep(1)
