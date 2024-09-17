@@ -20,7 +20,7 @@ jobs:
     uses: ./.github/workflows/test-qrm-clinet.yml
     
   build_pkg:
-    needs: [run_tests, get_coverage]
+    needs: [run_tests,]
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
