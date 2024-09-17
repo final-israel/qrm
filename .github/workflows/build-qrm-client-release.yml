@@ -46,7 +46,7 @@ jobs:
         ls -ltrh ./dist/
     
     - name: Publish a Python distribution to PyPI
-      uses: pypa/gh-action-pypi-publish@release
+      uses: pypa/gh-action-pypi-publish@release/v1.10.1
       with:
         verbose: true
 #         password: ${{ secrets.TEST_PYPI_API_TOKEN }}
